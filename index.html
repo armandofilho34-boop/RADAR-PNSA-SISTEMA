@@ -1,0 +1,2683 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar PNSA | "O presente é deles; o futuro é meu." - Tesla</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6161FF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Radar PNSA">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="logo-pnsa.png">
+    <link rel="apple-touch-icon" href="logo-pnsa.png">
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="premium-design.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // FORCE clear all old caches and re-register service worker
+        if ('serviceWorker' in navigator) {
+            // First: unregister ALL old service workers
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+            // Second: delete ALL caches
+            if ('caches' in window) {
+                caches.keys().then(function (names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            // Third: re-register fresh service worker after cleanup
+            setTimeout(function () {
+                // DESATIVADO TEMPORARIAMENTE PARA EVITAR BLOQUEIO DE POST NO FIREBASE
+                // navigator.serviceWorker.register('service-worker.js').catch(console.error);
+            }, 1000);
+        }
+    </script>
+
+
+
+</head>
+
+<body>
+    <!-- Login -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-container">
+            <div class="login-left">
+                <div class="hero-scene">
+                    <iframe src="./hero-animation/index.html" 
+                            style="width: 100%; height: 100%; border: none; background: transparent;" 
+                            allowtransparency="true"></iframe>
+                </div>
+            </div>
+            <div class="login-right">
+
+
+                <div class="login-box">
+                    <div class="login-brand">
+                        <div class="brand-logo">
+                            <img src="logo-pnsa.png" alt="Logo" class="brand-logo-img">
+                        </div>
+                    </div>
+
+                    <h2>Bem-vindo de volta</h2>
+                    <p>Entre na sua conta para continuar</p>
+
+                    <!-- Decorative separator -->
+                    <div class="login-separator">
+                        <span class="login-sep-line"></span>
+                        <span class="login-sep-icon">🔐</span>
+                        <span class="login-sep-line"></span>
+                    </div>
+
+                    <button class="btn-google" id="googleLogin" onclick="loginComGoogle()" style="margin-top:20px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24">
+                            <path fill="#4285F4"
+                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853"
+                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05"
+                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335"
+                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Entrar com Google
+                    </button>
+
+                    <div id="autoLoginMsg"
+                        style="display:none; margin-top: 32px; text-align: center; flex-direction: column; align-items: center;">
+                        <div class="premium-countdown">
+                            <svg width="56" height="56" viewBox="0 0 56 56" style="transform: rotate(-90deg);">
+                                <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.08)"
+                                    stroke-width="4"></circle>
+                                <circle id="loginTimerRing" cx="28" cy="28" r="24" fill="none"
+                                    stroke="url(#timerGradient)" stroke-width="4" stroke-dasharray="150.79"
+                                    stroke-dashoffset="0" stroke-linecap="round"
+                                    style="transition: stroke-dashoffset 1s linear;"></circle>
+                                <defs>
+                                    <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#a855f7" />
+                                        <stop offset="100%" stop-color="#6366f1" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <span class="pc-text" id="loginTimerText">10</span>
+                        </div>
+                        <p
+                            style="color:#888899; font-size:13px; font-weight:500; font-family:'Inter', sans-serif; margin-top:14px; letter-spacing:0.3px;">
+                            Entrando automaticamente...
+                        </p>
+                        <button class="btn-google" onclick="skipAutoLogin()"
+                            style="margin-top:20px; width:100%; max-width: 280px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24">
+                                <path fill="#4285F4"
+                                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                <path fill="#34A853"
+                                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                <path fill="#FBBC05"
+                                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                <path fill="#EA4335"
+                                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                            </svg>
+                            Entrar com Google
+                        </button>
+                    </div>
+
+                    <!-- Security badge -->
+                    <div class="login-security-badge">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <span>Acesso seguro via Google OAuth 2.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div class="app" id="app" style="display:none;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <img src="logo-pnsa.png" alt="Radar PNSA" class="sidebar-logo">
+                    <span class="brand-text">Área de Trabalho</span>
+                </div>
+            </div>
+
+            <div class="user-card">
+                <div class="user-avatar" id="userAvatar">JM</div>
+                <div class="user-details">
+                    <span class="user-name" id="userName">Julia Mendes</span>
+                    <span class="user-dept" id="userDept">Social Media</span>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <a class="nav-link active" data-view="minha-area">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Minha Área
+                </a>
+
+                <a class="nav-link" data-view="minha-agenda">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Minha Agenda
+                </a>
+
+                <a class="nav-link" data-view="kanban">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="5" height="18" rx="1" />
+                        <rect x="10" y="3" width="5" height="12" rx="1" />
+                        <rect x="17" y="3" width="5" height="8" rx="1" />
+                    </svg>
+                    Kanban
+                </a>
+
+                <div class="nav-section" id="navCoordinator">
+                    <span class="nav-section-title">Gestão</span>
+                    <a class="nav-link" data-view="requests">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        Minhas Demandas
+                        <span class="badge" id="badgeRequests">0</span>
+                    </a>
+                    <a class="nav-link" data-view="review">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        Para Revisar
+                        <span class="badge warning" id="badgeReview">0</span>
+                    </a>
+                    <a class="nav-link" data-view="users" id="nav-users" style="display:none;">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Usuários
+                    </a>
+                    <a class="nav-link" data-view="equipe" id="nav-equipe" style="display:none;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Equipe
+                        <span class="badge warning" id="badgeEquipe" style="display:none;">0</span>
+                    </a>
+                </div>
+
+                <div class="nav-section" id="navExecutor">
+                    <span class="nav-section-title">Minhas Tarefas</span>
+                    <a class="nav-link" data-view="tasks">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                        Para Executar
+                        <span class="badge" id="badgeTasks">0</span>
+                    </a>
+                </div>
+
+                <div class="nav-section" id="navQuadros">
+                    <span class="nav-section-title">Quadros</span>
+                    <a class="nav-link" data-view="quadro-geral">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                        Quadro Geral
+                    </a>
+                    <a class="nav-link" data-view="timeline">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="4" y1="6" x2="20" y2="6" />
+                            <rect x="4" y="10" width="8" height="3" rx="1" />
+                            <rect x="6" y="15" width="12" height="3" rx="1" />
+                        </svg>
+                        Timeline
+                    </a>
+                    <a class="nav-link" data-view="analytics">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                        Analytics
+                    </a>
+                    <a class="nav-link" data-view="workload" id="navWorkload">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        Carga de Trabalho
+                    </a>
+                    <a class="nav-link" data-view="mural" id="navMural">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Mural de Avisos
+                    </a>
+                    <a class="nav-link" data-view="lixeira" id="navLixeira" style="display:none">
+                        <svg viewBox="0 0 24 24">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg>
+                        Lixeira
+                    </a>
+                    <a class="nav-link" data-view="templates" id="navTemplates">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                        Templates
+                    </a>
+                </div>
+
+                <div class="nav-section" id="navDeptsSection" style="display:none;">
+                    <span class="nav-section-title">Departamentos</span>
+                    <div id="navDepts"></div>
+                </div>
+
+
+                <div class="nav-section">
+                    <span class="nav-section-title">Ajuda</span>
+                    <a class="nav-link" data-view="guide">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        Guia de Uso
+                    </a>
+                </div>
+
+                <div class="nav-section" id="navTV">
+                    <span class="nav-section-title">Modo TV</span>
+                    <a class="nav-link" id="btnOpenTV" style="cursor:pointer;">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
+                            <polyline points="17 2 12 7 7 2" />
+                        </svg>
+                        Ativar Dashboard TV
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btnLogout">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Sair
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <header class="header">
+                <button class="menu-toggle" id="menuToggle">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <div class="header-title">
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+
+                <!-- Global Search -->
+                <div class="header-search">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"
+                        style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; color:var(--text-muted); pointer-events:none;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="globalSearch" placeholder="Buscar demandas..."
+                        onkeyup="globalSearchHandler(event)">
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+
+                <div class="header-tools">
+                    <!-- Timer (Oculto a pedido) -->
+                    <div class="header-timer" id="headerTimer" onclick="toggleTimer()"
+                        style="display: none !important;">
+                        <span class="timer-icon">⏱️</span>
+                        <span class="timer-display" id="timerDisplay">00:00:00</span>
+                    </div>
+
+                    <!-- Filtro de Mês -->
+                    <div class="month-sel" style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
+                        <label
+                            style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">📆
+                            Mês</label>
+                        <select id="monthSelect" onchange="changeMonth(this.value)"
+                            style="background: var(--surface-light); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); padding: 6px 12px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; outline: none; transition: border-color .2s;">
+                        </select>
+                    </div>
+
+                    <!-- Notifications -->
+                    <button class="header-btn" id="btnNotifications" onclick="toggleNotifications()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="notification-badge" id="notifBadge">0</span>
+                    </button>
+
+                    <!-- Theme Selector -->
+                    <div class="theme-selector" id="themeSelector">
+                        <button class="header-btn" onclick="toggleThemeMenu()">
+                            <span id="themeIcon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <div class="theme-menu" id="themeMenu">
+                            <div class="theme-option" onclick="setTheme('dark')">
+                                <span class="theme-preview dark"></span>
+                                <span>🌙 Escuro</span>
+                            </div>
+                            <div class="theme-option" onclick="setTheme('light')">
+                                <span class="theme-preview light"></span>
+                                <span>☀️ Claro</span>
+                            </div>
+                            <div class="theme-option" onclick="setTheme('monday')">
+                                <span class="theme-preview monday"></span>
+                                <span>🚀 Monday</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export -->
+                    <button class="header-btn" onclick="openExportModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+
+                    <!-- Backup (Oculto a pedido) -->
+                    <!-- <button class="header-btn" onclick="openBackupModal()">💾</button> -->
+                </div>
+
+                <div class="header-actions" id="headerActions">
+                    <button class="btn-create" id="btnCreate">
+                        <svg viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>Nova Demanda</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Notifications Panel -->
+            <div class="notifications-panel" id="notificationsPanel">
+                <div class="notif-header">
+                    <h3>🔔 Notificações</h3>
+                    <button onclick="clearNotifications()">Limpar</button>
+                </div>
+                <div class="notif-list" id="notifList"></div>
+            </div>
+
+            <div class="content">
+
+                <!-- Visão do Gestor de Equipe -->
+                <section class="view" id="view-equipe" style="display:none;">
+                    <div class="header-tools" style="justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <div>
+                            <h2 style="font-size: 24px; color: var(--text-color); margin-bottom: 4px;">Demandas da Equipe</h2>
+                            <p style="color: var(--text-muted); font-size: 14px;">Gerencie as demandas do departamento: <strong id="gestorDeptName" style="color: var(--primary, #6366f1);"></strong></p>
+                        </div>
+                    </div>
+                    
+                    <div class="controls-row" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+                        <input type="text" id="filterEquipeSearch" placeholder="🔍 Buscar na equipe..." style="flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color);">
+                        <select id="filterEquipeStatus" style="padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color);">
+                            <option value="">Todos os Status</option>
+                            <option value="Na Fila">Na Fila</option>
+                            <option value="Fazendo">Fazendo</option>
+                            <option value="Para aprovação">Para aprovação</option>
+                            <option value="Aprovado">Aprovado</option>
+                        </select>
+                    </div>
+
+                    <!-- Cards layout exactly like Minha Área -->
+                    <div class="task-grid" id="equipeGrid">
+                        <!-- Rederizado pelo JS: renderEquipeView() -->
+                    </div>
+                </section>
+                <!-- Minha Área - Personal Dashboard -->
+                <section class="view active" id="view-minha-area">
+                    <div class="welcome-banner">
+                        <div class="welcome-text">
+                            <h2>Olá, <span id="welcomeName">Julia</span>! <span class="wave-emoji"
+                                    style="display:inline-block">👋</span></h2>
+                            <p id="welcomeDesc">Acompanhe suas demandas</p>
+                        </div>
+                        <button class="btn-create-alt" id="btnCreateAlt">
+                            <svg viewBox="0 0 24 24">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            Nova Demanda
+                        </button>
+                    </div>
+
+                    <div class="metrics-row">
+                        <div class="metric-card" onclick="showMetricDemandas('all')" style="cursor:pointer;" title="Clique para ver todas as demandas">
+                            <div class="metric-icon blue">
+                                <svg viewBox="0 0 24 24" fill="none" class="kinetic-svg float-icon">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <polyline points="10 9 9 9 8 9" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="mTotal">0</span>
+                                <span class="metric-label">Total</span>
+                            </div>
+                        </div>
+                        <div class="metric-card" onclick="showMetricDemandas('Fazendo')" style="cursor:pointer;" title="Clique para ver demandas em andamento">
+                            <div class="metric-icon orange">
+                                <svg viewBox="0 0 24 24" fill="none" class="kinetic-svg spin-watch">
+                                    <path d="M5 22h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <path d="M5 2h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <path
+                                        d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="mPending">0</span>
+                                <span class="metric-label">Em Andamento</span>
+                            </div>
+                        </div>
+                        <div class="metric-card" onclick="showMetricDemandas('Para aprovação')" style="cursor:pointer;" title="Clique para ver demandas para revisar">
+                            <div class="metric-icon purple">
+                                <svg viewBox="0 0 24 24" fill="none" class="kinetic-svg pulse-scan">
+                                    <path
+                                        d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="mReview">0</span>
+                                <span class="metric-label">Para Revisar</span>
+                            </div>
+                        </div>
+                        <div class="metric-card" onclick="showMetricDemandas('Aprovado')" style="cursor:pointer;" title="Clique para ver demandas concluídas">
+                            <div class="metric-icon green">
+                                <svg viewBox="0 0 24 24" fill="none" class="kinetic-svg glow-pop">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="mDone">0</span>
+                                <span class="metric-label">Concluídas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Painel de Demandas Filtradas (Acesso Rápido) -->
+                    <div id="metricDemandasPanel" style="display:none; margin-bottom:20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h3 id="metricDemandasTitle" style="margin:0; font-size:1.1em;">Demandas</h3>
+                            <button onclick="document.getElementById('metricDemandasPanel').style.display='none'; document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'))" style="background:none; border:none; cursor:pointer; font-size:18px; color:var(--text-muted);" title="Fechar">✕</button>
+                        </div>
+                        <div id="metricDemandasList"></div>
+                    </div>
+
+                    <!-- Dashboard Charts -->
+                    <div class="dashboard-charts">
+                        <div class="chart-panel">
+                            <h3>📊 Por Status</h3>
+                            <div class="chart-content" id="dashChartStatus"></div>
+                        </div>
+                        <div class="chart-panel">
+                            <h3>🔥 Por Prioridade</h3>
+                            <div class="chart-content" id="dashChartPriority"></div>
+                        </div>
+                        <div class="chart-panel">
+                            <h3>📁 Por Tipo de Projeto</h3>
+                            <div class="chart-content" id="dashChartType"></div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>📝 Atividade Recente</h3>
+                            </div>
+                            <div class="panel-body" id="recentActivity"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>📈 Meu Progresso</h3>
+                            </div>
+                            <div class="panel-body" id="meuProgresso"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Minha Agenda (Personal Calendar) -->
+                <section class="view" id="view-minha-agenda">
+                    <div class="agenda-header">
+                        <div class="agenda-user-info">
+                            <div class="agenda-avatar" id="agendaAvatar">JM</div>
+                            <div>
+                                <h2 id="agendaUserName">Minha Agenda</h2>
+                                <p id="agendaUserDept">Minhas demandas do mês</p>
+                            </div>
+                        </div>
+                        <div class="agenda-nav">
+                            <button class="btn-nav" id="btnAgendaPrev">◀</button>
+                            <h3 id="agendaTitle">Janeiro 2026</h3>
+                            <button class="btn-nav" id="btnAgendaNext">▶</button>
+                            <button class="btn-today" id="btnAgendaToday">Hoje</button>
+                        </div>
+                    </div>
+
+                    <div class="agenda-stats">
+                        <div class="agenda-stat">
+                            <span class="agenda-stat-value" id="agendaTotal">0</span>
+                            <span class="agenda-stat-label">Demandas este mês</span>
+                        </div>
+                        <div class="agenda-stat">
+                            <span class="agenda-stat-value" id="agendaPending">0</span>
+                            <span class="agenda-stat-label">Em andamento</span>
+                        </div>
+                        <div class="agenda-stat">
+                            <span class="agenda-stat-value" id="agendaDone">0</span>
+                            <span class="agenda-stat-label">Concluídas</span>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.15); border-radius:12px; margin-bottom:16px;">
+                        <span style="font-size:20px; flex-shrink:0;">📅</span>
+                        <p style="margin:0; font-size:0.85em; color:var(--text-secondary); line-height:1.4;">
+                            <strong style="color:var(--text-primary);">Datas de Entrega</strong> — O calendário exibe as <strong>datas de entrega (prazo)</strong> de cada demanda. Clique em um dia para ver os detalhes das entregas previstas.
+                        </p>
+                    </div>
+
+                    <div class="calendar-grid">
+                        <div class="calendar-weekdays">
+                            <span>Dom</span>
+                            <span>Seg</span>
+                            <span>Ter</span>
+                            <span>Qua</span>
+                            <span>Qui</span>
+                            <span>Sex</span>
+                            <span>Sáb</span>
+                        </div>
+                        <div class="calendar-days" id="agendaDays"></div>
+                    </div>
+
+                    <div class="calendar-legend">
+                        <span class="legend-item"><span class="legend-dot urgente"></span> Urgente</span>
+                        <span class="legend-item"><span class="legend-dot alta"></span> Alta</span>
+                        <span class="legend-item"><span class="legend-dot normal"></span> Normal</span>
+                        <span class="legend-item"><span class="legend-dot baixa"></span> Baixa</span>
+                    </div>
+                </section>
+
+
+                <!-- Minhas Demandas -->
+                <section id="view-requests" class="view">
+                    <div id="requestsTable"></div>
+                </section>
+
+                <!-- Review View -->
+                <section class="view" id="view-review">
+                    <div class="table-wrapper" id="reviewTable"></div>
+                </section>
+
+                <!-- Guia de Uso -->
+                <section class="view" id="view-guide">
+                    <div class="guide-container">
+                        <!-- Hero Carousel -->
+                        <div class="guide-carousel" id="guideCarousel">
+                            <div class="guide-carousel-inner">
+                                <!-- Banner 1 -->
+                                <div class="carousel-slide active" data-slide="0">
+                                    <div class="carousel-bg" style="background-image: url('guide_banner_1.png');"></div>
+                                    <div class="carousel-overlay"></div>
+                                    <div class="carousel-content">
+                                        <div class="carousel-badge">💡 GUIA OFICIAL</div>
+                                        <h2 class="carousel-title">Domine o Radar PNSA</h2>
+                                        <p class="carousel-desc">Descubra as funcionalidades avançadas, atalhos de
+                                            produtividade e tire todas as suas dúvidas no nosso manual interativo
+                                            exclusivo.</p>
+                                    </div>
+                                </div>
+                                <!-- Banner 2 -->
+                                <div class="carousel-slide" data-slide="1">
+                                    <div class="carousel-bg" style="background-image: url('guide_banner_2.png');"></div>
+                                    <div class="carousel-overlay"></div>
+                                    <div class="carousel-content">
+                                        <div class="carousel-badge">🚀 FLUXO ÁGIL</div>
+                                        <h2 class="carousel-title">Otimize a Rotina</h2>
+                                        <p class="carousel-desc">Aprenda as regras de negócio de aprovação, bloqueio de
+                                            cartões e uso dos timers automáticos para as suas tarefas.</p>
+                                    </div>
+                                </div>
+                                <!-- Banner 3 -->
+                                <div class="carousel-slide" data-slide="2">
+                                    <div class="carousel-bg" style="background-image: url('guide_banner_3.png');"></div>
+                                    <div class="carousel-overlay"></div>
+                                    <div class="carousel-content">
+                                        <div class="carousel-badge">⚙️ WORKSPACE</div>
+                                        <h2 class="carousel-title">Seu Kanban Premium</h2>
+                                        <p class="carousel-desc">Filtre demandas, alterne as exibições em tempo real e
+                                            controle todas as etapas da engrenagem criativa e de TI.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="carousel-nav" id="carouselNav">
+                                <div class="carousel-dot active" onclick="setCarouselSlide(0)"></div>
+                                <div class="carousel-dot" onclick="setCarouselSlide(1)"></div>
+                                <div class="carousel-dot" onclick="setCarouselSlide(2)"></div>
+                            </div>
+                        </div>
+
+                        <script>
+                            let currentGuideSlide = 0;
+                            const totalGuideSlides = 3;
+                            let guideCarouselTimer;
+
+                            function setCarouselSlide(index) {
+                                currentGuideSlide = index;
+                                document.querySelectorAll('.carousel-slide').forEach((el, i) => {
+                                    if (i === index) el.classList.add('active');
+                                    else el.classList.remove('active');
+                                });
+                                document.querySelectorAll('.carousel-dot').forEach((el, i) => {
+                                    if (i === index) el.classList.add('active');
+                                    else el.classList.remove('active');
+                                });
+                                resetCarouselTimer();
+                            }
+
+                            function nextCarouselSlide() {
+                                let nextSlide = (currentGuideSlide + 1) % totalGuideSlides;
+                                setCarouselSlide(nextSlide);
+                            }
+
+                            function resetCarouselTimer() {
+                                clearInterval(guideCarouselTimer);
+                                guideCarouselTimer = setInterval(nextCarouselSlide, 6000);
+                            }
+
+                            // Init timer
+                            resetCarouselTimer();
+                        </script>
+
+                        <!-- Créditos -->
+                        <div class="guide-credits">
+                            <div class="guide-credit-card primary"
+                                onclick="window.open('https://eusoumateuscorreia.com.br/', '_blank')"
+                                style="cursor: pointer;" title="Ir para o portfólio">
+                                <img class="credit-photo" src="https://i.imgur.com/bizYjtD.jpeg" alt="Mateus Correia">
+                                <div class="credit-info">
+                                    <span class="credit-name">Mateus Correia</span>
+                                    <span class="credit-role">Desenvolvedor Primário</span>
+                                </div>
+                                <span class="credit-badge primary">Lead Dev</span>
+                            </div>
+                            <div class="guide-credit-card secondary"
+                                onclick="window.open('https://portfolioarmandoribeiro.netlify.app', '_blank')"
+                                style="cursor: pointer;" title="Ir para o portfólio">
+                                <img class="credit-photo" src="https://i.imgur.com/T0HBUxb.jpeg" alt="Armando Filho">
+                                <div class="credit-info">
+                                    <span class="credit-name">Armando Filho</span>
+                                    <span class="credit-role">Desenvolvedor Secundário</span>
+                                </div>
+                                <span class="credit-badge secondary">Dev</span>
+                            </div>
+                        </div>
+
+                        <!-- Instruções -->
+                        <div class="guide-sections">
+                            <!-- 1. Primeiros Passos -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">01</span>
+                                    <div>
+                                        <h3>Primeiros Passos</h3>
+                                        <p>Login e navegação básica</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔐</span>
+                                        <div class="step-content">
+                                            <strong>Login com Google</strong>
+                                            <p>Clique em "Entrar com Google" na tela inicial. Seu e-mail deve estar
+                                                cadastrado no sistema.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📱</span>
+                                        <div class="step-content">
+                                            <strong>Menu Lateral</strong>
+                                            <p>Use o menu à esquerda para navegar entre as seções. Em telas menores,
+                                                clique no ícone ☰ no topo.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🌙</span>
+                                        <div class="step-content">
+                                            <strong>Temas</strong>
+                                            <p>Alterne entre modo Escuro, Claro e Monday clicando no ícone 🌙 no
+                                                cabeçalho.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Minha Área -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">02</span>
+                                    <div>
+                                        <h3>Minha Área (Dashboard)</h3>
+                                        <p>Visão geral das suas demandas</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">📊</span>
+                                        <div class="step-content">
+                                            <strong>Métricas Rápidas</strong>
+                                            <p>Veja o total de demandas, em andamento, para revisar e concluídas no topo
+                                                da página.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📈</span>
+                                        <div class="step-content">
+                                            <strong>Gráficos</strong>
+                                            <p>Acompanhe a distribuição por status, prioridade e tipo de projeto em
+                                                gráficos visuais.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔔</span>
+                                        <div class="step-content">
+                                            <strong>Notificações</strong>
+                                            <p>O sino 🔔 no cabeçalho mostra alertas de mudanças de status, novas
+                                                demandas e aprovações.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. Criar Demanda -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">03</span>
+                                    <div>
+                                        <h3>Criar Nova Demanda</h3>
+                                        <p>Como solicitar um novo trabalho</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">➕</span>
+                                        <div class="step-content">
+                                            <strong>Botão "+ Nova Demanda"</strong>
+                                            <p>Clique no botão verde no canto superior direito para abrir o formulário
+                                                de criação.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📝</span>
+                                        <div class="step-content">
+                                            <strong>Preencha os Campos</strong>
+                                            <p>Informe: nome da demanda, tipo de projeto (Post, Vídeo, etc.), prioridade
+                                                (Crítico→Baixa), data de conclusão, departamento(s) e responsável(eis).
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📎</span>
+                                        <div class="step-content">
+                                            <strong>Anexos e Descrição</strong>
+                                            <p>Adicione uma descrição detalhada e anexe arquivos de referência. Quanto
+                                                mais contexto, melhor!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. Kanban Board -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">04</span>
+                                    <div>
+                                        <h3>Kanban Board</h3>
+                                        <p>Gestão visual e fluxo completo das demandas</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">📋</span>
+                                        <div class="step-content">
+                                            <strong>5 Colunas de Status</strong>
+                                            <p>O Kanban é dividido em 5 colunas que representam o ciclo de vida de cada
+                                                demanda:</p>
+                                            <p>🟡 <strong>A fazer</strong> → 🔵 <strong>Fazendo</strong> → 🟣
+                                                <strong>Para aprovação</strong> → 🔴 <strong>Alteração</strong> → 🟢
+                                                <strong>Aprovado</strong>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🟡</span>
+                                        <div class="step-content">
+                                            <strong>A Fazer (Aguardando)</strong>
+                                            <p>Quando uma demanda é criada, ela aparece aqui. O executor designado deve
+                                                arrastá-la para "Fazendo" quando iniciar o trabalho.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔵</span>
+                                        <div class="step-content">
+                                            <strong>Fazendo (Em Execução)</strong>
+                                            <p>A demanda está sendo trabalhada. Ao concluir, o executor arrasta para
+                                                "Para aprovação". <strong>Atenção:</strong> não é possível voltar para
+                                                "A fazer" após iniciar.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🟣</span>
+                                        <div class="step-content">
+                                            <strong>Para Aprovação</strong>
+                                            <p>A demanda fica <strong>travada</strong> nesta coluna — apenas o
+                                                solicitante original ou coordenador pode aprovar ou solicitar alteração.
+                                                O executor não consegue mais movê-la.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔴</span>
+                                        <div class="step-content">
+                                            <strong>Alteração Solicitada</strong>
+                                            <p>Se o revisor solicitar ajustes, a demanda volta para o executor com um
+                                                comentário do que precisa ser corrigido. Após ajustar, arraste novamente
+                                                para "Para aprovação".</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🟢</span>
+                                        <div class="step-content">
+                                            <strong>Aprovado (Concluído)</strong>
+                                            <p>O trabalho foi aceito pelo solicitante. A demanda é finalizada e
+                                                contabilizada nas métricas do dashboard.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔗</span>
+                                        <div class="step-content">
+                                            <strong>Pipeline Multi-Departamento</strong>
+                                            <p>Se a demanda envolve mais de um departamento (ex: Design → Vídeo → Social
+                                                Media), cada etapa segue o mesmo fluxo. Ao ser aprovada em uma etapa, a
+                                                demanda avança automaticamente para o próximo departamento.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🖱️</span>
+                                        <div class="step-content">
+                                            <strong>Arrastar e Soltar</strong>
+                                            <p>Arraste os cards entre colunas para atualizar o status. A zona de drop
+                                                fica destacada em roxo. Cards com cadeado 🔒 estão travados para o seu
+                                                perfil.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🔍</span>
+                                        <div class="step-content">
+                                            <strong>Filtros e Busca</strong>
+                                            <p>Use a barra de pesquisa para buscar por nome. Filtre por prioridade
+                                                (Crítico, Alta, Média, Baixa) ou departamento para encontrar demandas
+                                                específicas.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🎨</span>
+                                        <div class="step-content">
+                                            <strong>Cores de Prioridade</strong>
+                                            <p>Cada card tem uma barra lateral colorida: 🔴 Crítico/Urgente, 🟠 Alta, 🔵
+                                                Média/Normal, ⚪ Baixa. Isso ajuda a identificar rapidamente as demandas
+                                                mais urgentes.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 5. Fluxo de Aprovação -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">05</span>
+                                    <div>
+                                        <h3>Fluxo de Aprovação</h3>
+                                        <p>Como revisar e aprovar demandas</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">👁️</span>
+                                        <div class="step-content">
+                                            <strong>Para Revisar</strong>
+                                            <p>Quando o executor finaliza, a demanda aparece em "Para Revisar". O
+                                                solicitante (ou coordenador) deve revisar.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">✅</span>
+                                        <div class="step-content">
+                                            <strong>Aprovar</strong>
+                                            <p>Se o trabalho estiver correto, clique em "Aprovar". A demanda é marcada
+                                                como concluída.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">✏️</span>
+                                        <div class="step-content">
+                                            <strong>Solicitar Alteração</strong>
+                                            <p>Se precisar de ajustes, solicite alteração com um comentário. O executor
+                                                receberá a notificação.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 6. Calendário e Agenda -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">06</span>
+                                    <div>
+                                        <h3>Minha Agenda</h3>
+                                        <p>Calendário pessoal de demandas</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">📅</span>
+                                        <div class="step-content">
+                                            <strong>Visualização Mensal</strong>
+                                            <p>Veja suas demandas organizadas no calendário. Os pontos coloridos indicam
+                                                a prioridade.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">⚡</span>
+                                        <div class="step-content">
+                                            <strong>Filtro por Mês</strong>
+                                            <p>Use o seletor de mês no cabeçalho para navegar entre meses anteriores e
+                                                visualizar o histórico.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 7. Ferramentas Extras -->
+                            <div class="guide-section">
+                                <div class="guide-section-header">
+                                    <span class="guide-section-number">07</span>
+                                    <div>
+                                        <h3>Ferramentas Extras</h3>
+                                        <p>Recursos adicionais do sistema</p>
+                                    </div>
+                                </div>
+                                <div class="guide-steps">
+                                    <div class="guide-step">
+                                        <span class="step-icon">📺</span>
+                                        <div class="step-content">
+                                            <strong>Dashboard TV</strong>
+                                            <p>Modo para exibir métricas em uma TV. Acesse pelo menu lateral → "Ativar
+                                                Dashboard TV".</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📢</span>
+                                        <div class="step-content">
+                                            <strong>Mural de Avisos</strong>
+                                            <p>Publique e leia avisos gerais da equipe. Coordenadores podem fixar avisos
+                                                importantes.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">📥</span>
+                                        <div class="step-content">
+                                            <strong>Exportar Dados</strong>
+                                            <p>Clique no ícone ⬇️ no cabeçalho para exportar os dados em formato de
+                                                relatório.</p>
+                                        </div>
+                                    </div>
+                                    <div class="guide-step">
+                                        <span class="step-icon">🗑️</span>
+                                        <div class="step-content">
+                                            <strong>Lixeira</strong>
+                                            <p>Demandas excluídas ficam aqui por segurança. Coordenadores podem
+                                                restaurá-las.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="guide-footer">
+                            <p>Radar PNSA © 2026 · Desenvolvido por <a href="https://eusoumateuscorreia.com.br/"
+                                    target="_blank" style="color: inherit; text-decoration: underline;">Mateus
+                                    Correia</a> e <a href="https://portfolioarmandoribeiro.netlify.app" target="_blank"
+                                    style="color: inherit; text-decoration: underline;">Armando Filho</a></p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tasks View -->
+                <section class="view" id="view-tasks">
+                    <div class="toolbar">
+                        <select class="filter-select" id="filterTasks">
+                            <option value="">Todos os status</option>
+                            <option value="A fazer">A fazer</option>
+                            <option value="Fazendo">Fazendo</option>
+                            <option value="Alteração">Alteração Solicitada</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper" id="tasksTable"></div>
+                </section>
+
+                <!-- Kanban View -->
+                <section class="view" id="view-kanban">
+                    <div class="toolbar">
+                        <input type="text" class="search-input" id="kanbanSearch" placeholder="🔍 Pesquisar...">
+                        <select class="filter-select" id="filterKanbanPrio">
+                            <option value="">Todas prioridades</option>
+                            <option value="Crítico">⚠️ Crítico</option>
+                            <option value="Alta">🔴 Alta</option>
+                            <option value="Média">🟡 Média</option>
+                            <option value="Baixa">🟢 Baixa</option>
+                        </select>
+                        <select class="filter-select" id="filterKanbanDept">
+                            <option value="">Todos departamentos</option>
+                            <option value="Designer">Designer</option>
+                            <option value="Videomaker">Videomaker</option>
+                            <option value="Transmissão">Transmissão</option>
+                            <option value="Suporte">Suporte</option>
+                            <option value="Inovação/TI">Inovação/TI</option>
+                        </select>
+                    </div>
+                    <div class="kanban-board" id="kanbanBoard">
+                        <div class="kanban-column" data-status="A fazer">
+                            <div class="kanban-column-header a-fazer">
+                                <span class="kanban-column-title">📋 A fazer</span>
+                                <span class="kanban-column-count" id="countAFazer">0</span>
+                            </div>
+                            <div class="kanban-cards" id="cardsAFazer" data-status="A fazer"></div>
+                        </div>
+                        <div class="kanban-column" data-status="Fazendo">
+                            <div class="kanban-column-header fazendo">
+                                <span class="kanban-column-title">🔄 Fazendo</span>
+                                <span class="kanban-column-count" id="countFazendo">0</span>
+                            </div>
+                            <div class="kanban-cards" id="cardsFazendo" data-status="Fazendo"></div>
+                        </div>
+                        <div class="kanban-column" data-status="Para aprovação">
+                            <div class="kanban-column-header aprovacao">
+                                <span class="kanban-column-title">👁️ Para aprovação</span>
+                                <span class="kanban-column-count" id="countAprovacao">0</span>
+                            </div>
+                            <div class="kanban-cards" id="cardsAprovacao" data-status="Para aprovação"></div>
+                        </div>
+                        <div class="kanban-column" data-status="Alteração">
+                            <div class="kanban-column-header alteracao">
+                                <span class="kanban-column-title">🔁 Alteração</span>
+                                <span class="kanban-column-count" id="countAlteracao">0</span>
+                            </div>
+                            <div class="kanban-cards" id="cardsAlteracao" data-status="Alteração"></div>
+                        </div>
+                        <div class="kanban-column" data-status="Aprovado">
+                            <div class="kanban-column-header aprovado">
+                                <span class="kanban-column-title">✅ Aprovado</span>
+                                <span class="kanban-column-count" id="countAprovado">0</span>
+                            </div>
+                            <div class="kanban-cards" id="cardsAprovado" data-status="Aprovado"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Timeline/Gantt View -->
+                <section class="view" id="view-timeline">
+                    <div class="timeline-header">
+                        <div class="timeline-nav">
+                            <button class="btn-icon" onclick="timelineNav(-1)">◀</button>
+                            <h2 id="timelineMonth">Janeiro 2026</h2>
+                            <button class="btn-icon" onclick="timelineNav(1)">▶</button>
+                        </div>
+                        <div class="timeline-scale">
+                            <button class="scale-btn active" onclick="setTimelineScale('week')">Semana</button>
+                            <button class="scale-btn" onclick="setTimelineScale('month')">Mês</button>
+                        </div>
+                    </div>
+                    <div class="timeline-container" id="timelineContainer">
+                        <div class="timeline-days" id="timelineDays"></div>
+                        <div class="timeline-rows" id="timelineRows"></div>
+                    </div>
+                </section>
+
+                <!-- VIEW: USERS -->
+                <section id="view-users" class="view" style="display:none;">
+                    <div class="view-header">
+                        <h2>Gestão de Usuários</h2>
+                        <button class="btn-primary" onclick="openUserModal()">+ Novo Usuário</button>
+                    </div>
+                    <div class="card">
+                        <div class="table-responsive">
+                            <div id="usersTableWrapper" class="table-wrapper"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analytics Dashboard -->
+                <section class="view" id="view-analytics">
+                    <div class="analytics-header">
+                        <h2>📈 Dashboard de Produtividade</h2>
+                        <select id="analyticsPeriod" onchange="renderAnalytics()">
+                            <option value="week">Esta Semana</option>
+                            <option value="month" selected>Este Mês</option>
+                            <option value="quarter">Trimestre</option>
+                            <option value="year">Este Ano</option>
+                        </select>
+                    </div>
+                    <div class="analytics-metrics" id="analyticsMetrics"></div>
+                    <div class="analytics-charts">
+                        <div class="analytics-panel">
+                            <h3>⏱️ Tempo Médio por Etapa</h3>
+                            <div id="chartTimeByStage"></div>
+                        </div>
+                        <div class="analytics-panel">
+                            <h3>📊 Demandas por Status</h3>
+                            <div id="chartByStatus"></div>
+                        </div>
+                        <div class="analytics-panel">
+                            <h3>👤 Produtividade por Usuário</h3>
+                            <div id="chartByUser"></div>
+                        </div>
+                        <div class="analytics-panel">
+                            <h3>📅 Tendência Mensal</h3>
+                            <div id="chartTrend"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Workload Dashboard -->
+                <section class="view" id="view-workload">
+                    <div class="workload-header">
+                        <h2>⚡ Carga de Trabalho da Equipe</h2>
+                        <p class="workload-subtitle">Distribuição de demandas ativas por colaborador</p>
+                    </div>
+                    <div class="workload-summary" id="workloadSummary"></div>
+                    <div id="workloadGrid"></div>
+                </section>
+
+                <!-- Templates View -->
+                <section class="view" id="view-templates">
+                    <div class="templates-header">
+                        <h2>🔁 Templates de Demandas</h2>
+                        <p class="templates-subtitle">Reutilize modelos de demandas recorrentes</p>
+                    </div>
+                    <div class="templates-grid" id="templatesGrid"></div>
+                    <div class="templates-empty" id="templatesEmpty" style="display:none;">
+                        <div class="empty-icon">📋</div>
+                        <h3>Nenhum template salvo</h3>
+                        <p>Crie uma demanda e clique em "Salvar como Template" para reutilizá-la depois.</p>
+                    </div>
+                </section>
+
+                <!-- Quadro Geral View -->
+                <section class="view" id="view-quadro-geral">
+                    <div class="toolbar">
+                        <input type="text" class="search-input" id="quadroSearch"
+                            placeholder="🔍 Pesquisar demandas...">
+                        <select class="filter-select" id="filterQuadroStatus">
+                            <option value="">Todos os status</option>
+                            <option value="A fazer">A fazer</option>
+                            <option value="Fazendo">Fazendo</option>
+                            <option value="Para aprovação">Para aprovação</option>
+                            <option value="Alteração">Alteração</option>
+                            <option value="Aprovado">Aprovado</option>
+                        </select>
+                        <select class="filter-select" id="filterQuadroDept">
+                            <option value="">Todos departamentos</option>
+                            <option value="Designer">Designer</option>
+                            <option value="Videomaker">Videomaker</option>
+                            <option value="Transmissão">Transmissão</option>
+                            <option value="Suporte">Suporte</option>
+                            <option value="Inovação/TI">Inovação/TI</option>
+                        </select>
+                        <select class="filter-select" id="filterQuadroPrio">
+                            <option value="">Todas prioridades</option>
+                            <option value="Urgente">Urgente</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Baixa">Baixa</option>
+                        </select>
+                    </div>
+                    <div class="quadro-stats" id="quadroStats"></div>
+                    <div class="table-wrapper" id="quadroGeralTable"></div>
+                </section>
+
+                <!-- Board View -->
+                <section class="view" id="view-board">
+                    <div class="toolbar">
+                        <input type="text" class="search-input" id="boardSearch" placeholder="🔍 Pesquisar...">
+                        <select class="filter-select" id="filterBoard">
+                            <option value="">Todos os status</option>
+                            <option value="A fazer">A fazer</option>
+                            <option value="Fazendo">Fazendo</option>
+                            <option value="Para aprovação">Para aprovação</option>
+                            <option value="Alteração">Alteração</option>
+                            <option value="Aprovado">Aprovado</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper" id="boardTable"></div>
+                </section>
+                <!-- Mural de Avisos View -->
+                <section class="view" id="view-mural">
+                    <div class="header-tools">
+                        <h2>Mural de Avisos</h2>
+                        <button class="btn-primary" onclick="openCreateAvisoModal()" id="btnNewAviso"
+                            style="display:none">
+                            📣 Novo Aviso
+                        </button>
+                    </div>
+                    <div class="mural-grid" id="muralGrid">
+                        <!-- Cards injected by JS -->
+                    </div>
+                </section>
+
+                <!-- Lixeira View -->
+                <section class="view" id="view-lixeira">
+                    <div class="header-tools">
+                        <h2>Lixeira / Arquivo Morto</h2>
+                        <button class="btn-danger" onclick="emptyTrash()" id="btnEmptyTrash" style="display:none">
+                            🧹 Esvaziar Lixeira
+                        </button>
+                    </div>
+                    <div class="lixeira-container" id="lixeiraContainer">
+                        <!-- Items injected by JS -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Nova Demanda -->
+    <div class="modal-backdrop" id="modalCreate">
+        <div class="modal modal-xl">
+            <div class="modal-header">
+                <div class="modal-header-brand">
+                    <img src="logo-pnsa.png" alt="Radar PNSA" class="modal-logo"
+                        style="width: 44px; height: 44px; border-radius: 10px; object-fit: cover;">
+                    <div>
+                        <h2>Formulário de Solicitação de Demanda</h2>
+                        <p>Ferramenta oficial para solicitação de demandas</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeModal('modalCreate')">×</button>
+            </div>
+            <form id="formCreate">
+                <div class="modal-body">
+                    <!-- 1. Dados Gerais -->
+                    <div class="form-section">
+                        <h4>📋 Dados Gerais</h4>
+                        <div class="form-group">
+                            <label>NOME DA DEMANDA <span class="req">*</span></label>
+                            <input type="text" id="cNome" required placeholder="Ex.: [Evento] Bazar de Páscoa">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>SOLICITANTE <span class="req">*</span></label>
+                                <select id="cSolicitante" required>
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>RESPONSÁVEL <span class="req">*</span></label>
+                                <select id="cResponsavel" multiple style="height: auto; min-height: 80px;">
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>TIPO DE PROJETO <span class="req">*</span></label>
+                                <select id="cTipoProjeto" required onchange="onTipoProjetoChange()">
+                                    <option value="">Selecione...</option>
+                                    <option value="Design Gráfico">Design Gráfico</option>
+                                    <option value="Videomaker">Videomaker</option>
+                                    <option value="Transmissão">Transmissão</option>
+                                    <option value="Social Media">Social Media</option>
+                                    <option value="TI">TI</option>
+                                    <option value="Suporte">Suporte</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>PRIORIDADE <span class="req">*</span></label>
+                                <select id="cPrioridade" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Crítico">Crítico ⚠️</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Média">Média</option>
+                                    <option value="Baixa">Baixa</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Tipos Específicos -->
+                <div id="sectionSubType" class="form-section conditional-section" style="display:none;">
+                    <h4 id="subTypeTitle">📦 Tipo de Demanda</h4>
+
+                    <div id="groupDesign" class="sub-type-group" style="display:none;">
+                        <div class="form-group">
+                            <label>TIPO DE DEMANDA DESIGN</label>
+                            <select id="cTipoDesign" onchange="handleSubTypeChange('Design')">
+                                <option value="">Selecione...</option>
+                                <option value="EVENTOS">EVENTOS</option>
+                                <option value="MISSAS">MISSAS</option>
+                                <option value="PRODUTOS">PRODUTOS</option>
+                                <option value="CRIATIVOS">CRIATIVOS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="groupVideo" class="sub-type-group" style="display:none;">
+                        <div class="form-group">
+                            <label>TIPO DE DEMANDA VIDEOMAKER</label>
+                            <select id="cTipoVideo" onchange="handleSubTypeChange('Video')">
+                                <option value="">Selecione...</option>
+                                <option value="EVENTOS">EVENTOS</option>
+                                <option value="MISSAS">MISSAS</option>
+                                <option value="PRODUTOS">PRODUTOS</option>
+                                <option value="CRIATIVOS">CRIATIVOS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="groupSocial" class="sub-type-group" style="display:none;">
+                        <div class="form-group">
+                            <label>TIPO DE DEMANDA SOCIAL MEDIA</label>
+                            <select id="cTipoSocial" onchange="handleSubTypeChange('Social')">
+                                <option value="">Selecione...</option>
+                                <option value="EVENTOS">EVENTOS</option>
+                                <option value="MISSAS">MISSAS</option>
+                                <option value="PRODUTOS">PRODUTOS</option>
+                                <option value="CRIATIVOS">CRIATIVOS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="groupTI" class="sub-type-group" style="display:none;">
+                        <div class="form-group">
+                            <label>TIPO DE DEMANDA TI</label>
+                            <select id="cTipoTI" onchange="handleSubTypeChange('TI')">
+                                <option value="">Selecione...</option>
+                                <option value="EVENTOS">EVENTOS</option>
+                                <option value="MISSAS">MISSAS</option>
+                                <option value="PRODUTOS">PRODUTOS</option>
+                                <option value="CRIATIVOS">CRIATIVOS</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Detalhes de Eventos -->
+                <div id="sectionEventDetails" class="form-section conditional-section" style="display:none;">
+                    <h4>🎉 Detalhes do Evento</h4>
+
+                    <div id="fieldsEventDesign" class="event-fields" style="display:none;">
+                        <div class="form-group">
+                            <label>ARTES ADICIONAIS</label>
+                            <textarea id="cVideosAdicionais" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome dos Palestrantes/Participantes Principais</label>
+                            <input type="text" id="cPalestrantesDesign">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data do Evento</label>
+                                <input type="date" id="cDataEventoDesign">
+                            </div>
+                            <div class="form-group">
+                                <label>Local do Evento</label>
+                                <input type="text" id="cLocalEventoDesign">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group checkbox-group"
+                            style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                            <input type="checkbox" id="cEventoCompletoDesign">
+                            <label for="cEventoCompletoDesign" style="font-weight: 600; color: var(--primary);">ATIVAR
+                                TEMPLATE "EVENTO COMPLETO" (Gera lista de itens)</label>
+                        </div>
+                    </div>
+
+                    <div id="fieldsEventVideo" class="event-fields" style="display:none;">
+                        <div class="form-group">
+                            <label>VÍDEOS ADICIONAIS</label>
+                            <textarea id="cArtesAdicionais" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome dos Palestrantes/Participantes Principais</label>
+                            <input type="text" id="cPalestrantesVideo">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data do Evento</label>
+                                <input type="date" id="cDataEventoVideo">
+                            </div>
+                            <div class="form-group">
+                                <label>Local do Evento</label>
+                                <input type="text" id="cLocalEventoVideo">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group checkbox-group"
+                            style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 6px;">
+                            <input type="checkbox" id="cEventoCompletoVideo">
+                            <label for="cEventoCompletoVideo" style="font-weight: 600; color: var(--video);">ATIVAR
+                                TEMPLATE "COBERTURA DE EVENTO" (Gera lista de itens)</label>
+                        </div>
+                    </div>
+
+                    <div id="fieldsEventSocial" class="event-fields" style="display:none;">
+                        <div class="form-group">
+                            <label>DEMANDA ADICIONAIS SOCIAL MEDIA EVENTOS</label>
+                            <textarea id="cDemandaAdicionalSocial" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Detalhes do Projeto (Comum) -->
+                <div class="form-section">
+                    <h4>📝 Detalhes do Projeto</h4>
+
+                    <div id="groupDatesTitle">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Data da Solicitação <span class="req">*</span></label>
+                                <input type="date" id="cDataSolicitacao" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Data para Conclusão <span class="req">*</span></label>
+                                <input type="date" id="cDataConclusao" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Título do Projeto</label>
+                            <input type="text" id="cTitulo">
+                        </div>
+                    </div>
+
+                    <div id="groupStandardFields">
+                        <div class="form-group">
+                            <label>Briefing</label>
+                            <textarea id="cBriefing" rows="4"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Referências ou Exemplos (Links)</label>
+                            <textarea id="cReferencias" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Campos Específicos de TI -->
+                    <div id="groupTIFields"
+                        style="display:none; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label>Categoria do Problema <span class="req">*</span></label>
+                            <select id="cTICategory">
+                                <option value="">Selecione...</option>
+                                <option value="Computador/Notebook">Computador/Notebook</option>
+                                <option value="Internet/Wi-Fi">Internet/Wi-Fi</option>
+                                <option value="Sistema/Software">Sistema/Software</option>
+
+                                <option value="Outro">Outro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descrição do Problema (o que está acontecendo?) <span class="req">*</span></label>
+                            <textarea id="cTIDescription" rows="4"
+                                placeholder="Descreva o erro ou solicitação..."></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Local <span class="req">*</span></label>
+                                <input type="text" id="cTILocation" placeholder="Ex: Secretaria, Associação...">
+                            </div>
+                            <div class="form-group">
+                                <label>Atendimento Presencial? <span class="req">*</span></label>
+                                <select id="cTIPresence">
+                                    <option value="">Selecione...</option>
+                                    <option value="Sim">Sim</option>
+                                    <option value="Não">Não</option>
+                                    <option value="Não sei">Não sei</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campos Específicos de Transmissão -->
+                    <div id="groupTransmissaoFields" style="display:none; background: rgba(0,0,0,0.02); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); margin-bottom: 20px;">
+                        <h4 style="margin:0 0 6px 0; color:var(--text-color);">📡 Programação Semanal de Transmissão</h4>
+                        <p style="margin:0 0 16px 0; font-size:13px; color:var(--text-secondary);">Selecione a semana e marque os programas de cada dia. Cada programa marcado gera uma demanda individual.</p>
+
+                        <div class="form-group">
+                            <label>Semana de referência (segunda-feira) <span class="req">*</span></label>
+                            <input type="date" id="cTransSemana">
+                        </div>
+
+                        <div id="transWeekGrid" style="display:flex; flex-direction:column; gap:16px;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Anexos (Roteiro, Referência, Print, etc) (opcional)</label>
+                        <input type="file" id="cAnexos" multiple>
+                    </div>
+
+                    <div class="form-group checkbox-group" id="groupPinned">
+                        <input type="checkbox" id="cPinned">
+                        <label for="cPinned">Fixar no topo da lista</label>
+                    </div>
+
+                    <div class="form-group" id="groupFormats" style="display:none;">
+                        <label>Formatos Necessários</label>
+                        <div class="checkbox-group" id="formatsContainer">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="groupDependencyDesign"
+                        style="display:none; margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="cDependeDesigner" onchange="toggleVideomakerFields()">
+                            <label for="cDependeDesigner" style="font-weight: 600; color: var(--primary);">
+                                🔄 Depende do Designer? (Acionar Videomaker após aprovação)
+                            </label>
+                        </div>
+                        <small style="display:block; margin-top:5px; color:var(--text-muted);">
+                            Ao marcar esta opção, um formulário para o Videomaker será aberto abaixo. O Videomaker só
+                            iniciará quando a arte for aprovada.
+                        </small>
+                    </div>
+
+                    <!-- Hidden Videomaker Fields (Shows when dependency is checked) -->
+                    <div id="extraVideomakerFields" class="form-section"
+                        style="display:none; border-left: 3px solid var(--video); padding-left: 15px; margin-top: 15px;">
+                        <h4 style="color: var(--video);">🎥 Informações para o Videomaker</h4>
+                        <div class="form-group">
+                            <label>Tipo de Vídeo (Pode marcar ambos)</label>
+                            <div class="checkbox-group" style="flex-direction: row; gap: 20px;">
+                                <div>
+                                    <input type="checkbox" id="cVideoTypeReels" value="Reels/TikTok">
+                                    <label for="cVideoTypeReels">Reels/TikTok</label>
+                                </div>
+                                <div>
+                                    <input type="checkbox" id="cVideoTypeYoutube" value="YouTube">
+                                    <label for="cVideoTypeYoutube">YouTube</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Orientações Específicas para Vídeo</label>
+                            <textarea id="cExtraVideoBriefing" rows="3"
+                                placeholder="O que o videomaker precisa saber?"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Responsável pelo Vídeo</label>
+                            <select id="cExtraVideoResp">
+                                <option value="">Selecione...</option>
+                                <!-- Will be populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+
+
+                <!-- 5. Templates de Checklist Personalizados -->
+                <div class="form-section" id="sectionCustomTemplates">
+                    <h4>📋 Checklist / Templates</h4>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                        Selecione templates para gerar uma lista de tarefas (checklist) para o executor.
+                    </p>
+                    <div id="customTemplatesContainer">
+                        <!-- Renderizado dinamicamente pelo JS -->
+                    </div>
+                    <button type="button" class="btn-template" onclick="openCustomTemplateModal()" style="margin-top: 10px; font-size: 13px; padding: 8px 14px;">
+                        ➕ Criar Novo Template
+                    </button>
+                </div>
+
+                <!-- 6. Repetição de Demanda -->
+                <div class="form-section" id="sectionRepeticao" style="display:none; background: rgba(99, 102, 241, 0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.2); margin-top: 20px;">
+                    <h4 style="color: var(--primary, #6366f1); display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 700;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                        Repetição de Demanda
+                    </h4>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                        Configure a recorrência para agendar automaticamente as demandas futuras de forma inteligente.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="form-group">
+                            <label style="font-weight: 600; font-size: 13px;">Frequência</label>
+                            <select id="cFrequencia" onchange="onFrequenciaChange()" style="width:100%; padding:10px 14px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:8px; color:var(--text-color); font-family:inherit;">
+                                <option value="">Não Repetir (Criar demanda única)</option>
+                                <option value="diaria">Execução contínua (Diária)</option>
+                                <option value="semanal">Execução semanal</option>
+                                <option value="dias_uteis">Restrição estrita a dias úteis (Segunda a Sexta)</option>
+                                <option value="personalizado">Datas personalizadas...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="groupPeriodo" style="display: none;">
+                            <label style="font-weight: 600; font-size: 13px;">Período da Recorrência</label>
+                            <select id="cPeriodo" onchange="updateRecurrencePreview()" style="width:100%; padding:10px 14px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:8px; color:var(--text-color); font-family:inherit;">
+                                <option value="1_mes">Próximo 1 mês</option>
+                                <option value="2_meses">Próximos 2 meses</option>
+                                <option value="3_meses">Próximos 3 meses</option>
+                                <option value="custom_count">Limitar por número de ocorrências</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Limite de ocorrências -->
+                    <div class="form-group" id="groupLimiteOcorrencias" style="display:none; margin-bottom: 16px;">
+                        <label style="font-weight: 600; font-size: 13px;">Número máximo de ocorrências (Máx. 35)</label>
+                        <input type="number" id="cLimiteOcorrencias" value="5" min="1" max="35" oninput="updateRecurrencePreview()" style="width:100%; padding:10px 14px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:8px; color:var(--text-color); font-family:inherit;">
+                    </div>
+
+                    <!-- Checkboxes de dias da semana para semanal -->
+                    <div class="form-group" id="groupDiasSemana" style="display:none; margin-bottom: 16px;">
+                        <label style="font-weight: 600; font-size: 13px; margin-bottom: 8px; display: block;">Repetir nos seguintes dias da semana:</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="1" onchange="updateRecurrencePreview()" style="width:auto;"> Seg</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="2" onchange="updateRecurrencePreview()" style="width:auto;"> Ter</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="3" onchange="updateRecurrencePreview()" style="width:auto;"> Qua</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="4" onchange="updateRecurrencePreview()" style="width:auto;"> Qui</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="5" onchange="updateRecurrencePreview()" style="width:auto;"> Sex</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="6" onchange="updateRecurrencePreview()" style="width:auto;"> Sáb</label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;"><input type="checkbox" name="cDiaSemanaCheckbox" value="0" onchange="updateRecurrencePreview()" style="width:auto;"> Dom</label>
+                        </div>
+                    </div>
+
+                    <!-- Filtro restringir dias úteis -->
+                    <div class="form-group" id="groupRestringirDiasUteis" style="display:none; margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            <input type="checkbox" id="cRestringirDiasUteis" onchange="updateRecurrencePreview()" style="width: auto;">
+                            Restringir apenas a dias úteis (Segunda a Sexta)
+                        </label>
+                    </div>
+
+                    <!-- Datas personalizadas -->
+                    <div id="groupDatasPersonalizadas" style="display:none; margin-bottom: 16px;">
+                        <div class="form-group">
+                            <label style="font-weight: 600; font-size: 13px;">Selecione as datas para replicar a demanda (Uma a uma)</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="date" id="cDataPersonalizada" style="flex: 1; padding:10px 14px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:8px; color:var(--text-color); font-family:inherit;">
+                                <button type="button" onclick="addRecurringDate()" style="padding: 10px 18px; border-radius: 8px; background:var(--primary); color:white; border:none; cursor:pointer; font-weight:600; font-size:13px; white-space: nowrap; height: 44px; display: flex; align-items: center;">➕ Adicionar</button>
+                            </div>
+                        </div>
+                        <div id="recurringDatesList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                            <!-- Datas de repetição renderizadas aqui via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Prazo Estimado Inteligente (P80) -->
+                    <div id="probabilisticDeadlineCard" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: none; gap: 10px; align-items: flex-start;">
+                        <span style="font-size: 18px; margin-top: 2px;">⚡</span>
+                        <div style="flex: 1; font-size: 12px; line-height: 1.4;">
+                            <strong style="color: var(--primary, #6366f1); display: block; margin-bottom: 2px;">Estimativa de Prazo Inteligente (P80)</strong>
+                            <span id="probabilisticDeadlineText">Selecione um tipo de projeto para estimar o tempo histórico de produção.</span>
+                            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;">
+                                    <input type="checkbox" id="cUsarPrazoProbabilistico" checked onchange="updateRecurrencePreview()" style="width: auto;">
+                                    Usar lead time sugerido automaticamente
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pré-visualização das demandas futuras -->
+                    <div id="recurrencePreviewContainer" style="display: none; background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px;">
+                        <h5 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: var(--text-color); display: flex; align-items: center; gap: 6px;">
+                            📋 Pré-visualização das Demandas a Serem Criadas (<span id="recurrencePreviewCount">0</span>)
+                        </h5>
+                        <div id="recurrencePreviewList" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px;">
+                            <!-- Items list rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('modalCreate')">Cancelar</button>
+                    <button type="button" class="btn-template" onclick="saveAsTemplate()">🔁 Salvar como
+                        Template</button>
+                    <button type="submit" class="btn-primary">Enviar Demanda</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Criar Template Personalizado -->
+    <div class="modal-backdrop" id="modalCustomTemplate">
+        <div class="modal" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2>📋 Criar Template de Checklist</h2>
+                <button class="modal-close" onclick="closeModal('modalCustomTemplate')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome do Template <span class="req">*</span></label>
+                    <input type="text" id="ctNome" placeholder="Ex: Lançamento de Produto, Cobertura Fotográfica..." style="font-size: 14px;">
+                </div>
+                <div class="form-group">
+                    <label style="margin-bottom: 8px; display: block;">Itens do Checklist</label>
+                    <div id="ctItemsList" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Itens dinâmicos -->
+                    </div>
+                    <button type="button" onclick="addTemplateItemInput()" style="margin-top: 10px; background: rgba(99,102,241,0.1); color: var(--primary, #6366f1); border: 1px dashed rgba(99,102,241,0.4); border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s;">
+                        ➕ Adicionar Mais Um Item
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalCustomTemplate')">Cancelar</button>
+                <button class="btn-success" onclick="saveCustomTemplate()">💾 Salvar Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes -->
+    <div class="modal-backdrop" id="modalDetail">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 id="detailId">WF-0001</h2>
+                <button class="modal-close" onclick="closeModal('modalDetail')">×</button>
+            </div>
+            <div class="modal-body" id="detailBody"></div>
+            <div class="modal-footer" id="detailFooter"></div>
+        </div>
+    </div>
+
+    <!-- Modal Revisão -->
+    <div class="modal-backdrop" id="modalReview">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📝 Revisar Demanda</h2>
+                <button class="modal-close" onclick="closeModal('modalReview')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="reviewInfo"></div>
+                <div class="form-group">
+                    <label>Feedback (opcional)</label>
+                    <textarea id="reviewFeedback" rows="3"
+                        placeholder="Comentários ou instruções de alteração..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalReview')">Cancelar</button>
+                <button class="btn-danger" id="btnReject" onclick="rejectTask()">Solicitar Alteração</button>
+                <button class="btn-success" id="btnApprove" onclick="approveTask()">Aprovar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Demanda -->
+    <div class="modal-backdrop" id="modalEdit">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2>✏️ Editar Demanda</h2>
+                <button class="modal-close" onclick="closeModal('modalEdit')">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editTaskId">
+                <div class="form-group">
+                    <label>Nome da Demanda</label>
+                    <input type="text" id="editNome" placeholder="Nome da demanda">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prioridade</label>
+                        <select id="editPrioridade">
+                            <option value="Baixa">Baixa</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Crítico">Crítico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Prazo</label>
+                        <input type="date" id="editDataConclusao">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Briefing</label>
+                    <textarea id="editBriefing" rows="3" placeholder="Descrição do projeto..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Orientações</label>
+                    <textarea id="editOrientacoes" rows="3" placeholder="Instruções específicas..."></textarea>
+                </div>
+                <div class="form-section" style="margin-top: 8px;">
+                    <h4 style="margin-bottom: 12px;">🔄 Responsáveis do Pipeline</h4>
+                    <div id="editPipelineSelects" class="form-row" style="flex-wrap: wrap; gap: 12px;">
+                        <!-- Populated dynamically by openEditModal() -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalEdit')">Cancelar</button>
+                <button class="btn-success" onclick="saveEditTask()">💾 Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="modalExport">
+        <div class="modal modal-sm">
+            <div class="modal-head">
+                <h2>📥 Exportar Dados</h2>
+                <button class="modal-close" onclick="closeModal('modalExport')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <button class="export-btn" onclick="exportData('pdf')">📄 Exportar PDF</button>
+                    <button class="export-btn" onclick="exportData('excel')">📊 Exportar Excel</button>
+                    <button class="export-btn" onclick="exportData('csv')">📋 Exportar CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup Modal -->
+    <div class="modal-overlay" id="modalBackup">
+        <div class="modal modal-sm">
+            <div class="modal-head">
+                <h2>💾 Backup de Dados</h2>
+                <button class="modal-close" onclick="closeModal('modalBackup')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="backup-options">
+                    <button class="backup-btn" onclick="downloadBackup()">⬇️ Baixar Backup</button>
+                    <div class="backup-upload">
+                        <input type="file" id="backupFile" accept=".json" onchange="restoreBackup(event)" hidden>
+                        <button class="backup-btn restore" onclick="document.getElementById('backupFile').click()">⬆️
+                            Restaurar Backup</button>
+                    </div>
+                </div>
+                <p class="backup-info">Último backup: <span id="lastBackupDate">Nunca</span></p>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- History Modal -->
+    <div class="modal-overlay" id="modalHistory">
+        <div class="modal modal-lg">
+            <div class="modal-head">
+                <h2>📜 Histórico de Alterações</h2>
+                <button class="modal-close" onclick="closeModal('modalHistory')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- MODAL: CREATE AVISO -->
+    <div class="modal-overlay" id="modalCreateAviso">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📣 Novo Aviso</h3>
+                <button class="modal-close" onclick="closeModal('modalCreateAviso')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Título do Aviso</label>
+                    <input type="text" class="input-field" id="avisoTitulo" placeholder="Ex: Feriado na Quinta-feira"
+                        maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label>Mensagem</label>
+                    <textarea class="input-field" id="avisoTexto" rows="5"
+                        placeholder="Detalhes do comunicado..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Prioridade</label>
+                    <select class="select-input" id="avisoPrioridade">
+                        <option value="normal">Normal</option>
+                        <option value="urgente">🔥 Urgente</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalCreateAviso')">Cancelar</button>
+                <button class="btn-primary" onclick="saveAviso()">Publicar no Mural</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating IT Support Button -->
+    <button id="btnFloatingIT" onclick="openITSupportModal()" style="position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary, #6366f1); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 9998; transition: transform 0.2s;" title="Abrir Chamado TI">
+        <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+        </svg>
+    </button>
+
+    <!-- MODAL: IT SUPPORT -->
+    <div class="modal-overlay" id="modalITSupport">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>💻 Novo Chamado - TI</h3>
+                <button class="modal-close" onclick="closeModal('modalITSupport')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Quem está solicitando? <span class="req">*</span></label>
+                    <select class="select-input" id="itSolicitante" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Para quem enviar a demanda? (Equipe TI) <span class="req">*</span></label>
+                    <select class="select-input" id="itResponsavel" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descrição do Problema / Solicitação <span class="req">*</span></label>
+                    <textarea class="input-field" id="itProblema" rows="5" placeholder="Explique o que precisa ou o problema que está enfrentando..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Anexos (prints, fotos, documentos)</label>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="file" id="itAnexos" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display:none" onchange="previewITFiles(this)">
+                        <button type="button" class="btn-cancel" onclick="document.getElementById('itAnexos').click()" style="display:flex; align-items:center; gap:6px; padding:8px 14px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path></svg>
+                            Selecionar Arquivos
+                        </button>
+                        <span id="itAnexosCount" style="font-size:13px; color:var(--text-secondary);"></span>
+                    </div>
+                    <div id="itAnexosPreview" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Link de referência (opcional)</label>
+                    <input type="url" class="input-field" id="itLink" placeholder="https://exemplo.com ou link do Drive, etc.">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalITSupport')">Cancelar</button>
+                <button class="btn-primary" onclick="submitITSupport()" id="btnSubmitIT">Enviar Chamado</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-area" id="toastArea"></div>
+
+    <!-- Notification Toast Preview -->
+    <div class="notif-toast-container" id="notifToastContainer"></div>
+
+    <!-- Conexão Global Firebase -->
+    <script type="module" src="firebase-config.js"></script>
+
+    <script src="login-fix.js"></script>
+    <script src="app_rev.js?v=4.2"></script>
+    <!-- MODAL: USER -->
+    <div class="modal-overlay" id="modalUser">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>👤 Novo Usuário</h3>
+                <button class="modal-close" onclick="closeModal('modalUser')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" class="input-field" id="uNome" placeholder="Ex: João Silva">
+                </div>
+                <!-- Iniciais ocultas (sistema usa foto do Google) -->
+                <div class="form-group" style="display:none;">
+                    <label>Iniciais (2 letras)</label>
+                    <input type="text" class="input-field" id="uIniciais" placeholder="Ex: JS" maxlength="2"
+                        style="text-transform:uppercase" value="--">
+                </div>
+                <div class="form-group">
+                    <label>ID de Login (sem espaços)</label>
+                    <input type="text" class="input-field" id="uId" placeholder="Ex: joao-dg"
+                        style="text-transform:lowercase">
+                </div>
+                <div class="form-group">
+                    <label style="font-weight:600; margin-bottom:8px; display:block;">Departamentos:</label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:8px;"
+                        id="uDeptContainer">
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Designer" style="width: auto;"> Designer</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Videomaker" style="width: auto;"> Videomaker</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Social Media" style="width: auto;"> Social</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Inovação/TI" style="width: auto;"> TI</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Transmissão" style="width: auto;">
+                            Transmissão</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="uDept" value="Suporte" style="width: auto;"> Suporte</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(239, 68, 68, 0.1); border-radius:8px; border:1px solid rgba(239, 68, 68, 0.3); color:#ef4444; font-weight:600;"><input
+                                type="checkbox" name="uDept" value="Gestão" style="width: auto;"> Gestão</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Função no Sistema</label>
+                    <select class="select-input" id="uRole">
+                        <option value="executor">Executor (Padrão)</option>
+                        <option value="gestor_equipe">Gestor de Equipe</option>
+                        <option value="social_media">Social Media (Gestão)</option>
+                        <option value="coordinator">Coordenador (Acesso Total)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalUser')">Cancelar</button>
+                <button class="btn-primary" onclick="saveNewUser()">Salvar Usuário</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL: ONBOARDING PRIMEIRO ACESSO -->
+    <div class="modal-overlay" id="modalOnboarding">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Olá, <span id="onboardName"></span>! 👋</h3>
+                <p style="color:rgba(255,255,255,0.8); margin-top:4px; font-size:14px; font-weight: 500;">Complete seu
+                    perfil para acessar o sistema.</p>
+            </div>
+            <div class="modal-body">
+                <!-- Iniciais ocultas (sistema usa foto do Google) -->
+                <div class="form-group" style="display:none;">
+                    <label>Iniciais (2 letras para o avatar)</label>
+                    <input type="text" class="input-field" id="onboardIniciais" placeholder="Ex: JS" maxlength="2"
+                        style="text-transform:uppercase" value="--">
+                </div>
+                <div class="form-group">
+                    <label style="font-weight:600; margin-bottom:8px; display:block;">Selecione seus
+                        Departamentos:</label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:8px;">
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Designer" style="width: auto;">
+                            Designer</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Videomaker" style="width: auto;">
+                            Videomaker</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Social Media" style="width: auto;">
+                            Social</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Inovação/TI" style="width: auto;"> TI</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Transmissão" style="width: auto;">
+                            Transmissão</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; border:1px solid var(--border-color);"><input
+                                type="checkbox" name="onboardDept" value="Suporte" style="width: auto;"> Suporte</label>
+                        <label
+                            style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px; background:rgba(239, 68, 68, 0.1); border-radius:8px; border:1px solid rgba(239, 68, 68, 0.3); color:#ef4444; font-weight:600;"><input
+                                type="checkbox" name="onboardDept" value="Gestão" id="checkGestao"
+                                style="width: auto;"> Gestão</label>
+                    </div>
+                </div>
+                <div class="form-group" id="containerSenhaSistema"
+                    style="display: block; background: rgba(99,102,241,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.2);">
+                    <label style="color: var(--primary, #6366f1); font-weight:600;">🔑 Senha de Acesso ao Sistema:</label>
+                    <input type="password" class="input-field" id="onboardSenhaGestao"
+                        placeholder="Digite a senha para prosseguir..." style="margin-top:8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary full" id="btnSaveOnboarding" onclick="finalizarOnboarding()">Finalizar
+                    Cadastro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ENTREGA/APROVAÇÃO KANBAN -->
+    <div class="modal-overlay" id="modalEntrega">
+        <div class="modal modal-entrega-premium" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>📤 Enviar para Aprovação</h3>
+                <button class="modal-close" onclick="closeModal('modalEntrega')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px; line-height: 1.5;">Anexe a
+                    entrega final da sua demanda para avaliação do criador original. O status da demanda só será
+                    alterado após o envio.</p>
+
+                <div id="entregaArteSection" style="display:none; flex-direction: column; gap: 8px;">
+                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Upload da Arte
+                        (PNG/JPG)</label>
+                    <div class="upload-dropzone" id="entregaDropzone"
+                        onclick="document.getElementById('entregaFileInput').click()"
+                        style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99, 102, 241, 0.03);">
+                        <svg viewBox="0 0 24 24" fill="none" class="dz-icon" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            style="width: 32px; height: 32px; color: var(--accent-color); margin-bottom: 12px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p id="entregaFileName" style="color:var(--text-color); font-weight: 500; font-size: 14px;">
+                            Clique ou arraste as imagens aqui</p>
+                        <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">JPG, PNG (Pode selecionar
+                            vários)</p>
+                        <input type="file" id="entregaFileInput" accept="image/png, image/jpeg, image/jpg" multiple
+                            style="display:none;" onchange="handleEntregaFile(this)">
+                    </div>
+                </div>
+
+                <div id="entregaVideoSection" style="display:none; flex-direction: column; gap: 8px;">
+                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Links de Vídeo
+                        (YouTube/Drive/Vimeo - um por linha ou separados por vírgula)</label>
+                    <textarea class="input-field" id="entregaLinkInput"
+                        placeholder="Ex: https://youtube.com/watch?v=...\nhttps://vimeo.com/..."
+                        style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-color); font-size: 14px; transition: border-color 0.2s; min-height: 80px;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; background: rgba(0,0,0,0.1);">
+                <button class="btn-cancel" onclick="closeModal('modalEntrega')" id="btnCancelEntrega"
+                    style="padding: 10px 16px; border-radius: 8px; font-weight: 600;">Cancelar</button>
+                <button class="btn-primary" onclick="submitEntrega()" id="btnSubmitEntrega"
+                    style="padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;">Enviar
+                    e Mover Status</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Premium Custom Multi-Select Script & Styles -->
+    <style>
+        .custom-select-wrapper {
+            position: relative;
+            user-select: none;
+            width: 100%;
+        }
+        .custom-select-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 48px;
+            padding: 8px 14px;
+            background: var(--bg-surface, #1e1e2d);
+            border: 1px solid var(--border-default, rgba(255,255,255,0.1));
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .custom-select-trigger:hover {
+            border-color: var(--accent, #6366f1);
+        }
+        .custom-select-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+        }
+        .custom-select-placeholder {
+            color: var(--text-muted, #a1a1aa);
+            font-size: 14px;
+            font-weight: 400;
+        }
+        .custom-tag {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent, #6366f1);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            animation: fadeIn 0.2s ease;
+            white-space: normal;
+            word-break: break-word;
+            max-width: 100%;
+        }
+        .custom-tag span {
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding-left: 4px;
+        }
+        .custom-tag span:hover {
+            color: #ef4444;
+        }
+        .custom-select-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--bg-surface, #1e1e2d);
+            border: 1px solid var(--border-default, rgba(255,255,255,0.1));
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 9999;
+            display: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .custom-select-dropdown.open {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .custom-optgroup {
+            padding: 10px 14px 6px;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted, #a1a1aa);
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.1));
+        }
+        .custom-option {
+            padding: 10px 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+            color: var(--text-primary, #ffffff);
+            background: var(--bg-surface, #1e1e2d);
+        }
+        .custom-option:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        .custom-option.selected {
+            background: rgba(99, 102, 241, 0.08);
+            color: var(--accent, #6366f1);
+        }
+        .custom-checkbox {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            border: 2px solid var(--text-muted, #a1a1aa);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            background: transparent;
+        }
+        .custom-option.selected .custom-checkbox {
+            background: var(--accent, #6366f1);
+            border-color: var(--accent, #6366f1);
+        }
+        .custom-option.selected .custom-checkbox::after {
+            content: "✓";
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        /* Custom Scrollbar for Dropdown */
+        .custom-select-dropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-select-dropdown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-select-dropdown::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nativeSelect = document.getElementById('cResponsavel');
+            if (!nativeSelect) return;
+
+            // Hide native select completely from visual flow
+            nativeSelect.style.display = 'none';
+
+            // Create Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'custom-select-wrapper';
+            nativeSelect.parentNode.insertBefore(wrapper, nativeSelect.nextSibling);
+
+            // Create Trigger
+            const trigger = document.createElement('div');
+            trigger.className = 'custom-select-trigger';
+            wrapper.appendChild(trigger);
+
+            const tagsContainer = document.createElement('div');
+            tagsContainer.className = 'custom-select-tags';
+            trigger.appendChild(tagsContainer);
+
+            const arrow = document.createElement('div');
+            arrow.innerHTML = '▼';
+            arrow.style.fontSize = '10px';
+            arrow.style.color = 'var(--text-muted)';
+            arrow.style.marginLeft = '10px';
+            arrow.style.transition = 'transform 0.2s ease';
+            trigger.appendChild(arrow);
+
+            // Create Dropdown
+            const dropdown = document.createElement('div');
+            dropdown.className = 'custom-select-dropdown';
+            wrapper.appendChild(dropdown);
+
+            let isOpen = false;
+
+            trigger.addEventListener('click', (e) => {
+                isOpen = !isOpen;
+                if(isOpen) {
+                    dropdown.classList.add('open');
+                    arrow.style.transform = 'rotate(180deg)';
+                } else {
+                    dropdown.classList.remove('open');
+                    arrow.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Close when clicking outside
+            document.addEventListener('click', (e) => {
+                // Se o dropdown está aberto e o click foi fora do componente
+                if (isOpen && !wrapper.contains(e.target)) {
+                    isOpen = false;
+                    dropdown.classList.remove('open');
+                    arrow.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            function renderTags() {
+                tagsContainer.innerHTML = '';
+                const selectedOptions = Array.from(nativeSelect.options).filter(opt => opt.selected && opt.value !== "");
+                
+                if (selectedOptions.length === 0) {
+                    tagsContainer.innerHTML = '<span class="custom-select-placeholder">Selecione um ou mais responsáveis...</span>';
+                    return;
+                }
+
+                selectedOptions.forEach(opt => {
+                    const tag = document.createElement('div');
+                    tag.className = 'custom-tag';
+                    tag.innerHTML = `${opt.text} <span>&times;</span>`;
+                    
+                    tag.querySelector('span').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        opt.selected = false;
+                        renderTags();
+                        updateOptionsUI();
+                    });
+                    
+                    tagsContainer.appendChild(tag);
+                });
+            }
+
+            function updateOptionsUI() {
+                const customOptions = dropdown.querySelectorAll('.custom-option');
+                customOptions.forEach(optDiv => {
+                    const opt = optDiv._nativeOption;
+                    if (opt) {
+                        if (opt.selected) optDiv.classList.add('selected');
+                        else optDiv.classList.remove('selected');
+                    }
+                });
+            }
+
+            function renderOptions() {
+                dropdown.innerHTML = '';
+                const children = nativeSelect.childNodes;
+                
+                children.forEach(child => {
+                    if (child.tagName === 'OPTGROUP') {
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = 'custom-optgroup';
+                        groupDiv.innerHTML = child.label; // Changed to innerHTML to parse emoji if any
+                        dropdown.appendChild(groupDiv);
+                        
+                        Array.from(child.children).forEach(opt => createCustomOption(opt));
+                    } else if (child.tagName === 'OPTION') {
+                        if (child.value !== "") {
+                            createCustomOption(child);
+                        }
+                    }
+                });
+            }
+
+            function createCustomOption(opt) {
+                const optDiv = document.createElement('div');
+                optDiv.className = 'custom-option';
+                optDiv._nativeOption = opt; // Atrela o <option> real ao div UI
+                
+                if (opt.selected) optDiv.classList.add('selected');
+                
+                optDiv.innerHTML = `
+                    <div class="custom-checkbox"></div>
+                    <div>${opt.text}</div>
+                `;
+                
+                optDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    opt.selected = !opt.selected;
+                    updateOptionsUI(); // Apenas atualiza estado das classes
+                    renderTags(); // Atualiza painel de pílulas
+                });
+                
+                dropdown.appendChild(optDiv);
+            }
+
+            // O MutationObserver recria as opções se o <select> recarregar (quando dados mudam na API)
+            const observer = new MutationObserver((mutations) => {
+                // Apenas refaz se ouver mudanças de Nodes Reais (ignorar attributes e properties updates)
+                let shouldRender = false;
+                for (let m of mutations) {
+                    if (m.addedNodes.length > 0 || m.removedNodes.length > 0) {
+                        shouldRender = true;
+                        break;
+                    }
+                }
+                
+                if (shouldRender) {
+                    renderOptions();
+                    renderTags();
+                }
+            });
+            
+            observer.observe(nativeSelect, { childList: true, subtree: true });
+        });
+    </script>
+    <!-- Modal Novo Chamado TI -->
+    <div class="modal-overlay" id="modalChamadoTI">
+        <div class="modal" style="max-width: 500px; padding: 24px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    💻 Novo Chamado - TI
+                </h2>
+                <button class="btn-close" onclick="closeChamadoTIModal()" style="background: var(--surface-light); border: none; width: 32px; height: 32px; border-radius: 50%; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="formChamadoTI" onsubmit="handleCreateChamadoTI(event)">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Quem está solicitando? <span style="color: #ef4444;">*</span></label>
+                        <select id="tiSolicitante" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;"></select>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Responsável (Equipe TI) <span style="color: #ef4444;">*</span></label>
+                        <select id="tiResponsavel" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;">
+                            <option value="">Selecione...</option>
+                            <option value="fernanda-ti" selected>Fernanda Tech</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Categoria <span style="color: #ef4444;">*</span></label>
+                        <select id="tiCategoria" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;">
+                            <option value="">Selecione...</option>
+                            <option value="Hardware">💻 Equipamento / Hardware</option>
+                            <option value="Sistema">🖥️ Sistema / Software</option>
+                            <option value="Rede">🛜 Internet / Rede</option>
+                            <option value="Inovação">💡 Inovação / Projeto</option>
+                            <option value="Acesso">🔑 Reset / Acessos</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Prazo de Entrega <span style="color: #ef4444;">*</span></label>
+                        <input type="date" id="tiPrazo" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px;">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Descrição do Problema / Solicitação <span style="color: #ef4444;">*</span></label>
+                    <textarea id="tiDescricao" required placeholder="Explique o que precisa ou o problema que está enfrentando..." style="width: 100%; height: 100px; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Anexos (prints, fotos, documentos)</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="tiAnexos" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 13px; font-weight: 500; transition: all 0.2s ease;">
+                            📎 Selecionar Arquivos
+                        </label>
+                        <input type="file" id="tiAnexos" multiple style="display: none;" onchange="document.getElementById('tiAnexosCount').textContent = this.files.length > 0 ? this.files.length + ' arquivo(s) selecionado(s)' : ''">
+                        <span id="tiAnexosCount" style="font-size: 12px; color: var(--text-muted);"></span>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Link de referência (opcional)</label>
+                    <input type="url" id="tiLink" placeholder="https://exemplo.com ou link do Drive, etc." style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px;">
+                </div>
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn-secondary" onclick="closeChamadoTIModal()" style="padding: 10px 20px; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-color); font-weight: 600; cursor: pointer; font-size: 14px;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">Enviar Chamado</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Modal de Autenticação Gestor -->
+    <div class="modal-backdrop" id="managerAuth" style="z-index: 10001;">
+        <div class="modal" style="max-width: 400px; text-align: center; padding: 40px 30px;">
+            <div style="font-size: 50px; margin-bottom: 20px;">🔐</div>
+            <h2 style="margin-bottom: 10px; font-family: 'Space Grotesk', sans-serif;">Acesso Restrito</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">Esta área é exclusiva para a gestão. Por favor, insira a senha de acesso.</p>
+            
+            <div class="form-group" style="margin-bottom: 25px;">
+                <input type="password" id="managerPassInput" placeholder="Senha do Sistema" 
+                       style="width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); text-align: center; font-size: 16px; letter-spacing: 4px;">
+            </div>
+            
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-cancel" onclick="closeManagerAuth()" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 600;">Cancelar</button>
+                <button class="btn-primary" onclick="checkManagerAuth()" style="flex: 1; padding: 12px; border-radius: 10px; font-weight: 700; background: var(--primary);">Acessar</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

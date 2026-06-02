@@ -1,0 +1,1721 @@
+/* =============================================
+   PREMIUM DESIGN PACK v1.0
+   ============================================= */
+
+/* Restored Login Countdown Styles */
+.premium-countdown {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+}
+
+.premium-countdown svg {
+    grid-area: 1 / 1;
+    width: 56px;
+    height: 56px;
+}
+
+.pc-svg {
+    grid-area: 1 / 1;
+    width: 56px;
+    height: 56px;
+}
+
+.pc-text {
+    grid-area: 1 / 1;
+    position: relative;
+    z-index: 2;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary, #fff);
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+    line-height: 1;
+}
+
+/* Premium Protection Badge */
+.prot-badge {
+    background: rgba(34, 197, 94, 0.1) !important;
+    border: 1px solid rgba(34, 197, 94, 0.2) !important;
+    color: #4ade80 !important;
+    padding: 10px 20px !important;
+    border-radius: 100px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    backdrop-filter: blur(5px);
+    margin: 20px auto 0 !important;
+    width: fit-content;
+}
+
+.brand-logo-img {
+    width: 80px !important;
+    height: 80px !important;
+    border-radius: 50% !important;
+    object-fit: contain !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    margin-bottom: 10px !important;
+}
+
+/* Logo floating animation & glow */
+.brand-logo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.brand-logo::before {
+    content: '';
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(218, 165, 32, 0.35) 0%, rgba(180, 130, 20, 0.15) 50%, transparent 75%);
+    filter: blur(10px);
+    animation: logoGlowPulse 3s ease-in-out infinite;
+}
+
+.brand-logo-img {
+    position: relative;
+    z-index: 1;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-8px); }
+}
+
+@keyframes logoGlowPulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50%       { opacity: 1; transform: scale(1.15); }
+}
+
+/* 1. SCROLLBARS MODERNAS */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* 2. GLASSMORPHISM & BLUR */
+.sidebar {
+    background: var(--bg-glass-sidebar) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid var(--border-glass-sidebar) !important;
+}
+
+.modal {
+    background: var(--bg-glass-modal) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-xl) !important;
+    border: 1px solid var(--border-glass-panel) !important;
+}
+
+.panel,
+.chart-panel,
+.metric-card,
+.tv-metric,
+.tv-chart-panel {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-glass-panel) !important;
+    color: var(--text-primary);
+}
+
+/* 3. GLOW EFFECTS & SHADOWS */
+.btn-primary {
+    box-shadow: 0 0 15px rgba(162, 93, 220, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-primary:hover {
+    box-shadow: 0 0 25px rgba(162, 93, 220, 0.6) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+}
+
+.metric-card:hover {
+    box-shadow: 0 0 20px rgba(97, 97, 255, 0.2) !important;
+    border-color: rgba(97, 97, 255, 0.5) !important;
+    transform: translateY(-2px);
+}
+
+.metric-card {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-card.metric-active {
+    box-shadow: 0 0 25px rgba(97, 97, 255, 0.35) !important;
+    border-color: rgba(97, 97, 255, 0.7) !important;
+    transform: translateY(-3px) scale(1.02);
+}
+
+#metricDemandasPanel {
+    background: var(--bg-glass-panel);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-glass-panel);
+    border-radius: 16px;
+    padding: 20px;
+    animation: slideUpFade 0.3s ease-out;
+}
+
+/* Status Glows */
+.status-tag.waiting {
+    box-shadow: 0 0 8px rgba(87, 155, 252, 0.3);
+}
+
+.status-tag.exec {
+    box-shadow: 0 0 8px rgba(253, 171, 61, 0.3);
+}
+
+.status-tag.review {
+    box-shadow: 0 0 8px rgba(162, 93, 220, 0.3);
+}
+
+.status-tag.done {
+    box-shadow: 0 0 8px rgba(0, 200, 117, 0.3);
+}
+
+/* 4. ANIMATIONS */
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.view.active {
+    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.modal.active {
+    animation: slideUpFade 0.3s ease-out !important;
+}
+
+.kanban-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.kanban-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+    z-index: 10;
+}
+
+/* 5. TYPOGRAPHY TWEAKS */
+h1,
+h2,
+h3 {
+    letter-spacing: -0.02em;
+}
+
+.metric-value {
+    background: linear-gradient(180deg, var(--metric-gradient-start), var(--metric-gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+
+/* =========================================================================
+   LIGHT MODE — PREMIUM CLEAN DESIGN v2.0
+   ========================================================================= */
+
+/* 1. Body & Layout — Pure white, override ALL variables */
+html body.theme-light {
+    /* Override all background variables from styles.css */
+    --bg-base: #ffffff !important;
+    --bg-surface: #ffffff !important;
+    --bg-elevated: #ffffff !important;
+    --bg-hover: #f5f5f5 !important;
+    --bg-active: #ebebeb !important;
+
+    /* Glass variables — solid white */
+    --bg-glass-sidebar: rgba(30, 31, 46, 0.95) !important;
+    --border-glass-sidebar: transparent !important;
+    --bg-glass-modal: #ffffff !important;
+    --bg-glass-panel: #ffffff !important;
+    --border-glass-panel: #e0e0e0 !important;
+
+    /* Shadows — none */
+    --shadow-sm: none !important;
+    --shadow-md: none !important;
+    --shadow-lg: none !important;
+    --shadow-glow: none !important;
+
+    /* Borders */
+    --border-subtle: #e0e0e0 !important;
+    --border-default: #e0e0e0 !important;
+    --border-strong: #cccccc !important;
+
+    /* Text */
+    --text-primary: #1a1d26 !important;
+    --text-secondary: #555566 !important;
+    --text-muted: #888899 !important;
+    --text-dim: #999999 !important;
+    --text-body: #333344 !important;
+    --text-heading: #111318 !important;
+
+    /* Metric gradient — solid dark */
+    --metric-gradient-start: #111318 !important;
+    --metric-gradient-end: #555566 !important;
+
+    background-color: #ffffff !important;
+    color: #1a1d26 !important;
+}
+
+/* 2. Cards & Panels — Soft white with subtle depth */
+html body.theme-light .panel,
+html body.theme-light .card,
+html body.theme-light .metric-card,
+html body.theme-light .chart-panel,
+html body.theme-light .tv-metric,
+html body.theme-light .tv-chart-panel,
+html body.theme-light .modal,
+html body.theme-light .notifications-panel,
+html body.theme-light .view {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #e0e0e0 !important;
+    box-shadow: none !important;
+    border-radius: 16px !important;
+    color: #1a1d26 !important;
+}
+
+/* 3. Sidebar — Keep dark for visual anchor */
+html body.theme-light .sidebar {
+    background: linear-gradient(180deg, #1e1f2e 0%, #262840 100%) !important;
+    border-right: none !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Sidebar text stays light */
+html body.theme-light .sidebar .nav-link,
+html body.theme-light .sidebar .nav-section-title,
+html body.theme-light .sidebar .dept-link,
+html body.theme-light .sidebar .user-name,
+html body.theme-light .sidebar .user-dept,
+html body.theme-light .sidebar .brand-text,
+html body.theme-light .sidebar span,
+html body.theme-light .sidebar div {
+    color: inherit !important;
+}
+
+/* 4. Header — Clean white with bottom border */
+html body.theme-light .header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    box-shadow: none !important;
+}
+
+/* Header text */
+html body.theme-light .header h1,
+html body.theme-light .header-title h1 {
+    color: #1a1d26 !important;
+}
+
+/* 5. Typography — Strong contrast headings, soft body */
+html body.theme-light h1,
+html body.theme-light h2,
+html body.theme-light h3,
+html body.theme-light h4 {
+    color: #111318 !important;
+    letter-spacing: -0.025em !important;
+}
+
+html body.theme-light p,
+html body.theme-light label {
+    color: #4a5568 !important;
+}
+
+/* 6. Specific text elements — Readable */
+html body.theme-light .metric-value {
+    background: transparent !important;
+    -webkit-text-fill-color: #111318 !important;
+    color: #111318 !important;
+    font-weight: 700 !important;
+}
+
+html body.theme-light .metric-label {
+    color: #718096 !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+/* Chart labels, bar text, general content */
+html body.theme-light .chart-bar-label {
+    color: #2d3748 !important;
+}
+
+html body.theme-light .chart-bar-fill {
+    color: #fff !important;
+}
+
+html body.theme-light .panel-title,
+html body.theme-light .section-title {
+    color: #1a1d26 !important;
+}
+
+/* Welcome banner keeps gradient but with adjusted opacity */
+html body.theme-light .welcome-banner {
+    box-shadow: 0 4px 16px rgba(97, 97, 255, 0.15) !important;
+}
+
+html body.theme-light .welcome-text h2,
+html body.theme-light .welcome-text p {
+    color: #ffffff !important;
+}
+
+/* 7. Buttons — Refined indigo */
+html body.theme-light .btn-primary {
+    background: #5b5bd6 !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(91, 91, 214, 0.25) !important;
+}
+
+html body.theme-light .btn-primary:hover {
+    background: #4c4cbf !important;
+    box-shadow: 0 4px 12px rgba(91, 91, 214, 0.35) !important;
+}
+
+html body.theme-light .btn-create {
+    background: #5b5bd6 !important;
+    color: white !important;
+    box-shadow: 0 2px 8px rgba(91, 91, 214, 0.2) !important;
+}
+
+html body.theme-light .btn-create:hover {
+    background: #4c4cbf !important;
+}
+
+/* 8. Cards hover — Subtle border highlight */
+html body.theme-light .metric-card:hover,
+html body.theme-light .panel:hover {
+    border-color: #b0b0b0 !important;
+    box-shadow: none !important;
+}
+
+/* 9. Forms — Subtle, clean */
+html body.theme-light input,
+html body.theme-light select,
+html body.theme-light textarea {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    color: #1a1d26 !important;
+    border-radius: 8px !important;
+}
+
+html body.theme-light input:focus,
+html body.theme-light select:focus,
+html body.theme-light textarea:focus {
+    background: #ffffff !important;
+    border-color: #5b5bd6 !important;
+    box-shadow: 0 0 0 3px rgba(91, 91, 214, 0.12) !important;
+}
+
+/* 10. Search bar */
+html body.theme-light .search-container,
+html body.theme-light .search-bar {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    color: #1a1d26 !important;
+}
+
+html body.theme-light .search-container input,
+html body.theme-light .search-bar input {
+    background: transparent !important;
+    border: none !important;
+    color: #1a1d26 !important;
+}
+
+/* 11. Calendar */
+html body.theme-light .calendar-day {
+    border-color: #e0e0e0 !important;
+    color: #2d3748 !important;
+}
+
+html body.theme-light .calendar-day.today {
+    background: rgba(91, 91, 214, 0.08) !important;
+    border-color: rgba(91, 91, 214, 0.2) !important;
+}
+
+html body.theme-light .calendar-day-num {
+    color: #2d3748 !important;
+}
+
+html body.theme-light .calendar-day.other-month .calendar-day-num {
+    color: #a0aec0 !important;
+}
+
+/* 12. Timer */
+html body.theme-light .header-timer {
+    color: #4a5568 !important;
+}
+
+/* 13. Kanban cards */
+html body.theme-light .kanban-card {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    box-shadow: none !important;
+}
+
+html body.theme-light .kanban-card:hover {
+    box-shadow: none !important;
+    border-color: #b0b0b0 !important;
+}
+
+html body.theme-light .kanban-column-header {
+    color: #2d3748 !important;
+}
+
+/* 14. Activity items */
+html body.theme-light .activity-item {
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+
+html body.theme-light .activity-title {
+    color: #1a1d26 !important;
+}
+
+html body.theme-light .activity-meta {
+    color: #718096 !important;
+}
+
+/* 15. Progress section */
+html body.theme-light .progress-stat-value {
+    color: #111318 !important;
+    -webkit-text-fill-color: #111318 !important;
+}
+
+html body.theme-light .progress-stat-label {
+    color: #718096 !important;
+}
+
+html body.theme-light .progress-bar {
+    background: #e0e0e0 !important;
+}
+
+/* 16. Modal overlays */
+html body.theme-light .modal-overlay {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 17. Toast notifications */
+html body.theme-light .toast {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    color: #1a1d26 !important;
+}
+
+/* 18. Scrollbars for light mode */
+html body.theme-light ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15) !important;
+}
+
+html body.theme-light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 19. Badge and notification indicators */
+html body.theme-light .empty-message {
+    color: #a0aec0 !important;
+}
+
+/* 20. Timeline & table rows */
+html body.theme-light tr:hover td {
+    background: #fafafa !important;
+}
+
+html body.theme-light th {
+    color: #4a5568 !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+
+/* 21. Agenda cards */
+html body.theme-light .agenda-stat {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+html body.theme-light .agenda-stat-value {
+    color: #5b5bd6 !important;
+    -webkit-text-fill-color: #5b5bd6 !important;
+}
+
+/* =========================================================================
+   22. GESTÃO DE USUÁRIOS PREMIUM UI
+   ========================================================================= */
+
+/* Header & Botão Novo Usuário */
+#view-users .view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+#view-users .view-header h2 {
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--text-primary);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+#view-users .btn-primary {
+    background: rgba(97, 97, 255, 0.15) !important;
+    color: #8c8cff !important;
+    border: 1px solid rgba(97, 97, 255, 0.3) !important;
+    box-shadow: none !important;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.2s ease !important;
+}
+
+#view-users .btn-primary:hover {
+    background: rgba(97, 97, 255, 0.25) !important;
+    border-color: rgba(97, 97, 255, 0.5) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(97, 97, 255, 0.2) !important;
+}
+
+/* Glassmorphism Wrapper for Table */
+#view-users .card {
+    background: var(--bg-glass-panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel);
+    border-radius: 12px;
+    padding: 16px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Table overrides from styles.css */
+#view-users .table-head,
+#view-users div.table-row {
+    background: transparent !important;
+    gap: 0 !important;
+    border: none !important;
+}
+
+#view-users .table-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+}
+
+#view-users div.table-th,
+#view-users div.table-td {
+    background: transparent !important;
+    border: none !important;
+}
+
+#view-users div.table-row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    padding: 4px 0;
+}
+
+#view-users div.table-th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#view-users div.table-row:last-child {
+    border-bottom: none !important;
+}
+
+#view-users div.table-row:hover {
+    background: rgba(97, 97, 255, 0.04) !important;
+    transform: scale(1.005);
+    box-shadow: inset 2px 0 0 rgba(97, 97, 255, 0.5) !important;
+}
+
+#view-users .td-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+/* User Dept & Role Tags */
+#view-users .status-tag {
+    box-shadow: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Action Buttons (Edit/Delete) */
+#view-users .table-td .btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+#view-users .table-td .btn-icon.edit:hover {
+    background: rgba(97, 97, 255, 0.15);
+    border-color: rgba(97, 97, 255, 0.3);
+    color: #8c8cff;
+}
+
+#view-users .table-td .btn-icon.delete:hover {
+    background: rgba(255, 71, 87, 0.15);
+    border-color: rgba(255, 71, 87, 0.3);
+    color: #ff4757;
+}
+
+#view-users .table-td .btn-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* =========================================================================
+   23. QUADRO GERAL PREMIUM UI
+   ========================================================================= */
+
+/* Toolbar / Filtros */
+#view-quadro-geral .toolbar {
+    background: transparent !important;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding: 0;
+    border: none;
+}
+
+#view-quadro-geral .search-input,
+#view-quadro-geral .filter-select {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 12px;
+    color: var(--text-primary);
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+#view-quadro-geral .search-input:focus,
+#view-quadro-geral .filter-select:focus {
+    border-color: rgba(97, 97, 255, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba(97, 97, 255, 0.15) !important;
+    outline: none;
+}
+
+/* Quadro Stats (Summary Cards) */
+#view-quadro-geral .quadro-stats {
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+#view-quadro-geral .quadro-stat-item {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+#view-quadro-geral .quadro-stat-item::before {
+    display: none;
+    /* Remove old flat top line */
+}
+
+/* Bottom Glow Effect for Stats */
+#view-quadro-geral .quadro-stat-item::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+#view-quadro-geral .quadro-stat-item.waiting::after {
+    background: var(--status-waiting);
+    box-shadow: 0 -4px 15px var(--status-waiting);
+    opacity: 0.5;
+}
+
+#view-quadro-geral .quadro-stat-item.exec::after {
+    background: var(--status-exec);
+    box-shadow: 0 -4px 15px var(--status-exec);
+    opacity: 0.5;
+}
+
+#view-quadro-geral .quadro-stat-item.review::after {
+    background: var(--status-review);
+    box-shadow: 0 -4px 15px var(--status-review);
+    opacity: 0.5;
+}
+
+#view-quadro-geral .quadro-stat-item.done::after {
+    background: var(--status-done);
+    box-shadow: 0 -4px 15px var(--status-done);
+    opacity: 0.5;
+}
+
+#view-quadro-geral .quadro-stat-item:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+#view-quadro-geral .quadro-stat-item.waiting:hover::after,
+#view-quadro-geral .quadro-stat-item.exec:hover::after,
+#view-quadro-geral .quadro-stat-item.review:hover::after,
+#view-quadro-geral .quadro-stat-item.done:hover::after {
+    opacity: 1;
+    height: 6px;
+}
+
+#view-quadro-geral .quadro-stat-item .quadro-stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(180deg, #fff, #aaa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+#view-quadro-geral .quadro-stat-item .quadro-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+/* Glass table wrapper */
+#view-quadro-geral .table-wrapper {
+    background: var(--bg-glass-panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    margin-bottom: 24px;
+    overflow-x: auto;
+}
+
+/* Remove blocky grids */
+#view-quadro-geral table,
+#view-quadro-geral th,
+#view-quadro-geral td {
+    background: transparent !important;
+    border: none !important;
+}
+
+#view-quadro-geral table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#view-quadro-geral th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    text-align: left;
+}
+
+#view-quadro-geral tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    transition: all 0.2s ease;
+}
+
+#view-quadro-geral tbody tr:last-child {
+    border-bottom: none;
+}
+
+#view-quadro-geral tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    transform: scale(1.002);
+}
+
+#view-quadro-geral td {
+    padding: 16px 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+#view-quadro-geral .task-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* =========================================================================
+   24. TIMELINE (GANTT) PREMIUM UI
+   ========================================================================= */
+
+/* Container geral (Fundo Vidro) */
+#view-timeline .timeline-container {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+/* Cabeçalho dos dias */
+#view-timeline .timeline-days {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+#view-timeline .timeline-day {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 10px 4px;
+    border-right: 1px solid rgba(255, 255, 255, 0.02) !important;
+}
+
+#view-timeline .timeline-day.weekend {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+#view-timeline .timeline-day.today {
+    background: rgba(97, 97, 255, 0.15) !important;
+    color: #8c8cff !important;
+    box-shadow: inset 0 0 10px rgba(97, 97, 255, 0.2);
+}
+
+/* Linhas de tarefas (Rows) */
+#view-timeline .timeline-rows {
+    background: transparent !important;
+}
+
+#view-timeline .timeline-row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    transition: all 0.2s ease;
+    padding: 10px 16px;
+}
+
+#view-timeline .timeline-row:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    box-shadow: inset 2px 0 0 rgba(97, 97, 255, 0.5);
+}
+
+#view-timeline .timeline-task-name {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Barras do Gantt (Glow effect) */
+#view-timeline .timeline-bar {
+    border-radius: 6px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#view-timeline .timeline-row:hover .timeline-bar {
+    transform: translateY(-1px);
+}
+
+#view-timeline .timeline-bar.waiting {
+    background: rgba(234, 179, 8, 0.4) !important;
+    color: #fde047 !important;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    text-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+}
+
+#view-timeline .timeline-bar.exec {
+    background: rgba(59, 130, 246, 0.4) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+#view-timeline .timeline-bar.review {
+    background: rgba(168, 85, 247, 0.4) !important;
+    color: #d8b4fe !important;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+}
+
+#view-timeline .timeline-bar.done {
+    background: rgba(0, 200, 117, 0.3) !important;
+    color: #69f0ae !important;
+    border: 1px solid rgba(0, 200, 117, 0.3);
+    text-shadow: 0 0 8px rgba(0, 200, 117, 0.5);
+}
+
+/* Controles de Escala (Pills) */
+#view-timeline .timeline-scale {
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 4px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#view-timeline .scale-btn {
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-muted);
+    border-radius: 16px;
+    padding: 6px 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#view-timeline .scale-btn.active {
+    background: rgba(97, 97, 255, 0.3) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(97, 97, 255, 0.3);
+}
+
+#view-timeline .timeline-nav h2 {
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+#view-timeline .btn-icon {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-primary);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+#view-timeline .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: scale(1.05);
+}
+
+/* =========================================================================
+   25. ANALYTICS PREMIUM UI
+   ========================================================================= */
+
+/* Header e Filtros */
+#view-analytics .analytics-header select {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 12px;
+    color: var(--text-primary);
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+#view-analytics .analytics-header select:focus {
+    border-color: rgba(97, 97, 255, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba(97, 97, 255, 0.15) !important;
+    outline: none;
+}
+
+#view-analytics .analytics-header h2 {
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Painéis Superiores (Métricas) */
+#view-analytics .analytics-metric {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+#view-analytics .analytics-metric:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Gradiente radiante sutil por trás de cada painel superior */
+#view-analytics .analytics-metric::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+#view-analytics .analytics-metric:hover::before {
+    opacity: 1;
+}
+
+/* Grandes Números (Neon/Gradient) */
+#view-analytics .analytics-metric .metric-value {
+    font-size: 42px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00c853, #69f0ae);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 15px rgba(0, 200, 83, 0.3);
+    margin-bottom: 8px;
+    letter-spacing: -1px;
+}
+
+#view-analytics .analytics-metric .metric-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* Painéis de Gráficos (Base) */
+#view-analytics .analytics-panel {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+#view-analytics .analytics-panel:hover {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+#view-analytics .analytics-panel h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Gráficos de Barra Customizados (Neon Bars) */
+#view-analytics .analytics-bar {
+    margin-bottom: 16px;
+}
+
+#view-analytics .analytics-bar span:first-child {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+#view-analytics .analytics-bar span:last-child {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+#view-analytics .analytics-bar .bar-track {
+    height: 10px;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.02);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    overflow: visible;
+    /* Permite que o glow brilhe para fora do trilho */
+}
+
+#view-analytics .analytics-bar .bar-fill {
+    border-radius: 6px;
+    position: relative;
+    /* Adiciona a luz de glow na barra pintada */
+    box-shadow: 0 0 10px currentColor;
+}
+
+/* Modificadores de cor herdando as luzes do Kanban */
+#view-analytics .analytics-bar .bar-fill.waiting {
+    background: linear-gradient(90deg, rgba(234, 179, 8, 0.8), #fde047) !important;
+    color: #fde047;
+    /* Usado para o drop shadow currentColor */
+}
+
+#view-analytics .analytics-bar .bar-fill.exec {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.8), #93c5fd) !important;
+    color: #93c5fd;
+}
+
+#view-analytics .analytics-bar .bar-fill.review {
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.8), #d8b4fe) !important;
+    color: #d8b4fe;
+}
+
+#view-analytics .analytics-bar .bar-fill.done {
+    background: linear-gradient(90deg, rgba(0, 200, 117, 0.8), #69f0ae) !important;
+    color: #69f0ae;
+}
+
+#view-analytics .analytics-bar .bar-fill.user {
+    background: linear-gradient(90deg, rgba(97, 97, 255, 0.8), #b3b3ff) !important;
+    color: #b3b3ff;
+}
+
+/* =========================================================================
+   26. LOGO & BRAND ANIMATION (REMOTION STYLE)
+   ========================================================================= */
+
+/* Keyframe para a Logo flutuando (Float) */
+@keyframes floatLogo {
+    0% {
+        transform: translateY(0px) scale(1);
+    }
+
+    50% {
+        transform: translateY(-4px) scale(1.02);
+    }
+
+    100% {
+        transform: translateY(0px) scale(1);
+    }
+}
+
+/* Keyframe para o brilho traseiro pulsando (Pulse Glow) */
+@keyframes pulseGlow {
+    0% {
+        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.3));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.7));
+    }
+
+    100% {
+        filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.3));
+    }
+}
+
+/* Efeito composto na Logo Principal */
+.sidebar-logo {
+    animation: floatLogo 4s ease-in-out infinite, pulseGlow 3s ease-in-out infinite alternate !important;
+    transition: all 0.3s ease;
+    border-radius: 50%;
+    /* Ajuda o drop-shadow circular */
+}
+
+.sidebar-logo:hover {
+    animation-play-state: paused !important;
+    /* Pausa amigável ao focar o mouse */
+    transform: scale(1.1) !important;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 1)) !important;
+}
+
+/* Keyframe para reflexo metálico no texto (Shimmer Effect) */
+@keyframes shimmerText {
+    0% {
+        background-position: -200% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+
+/* Efeito Cinético no Nome do Sistema */
+.brand-text {
+    background: linear-gradient(110deg,
+            var(--text-primary) 30%,
+            #ffffff 45%,
+            #ffffff 55%,
+            var(--text-primary) 70%);
+    background-size: 200% auto;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: shimmerText 5s linear infinite;
+    font-weight: 800;
+    /* Deixando a fonte grossa para caber mais luz */
+    letter-spacing: -0.5px;
+}
+
+/* =========================================================================
+   27. AGENDA PREMIUM UI (GLASSMORPHISM)
+   ========================================================================= */
+
+/* Top Stats (Cards de Vidro) */
+#view-minha-agenda .agenda-stat {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+#view-minha-agenda .agenda-stat:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+#view-minha-agenda .agenda-stat-value {
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 15px rgba(97, 97, 255, 0.3);
+    font-size: 38px;
+    font-weight: 800;
+}
+
+/* Header & Botões  */
+#view-minha-agenda .agenda-nav .btn-nav,
+#view-minha-agenda .agenda-nav .btn-today {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+#view-minha-agenda .agenda-nav .btn-nav:hover,
+#view-minha-agenda .agenda-nav .btn-today:hover {
+    background: rgba(97, 97, 255, 0.2) !important;
+    transform: scale(1.05);
+    border-color: rgba(97, 97, 255, 0.5) !important;
+    box-shadow: 0 0 15px rgba(97, 97, 255, 0.2);
+}
+
+#view-minha-agenda #agendaTitle {
+    font-weight: 800;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Grid do Calendário Principal (Painel de Vidro) */
+#view-minha-agenda .calendar-grid {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+#view-minha-agenda .calendar-weekdays {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+#view-minha-agenda .calendar-weekdays span {
+    color: var(--text-muted);
+}
+
+/* Células de Dias do Calendário */
+#view-minha-agenda .calendar-day {
+    background: transparent !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+#view-minha-agenda .calendar-day:hover {
+    background: rgba(255, 255, 255, 0.02) !important;
+    box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.03);
+}
+
+/* Destacando o Dia de Hoje (Hover neon sutil) */
+#view-minha-agenda .calendar-day.today {
+    background: rgba(97, 97, 255, 0.08) !important;
+    box-shadow: inset 0 0 20px rgba(97, 97, 255, 0.15);
+}
+
+#view-minha-agenda .calendar-day.today .calendar-day-num {
+    color: #8c8cff !important;
+    text-shadow: 0 0 8px rgba(97, 97, 255, 0.4);
+}
+
+/* Eventos / Pílulas da Agenda (A mágica luminosa) */
+#view-minha-agenda .calendar-event {
+    border-radius: 4px;
+    font-weight: 600;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    /* Substituimos as cores base por gradientes neon */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+#view-minha-agenda .calendar-event:hover {
+    transform: translateY(-2px) scale(1.02);
+}
+
+#view-minha-agenda .calendar-event.urgente {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05)) !important;
+    border-left: 3px solid #fca5a5 !important;
+    color: #fca5a5 !important;
+    box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.2);
+}
+
+#view-minha-agenda .calendar-event.alta {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)) !important;
+    border-left: 3px solid #fcd34d !important;
+    color: #fcd34d !important;
+    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+#view-minha-agenda .calendar-event.normal {
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05)) !important;
+    border-left: 3px solid #86efac !important;
+    color: #86efac !important;
+    box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.2);
+}
+
+#view-minha-agenda .calendar-event.baixa {
+    background: linear-gradient(90deg, rgba(161, 161, 170, 0.15), rgba(161, 161, 170, 0.05)) !important;
+    border-left: 3px solid #d4d4d8 !important;
+    color: #d4d4d8 !important;
+    box-shadow: inset 0 0 8px rgba(161, 161, 170, 0.2);
+}
+
+/* =========================================================================
+   28. SIDEBAR DEPT FILTERS UI (PREMIUM GLASS & NEON ORBS)
+   ========================================================================= */
+
+/* Fundo da cápsula do link do departamento */
+.dept-link {
+    display: flex;
+    align-items: center;
+    gap: 12px !important;
+    padding: 10px 16px;
+    margin-bottom: 4px;
+    border-radius: 12px !important;
+    /* Arredondamento Premium (Pill) */
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover Cinético no link (Glassmorphism sutil + TranslateX) */
+.dept-link:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-color: rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-primary) !important;
+    transform: translateX(6px);
+    /* Efeito fluído de avanço */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Active State (Quando o filtro estiver ativado) */
+.dept-link.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Orbes Neon de Departamento (Ex-quadradinhos foscos) */
+.dept-dot {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    /* Esfera perfeita */
+    box-shadow: 0 0 6px currentColor !important;
+    /* Brilho reduzido e focado */
+    opacity: 0.8;
+    transition: all 0.3s ease !important;
+    flex-shrink: 0;
+    /* Impede esmagamento */
+}
+
+/* Orbe incandescente ao focar o departamento */
+.dept-link:hover .dept-dot,
+.dept-link.active .dept-dot {
+    opacity: 1;
+    transform: scale(1.1);
+    /* Escala menos agressiva */
+    box-shadow: 0 0 8px currentColor, 0 0 12px currentColor !important;
+    /* Pulso Neon duplo e limpo */
+}
+
+/* =========================================================================
+   29. MINHA AREA OVERVIEW (SVG KINETICS)
+   ========================================================================= */
+
+/* Ajuste do encapsulamento do SVG na bolinha colorida */
+.metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0 !important;
+    /* Removemos espaço do emoji nativo */
+}
+
+.kinetic-svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 0 2px currentColor);
+}
+
+/* Base de Keyframes Cinéticos */
+
+@keyframes floatIcon {
+    0% {
+        transform: translateY(0px) scale(1);
+    }
+
+    50% {
+        transform: translateY(-4px) scale(1.05);
+    }
+
+    100% {
+        transform: translateY(0px) scale(1);
+    }
+}
+
+@keyframes spinWatch {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    10% {
+        transform: rotate(180deg);
+    }
+
+    50% {
+        transform: rotate(180deg);
+    }
+
+    60% {
+        transform: rotate(360deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulseScan {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+        stroke-width: 2;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+        stroke-width: 1.5;
+        filter: drop-shadow(0 0 5px currentColor);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+        stroke-width: 2;
+    }
+}
+
+@keyframes glowPop {
+    0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 2px currentColor);
+    }
+
+    15% {
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 10px currentColor);
+    }
+
+    40% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 4px currentColor);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 2px currentColor);
+    }
+}
+
+/* Aplicação Estática das Motores Cinéticos */
+.kinetic-svg.float-icon {
+    animation: floatIcon 4s ease-in-out infinite;
+}
+
+.kinetic-svg.spin-watch {
+    animation: spinWatch 10s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    /* Anima e pausa simulando o fim da areia */
+}
+
+.kinetic-svg.pulse-scan {
+    animation: pulseScan 3s ease-in-out infinite;
+}
+
+.kinetic-svg.glow-pop {
+    animation: glowPop 3s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite;
+}
+
+/* Intensificadores Visuais ao focar os cards da visão geral */
+.metric-card:hover .kinetic-svg {
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 8px currentColor) !important;
+}
+
+/* O "Em Andamento" gira rápido se der mouse focus */
+.metric-card:hover .kinetic-svg.spin-watch {
+    animation-duration: 4s;
+}
+
+/* =========================================================================
+   KANBAN TIMER CORRECTIONS
+   ========================================================================= */
+.kanban-card {
+    height: auto !important;
+    min-height: min-content !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.kanban-card .timer-controls {
+    margin-top: 12px !important;
+    /* Espaço fixo após a barra de progresso */
+    margin-bottom: 4px;
+    z-index: 5;
+    position: relative;
+}
+
+.kanban-card-footer {
+    min-height: 24px;
+    margin-top: 8px;
+    /* Force spacing above the footer */
+}
+
+.timer-display {
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* =========================================================================
+   24. INOVAÇÃO/TI DASHBOARD PREMIUM
+   ========================================================================= */
+
+.custom-ti-cards {
+    padding: 10px 0;
+    min-height: 400px;
+}
+
+.custom-ti-cards .kanban-card {
+    background: var(--bg-glass-panel) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--border-glass-panel) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.custom-ti-cards .kanban-card:hover {
+    transform: translateY(-5px) scale(1.02) !important;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4) !important;
+    border-color: var(--primary) !important;
+}
+
+.kanban-card.urgent-glow {
+    animation: urgentGlow 2s infinite alternate !important;
+    border-color: #ef4444 !important;
+}
+
+@keyframes urgentGlow {
+    0% { box-shadow: 0 0 5px rgba(239,68,68,0.2); }
+    100% { box-shadow: 0 0 15px rgba(239,68,68,0.6); }
+}
+
+.ti-kpi-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.ti-kpi-card:hover {
+    transform: translateY(-4px);
+    filter: brightness(1.1);
+}

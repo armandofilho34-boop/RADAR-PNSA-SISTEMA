@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard TV | Radar PNSA</title>
+    <link rel="icon" type="image/png" href="logo-pnsa.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050510;
+            --surface: rgba(14, 14, 28, .75);
+            --border: rgba(255, 255, 255, .06);
+            --t1: #f0f0f5;
+            --t2: #a1a1b5;
+            --t3: #6b6b80;
+            --accent: #6366f1;
+            --blue: #3b82f6;
+            --green: #22c55e;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --purple: #a855f7;
+            --pink: #ec4899;
+            --cyan: #06b6d4;
+            --gold: #fbbf24;
+            --gold-g: rgba(251, 191, 36, .5);
+            --silver: #c0c0c0;
+            --bronze: #cd7f32;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--t1);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh
+        }
+
+        /* Ambient */
+        .amb {
+            position: fixed;
+            inset: -80px;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+            -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)
+        }
+
+        .amb::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 50%, var(--bg) 100%);
+            pointer-events: none;
+            z-index: 1
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: .06
+        }
+
+        .orb:nth-child(1) {
+            width: 700px;
+            height: 700px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            top: 0%;
+            left: 5%;
+            animation: o1 25s infinite ease-in-out
+        }
+
+        .orb:nth-child(2) {
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(135deg, #ec4899, #6366f1);
+            bottom: -5%;
+            right: 5%;
+            animation: o2 30s infinite ease-in-out
+        }
+
+        .orb:nth-child(3) {
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(135deg, #06b6d4, #22c55e);
+            top: 40%;
+            left: 40%;
+            animation: o3 22s infinite ease-in-out
+        }
+
+        @keyframes o1 {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1)
+            }
+
+            50% {
+                transform: translate(100px, 80px) scale(1.2)
+            }
+        }
+
+        @keyframes o2 {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1)
+            }
+
+            50% {
+                transform: translate(-80px, -100px) scale(1.25)
+            }
+        }
+
+        @keyframes o3 {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(.8)
+            }
+
+            50% {
+                transform: translate(-40%, -40%) scale(1.15)
+            }
+        }
+
+        /* Layout */
+        .tv {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            width: 100vw;
+            height: 100vh;
+            padding: 20px 24px;
+            position: relative;
+            z-index: 1
+        }
+
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 16px
+        }
+
+        /* Header */
+        .hdr {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            animation: floatLogo 4s ease-in-out infinite;
+            transition: all .3s ease
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block
+        }
+
+        @keyframes floatLogo {
+            0% {
+                transform: translateY(0px) scale(1)
+            }
+
+            50% {
+                transform: translateY(-4px) scale(1.02)
+            }
+
+            100% {
+                transform: translateY(0px) scale(1)
+            }
+        }
+
+
+
+        .brand h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -.5px;
+            background: linear-gradient(110deg, var(--t1) 30%, #ffffff 45%, #ffffff 55%, var(--t1) 70%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shimmerText 5s linear infinite
+        }
+
+        @keyframes shimmerText {
+            0% {
+                background-position: -200% center
+            }
+
+            100% {
+                background-position: 200% center
+            }
+        }
+
+        .brand p {
+            font-size: 11px;
+            color: var(--t3);
+            font-weight: 500
+        }
+
+        .clock-area {
+            display: flex;
+            align-items: center;
+            gap: 14px
+        }
+
+        .tv-date {
+            font-size: 12px;
+            color: var(--t2);
+            font-weight: 500;
+            text-align: right;
+            line-height: 1.3
+        }
+
+        .tv-clock {
+            font-size: 40px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent), var(--purple), var(--pink));
+            background-size: 200% 200%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-variant-numeric: tabular-nums;
+            animation: cg 4s ease-in-out infinite
+        }
+
+        @keyframes cg {
+
+            0%,
+            100% {
+                background-position: 0% 50%
+            }
+
+            50% {
+                background-position: 100% 50%
+            }
+        }
+
+        .dots {
+            display: flex;
+            gap: 5px
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .08);
+            border: 1.5px solid rgba(255, 255, 255, .15);
+            transition: all .4s
+        }
+
+        .dot.on {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(99, 102, 241, .5);
+            transform: scale(1.3)
+        }
+
+        /* Metrics */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-shrink: 0
+        }
+
+        .metric {
+            padding: 18px 16px;
+            border-radius: 16px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px
+        }
+
+        .metric::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 16px 16px 0 0
+        }
+
+        .m-icon {
+            font-size: 18px;
+            margin-bottom: 2px
+        }
+
+        .metric.bl {
+            background: rgba(59, 130, 246, .08);
+            border: 1px solid rgba(59, 130, 246, .15)
+        }
+
+        .metric.bl::before {
+            background: linear-gradient(90deg, var(--blue), var(--cyan))
+        }
+
+        .metric.or {
+            background: rgba(245, 158, 11, .08);
+            border: 1px solid rgba(245, 158, 11, .15)
+        }
+
+        .metric.or::before {
+            background: linear-gradient(90deg, var(--orange), var(--red))
+        }
+
+        .metric.pu {
+            background: rgba(168, 85, 247, .08);
+            border: 1px solid rgba(168, 85, 247, .15)
+        }
+
+        .metric.pu::before {
+            background: linear-gradient(90deg, var(--purple), var(--pink))
+        }
+
+        .metric.gn {
+            background: rgba(34, 197, 94, .08);
+            border: 1px solid rgba(34, 197, 94, .15)
+        }
+
+        .metric.gn::before {
+            background: linear-gradient(90deg, var(--green), var(--cyan))
+        }
+
+        .metric.rd {
+            background: rgba(239, 68, 68, .08);
+            border: 1px solid rgba(239, 68, 68, .15)
+        }
+
+        .metric.rd::before {
+            background: linear-gradient(90deg, var(--red), var(--pink))
+        }
+
+        .m-val {
+            font-size: 44px;
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums
+        }
+
+        .metric.bl .m-val {
+            color: var(--blue)
+        }
+
+        .metric.or .m-val {
+            color: var(--orange)
+        }
+
+        .metric.pu .m-val {
+            color: var(--purple)
+        }
+
+        .metric.gn .m-val {
+            color: var(--green)
+        }
+
+        .metric.rd .m-val {
+            color: var(--red)
+        }
+
+        .m-lbl {
+            font-size: 10px;
+            color: var(--t3);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-top: 2px;
+            font-weight: 700
+        }
+
+        /* Slides */
+        .slides {
+            position: relative;
+            flex: 1;
+            min-height: 0
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .8s
+        }
+
+        .slide.on {
+            opacity: 1;
+            visibility: visible;
+            position: relative;
+            height: 100%
+        }
+
+        /* Panels */
+        .pan {
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1;
+            min-height: 0
+        }
+
+        .pan h3 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            color: var(--t2);
+            letter-spacing: .3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0
+        }
+
+        .pan-c {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        /* Donut */
+        .dw {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            height: 100%
+        }
+
+        .dc {
+            position: relative;
+            flex-shrink: 0
+        }
+
+        .dc svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg)
+        }
+
+        .dc circle {
+            fill: none;
+            stroke-width: 26
+        }
+
+        .dbg {
+            stroke: rgba(255, 255, 255, .04)
+        }
+
+        .dseg {
+            transition: stroke-dasharray 1.5s cubic-bezier(.34, 1.56, .64, 1), stroke-dashoffset 1.5s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .dctr {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center
+        }
+
+        .dctr-v {
+            font-size: 44px;
+            font-weight: 900
+        }
+
+        .dctr-l {
+            font-size: 12px;
+            color: var(--t3);
+            font-weight: 600
+        }
+
+        .dleg {
+            display: flex;
+            flex-direction: column;
+            gap: 12px
+        }
+
+        .dleg-i {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 500
+        }
+
+        .dleg-d {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0
+        }
+
+        .dleg-v {
+            color: var(--t3);
+            margin-left: auto;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-size: 16px
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 12px;
+            height: 100%
+        }
+
+        .kpi-card {
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px
+        }
+
+        .kpi-icon {
+            font-size: 28px;
+            margin-bottom: 6px
+        }
+
+        .kpi-val {
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            color: var(--t3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            font-weight: 700
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: var(--t3);
+            margin-top: 2px;
+            font-weight: 500
+        }
+
+        /* Prod Grid */
+        .prod-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            height: 100%;
+            align-content: center;
+            overflow: hidden
+        }
+
+        .prod-card {
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .prod-card-av {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            flex-shrink: 0
+        }
+
+        .prod-card-av img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover
+        }
+
+        .prod-card-name {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%
+        }
+
+        .prod-card-ring {
+            position: relative;
+            width: 54px;
+            height: 54px
+        }
+
+        .prod-card-ring svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg)
+        }
+
+        .prod-card-ring circle {
+            fill: none;
+            stroke-width: 5
+        }
+
+        .prod-ring-bg {
+            stroke: rgba(255, 255, 255, .04)
+        }
+
+        .prod-ring-fill {
+            transition: stroke-dasharray 1.5s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .prod-card-pct {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: 800
+        }
+
+        .prod-card-stat {
+            font-size: 10px;
+            color: var(--t3);
+            font-weight: 500
+        }
+
+        /* Bars */
+        .bars {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            justify-content: center;
+            height: 100%
+        }
+
+        .bar-i {
+            display: flex;
+            align-items: center;
+            gap: 14px
+        }
+
+        .bar-l {
+            width: 110px;
+            font-size: 14px;
+            color: var(--t2);
+            font-weight: 500;
+            text-align: right
+        }
+
+        .bar-t {
+            flex: 1;
+            height: 34px;
+            background: rgba(255, 255, 255, .03);
+            border-radius: 8px;
+            overflow: hidden
+        }
+
+        .bar-f {
+            height: 100%;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            transition: width 1.5s cubic-bezier(.34, 1.56, .64, 1);
+            min-width: 0
+        }
+
+        .bar-f.designer {
+            background: linear-gradient(90deg, #a855f7, #ec4899)
+        }
+
+        .bar-f.videomaker {
+            background: linear-gradient(90deg, #3b82f6, #06b6d4)
+        }
+
+        .bar-f.socialmedia {
+            background: linear-gradient(90deg, #ec4899, #a855f7)
+        }
+
+        .bar-f.suporte {
+            background: linear-gradient(90deg, #22c55e, #06b6d4)
+        }
+
+        .bar-f.inovacaoti {
+            background: linear-gradient(90deg, #f59e0b, #ef4444)
+        }
+
+        .bar-f.transmissao {
+            background: linear-gradient(90deg, #06b6d4, #3b82f6)
+        }
+
+        /* Timeline */
+        .tl {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column
+        }
+
+        .tl-bars {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            padding: 10px 0
+        }
+
+        .tl-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            height: 100%;
+            justify-content: flex-end
+        }
+
+        .tl-bar {
+            width: 100%;
+            min-width: 6px;
+            border-radius: 6px 6px 0 0;
+            background: linear-gradient(0deg, var(--accent), var(--purple));
+            transition: height 1s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .tl-val {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--t1)
+        }
+
+        .tl-lbls {
+            display: flex;
+            gap: 5px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0
+        }
+
+        .tl-lbl {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            color: var(--t3);
+            font-weight: 600
+        }
+
+        /* Gauge */
+        .gw {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 28px
+        }
+
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px
+        }
+
+        .gauge svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(135deg)
+        }
+
+        .gauge circle {
+            fill: none;
+            stroke-width: 18;
+            stroke-linecap: round
+        }
+
+        .gauge-bg {
+            stroke: rgba(255, 255, 255, .04)
+        }
+
+        .gauge-fill {
+            transition: stroke-dasharray 2s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .gauge-ctr {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center
+        }
+
+        .gauge-v {
+            font-size: 48px;
+            font-weight: 900
+        }
+
+        .gauge-l {
+            font-size: 12px;
+            color: var(--t3);
+            font-weight: 600
+        }
+
+        .gauge-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 14px
+        }
+
+        .gauge-s {
+            display: flex;
+            flex-direction: column;
+            gap: 2px
+        }
+
+        .gauge-sv {
+            font-size: 26px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums
+        }
+
+        .gauge-sl {
+            font-size: 10px;
+            color: var(--t3);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px
+        }
+
+        /* Productivity bars */
+        .prod-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: center;
+            height: 100%;
+            overflow: hidden
+        }
+
+        .prod-item {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .prod-av {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple))
+        }
+
+        .prod-info {
+            flex: 1;
+            min-width: 0
+        }
+
+        .prod-name {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .prod-track {
+            height: 8px;
+            background: rgba(255, 255, 255, .04);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 3px
+        }
+
+        .prod-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--purple));
+            transition: width 1.5s cubic-bezier(.34, 1.56, .64, 1)
+        }
+
+        .prod-val {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--t2);
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+            width: 28px;
+            text-align: right
+        }
+
+        /* Activity */
+        .act-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+            flex: 1
+        }
+
+        .act-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, .02);
+            border: 1px solid var(--border);
+            border-radius: 12px
+        }
+
+        .act-prio {
+            width: 4px;
+            height: 40px;
+            border-radius: 3px;
+            flex-shrink: 0
+        }
+
+        .act-prio.urgente {
+            background: var(--red);
+            box-shadow: 0 0 8px rgba(239, 68, 68, .4)
+        }
+
+        .act-prio.alta {
+            background: var(--orange)
+        }
+
+        .act-prio.normal {
+            background: var(--green)
+        }
+
+        .act-prio.baixa,
+        .act-prio.undefined {
+            background: #52525b
+        }
+
+        .act-inf {
+            flex: 1;
+            min-width: 0
+        }
+
+        .act-ttl {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .act-mta {
+            font-size: 11px;
+            color: var(--t3);
+            margin-top: 2px
+        }
+
+        .act-av {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple))
+        }
+
+        .act-st {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            flex-shrink: 0
+        }
+
+        .st-do {
+            background: rgba(245, 158, 11, .15);
+            color: var(--orange)
+        }
+
+        .st-af {
+            background: rgba(59, 130, 246, .15);
+            color: var(--blue)
+        }
+
+        .st-rv {
+            background: rgba(168, 85, 247, .15);
+            color: var(--purple)
+        }
+
+        /* ================================ */
+        /* ===== RANKING SIDEBAR ========= */
+        /* ================================ */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            border-radius: 20px;
+            padding: 22px 20px;
+            background: linear-gradient(180deg, rgba(14, 14, 28, .92), rgba(8, 8, 16, .96));
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            overflow: hidden
+        }
+
+        .rk-hdr {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 14px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0
+        }
+
+        .rk-trophy {
+            font-size: 30px;
+            animation: tb 2.5s ease-in-out infinite
+        }
+
+        @keyframes tb {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0)
+            }
+
+            15% {
+                transform: translateY(-5px) rotate(10deg)
+            }
+
+            30% {
+                transform: translateY(-2px) rotate(-6deg)
+            }
+
+            50% {
+                transform: translateY(-4px) rotate(4deg)
+            }
+
+            70% {
+                transform: translateY(0) rotate(-2deg)
+            }
+        }
+
+        .rk-title {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -.3px
+        }
+
+        .rk-sub {
+            font-size: 10px;
+            color: var(--t3);
+            font-weight: 500
+        }
+
+        /* === PODIUM (Top 3) === */
+        .podium {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 0 10px;
+            flex-shrink: 0
+        }
+
+        .podium-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1
+        }
+
+        .podium-slot.p1 {
+            order: 2
+        }
+
+        .podium-slot.p2 {
+            order: 1
+        }
+
+        .podium-slot.p3 {
+            order: 3
+        }
+
+        /* Podium pedestals */
+        .pedestal {
+            width: 100%;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 10px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .p1 .pedestal {
+            height: 70px;
+            background: linear-gradient(180deg, rgba(251, 191, 36, .2), rgba(251, 191, 36, .05));
+            border: 1px solid rgba(251, 191, 36, .25);
+            border-bottom: none;
+            animation: pedGlow 3s ease-in-out infinite alternate
+        }
+
+        .p2 .pedestal {
+            height: 50px;
+            background: linear-gradient(180deg, rgba(192, 192, 192, .12), rgba(192, 192, 192, .03));
+            border: 1px solid rgba(192, 192, 192, .15);
+            border-bottom: none
+        }
+
+        .p3 .pedestal {
+            height: 38px;
+            background: linear-gradient(180deg, rgba(205, 127, 50, .1), rgba(205, 127, 50, .03));
+            border: 1px solid rgba(205, 127, 50, .12);
+            border-bottom: none
+        }
+
+        @keyframes pedGlow {
+            0% {
+                box-shadow: 0 0 0 transparent
+            }
+
+            100% {
+                box-shadow: 0 -10px 30px rgba(251, 191, 36, .1)
+            }
+        }
+
+        .ped-pos {
+            font-size: 18px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums
+        }
+
+        .p1 .ped-pos {
+            color: var(--gold);
+            text-shadow: 0 0 12px var(--gold-g)
+        }
+
+        .p2 .ped-pos {
+            color: var(--silver)
+        }
+
+        .p3 .ped-pos {
+            color: var(--bronze)
+        }
+
+        .ped-score {
+            font-size: 10px;
+            color: var(--t3);
+            font-weight: 600;
+            margin-top: 2px
+        }
+
+        /* Podium avatar */
+        .pod-aw {
+            position: relative;
+            flex-shrink: 0
+        }
+
+        .pod-ring {
+            position: absolute;
+            border-radius: 50%
+        }
+
+        .p1 .pod-ring {
+            inset: -6px;
+            border: 3px solid var(--gold);
+            box-shadow: 0 0 20px var(--gold-g);
+            animation: rg 2s ease-in-out infinite alternate
+        }
+
+        .p2 .pod-ring {
+            inset: -5px;
+            border: 2.5px solid var(--silver);
+            box-shadow: 0 0 10px rgba(192, 192, 192, .2)
+        }
+
+        .p3 .pod-ring {
+            inset: -4px;
+            border: 2px solid var(--bronze);
+            box-shadow: 0 0 8px rgba(205, 127, 50, .2)
+        }
+
+        @keyframes rg {
+            0% {
+                box-shadow: 0 0 10px var(--gold-g)
+            }
+
+            100% {
+                box-shadow: 0 0 25px var(--gold-g), 0 0 50px rgba(251, 191, 36, .15)
+            }
+        }
+
+        .pod-av {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1
+        }
+
+        .p1 .pod-av {
+            width: 68px;
+            height: 68px
+        }
+
+        .pod-av img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover
+        }
+
+        .pod-fb {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white
+        }
+
+        .p1 .pod-fb {
+            font-size: 20px;
+            background: linear-gradient(135deg, #f59e0b, #fbbf24)
+        }
+
+        .p2 .pod-fb {
+            font-size: 16px;
+            background: linear-gradient(135deg, #6b7280, #9ca3af)
+        }
+
+        .p3 .pod-fb {
+            font-size: 16px;
+            background: linear-gradient(135deg, #92400e, #d97706)
+        }
+
+        /* Crown for 1st */
+        .crown {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 26px;
+            z-index: 3;
+            animation: crownBounce 2s ease-in-out infinite;
+            filter: drop-shadow(0 2px 8px rgba(251, 191, 36, .6))
+        }
+
+        @keyframes crownBounce {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0) rotate(0)
+            }
+
+            25% {
+                transform: translateX(-50%) translateY(-4px) rotate(-8deg)
+            }
+
+            75% {
+                transform: translateX(-50%) translateY(-2px) rotate(5deg)
+            }
+        }
+
+        /* Sparkle particles for 1st */
+        .sparkles {
+            position: absolute;
+            inset: -20px;
+            pointer-events: none;
+            z-index: 0
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--gold);
+            border-radius: 50%;
+            opacity: 0
+        }
+
+        .sparkle:nth-child(1) {
+            top: 10%;
+            left: 15%;
+            animation: sp 3s 0s infinite
+        }
+
+        .sparkle:nth-child(2) {
+            top: 25%;
+            right: 10%;
+            animation: sp 3s .5s infinite
+        }
+
+        .sparkle:nth-child(3) {
+            bottom: 30%;
+            left: 10%;
+            animation: sp 3s 1s infinite
+        }
+
+        .sparkle:nth-child(4) {
+            bottom: 15%;
+            right: 20%;
+            animation: sp 3s 1.5s infinite
+        }
+
+        .sparkle:nth-child(5) {
+            top: 50%;
+            left: 5%;
+            animation: sp 3s 2s infinite
+        }
+
+        .sparkle:nth-child(6) {
+            top: 5%;
+            right: 25%;
+            animation: sp 3s 2.5s infinite
+        }
+
+        @keyframes sp {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: scale(0)
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.5)
+            }
+
+            75% {
+                opacity: .5;
+                transform: scale(.8)
+            }
+        }
+
+        .pod-name {
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 4px
+        }
+
+        .p1 .pod-name {
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(251, 191, 36, .3);
+            font-size: 13px
+        }
+
+        .pod-dept {
+            font-size: 9px;
+            color: var(--t3);
+            text-align: center;
+            font-weight: 500
+        }
+
+        /* Ranking list (4+) */
+        .rk-rest {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow: hidden;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border)
+        }
+
+        .rk-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .02);
+            border: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        .rk-pos {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--t3);
+            width: 28px;
+            text-align: center
+        }
+
+        .rk-av {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0
+        }
+
+        .rk-av img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover
+        }
+
+        .rk-fb {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #27272a, #3f3f46);
+            color: white
+        }
+
+        .rk-inf {
+            flex: 1;
+            min-width: 0
+        }
+
+        .rk-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .rk-dept {
+            font-size: 10px;
+            color: var(--t3)
+        }
+
+        .rk-sc {
+            text-align: right;
+            flex-shrink: 0
+        }
+
+        .rk-pct {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--t2);
+            font-variant-numeric: tabular-nums
+        }
+
+        .rk-det {
+            font-size: 10px;
+            color: var(--t3)
+        }
+
+        /* Completion mini bar */
+        .rk-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, .04);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 3px
+        }
+
+        .rk-bar-f {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--purple));
+            transition: width 1s
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 100
+        }
+
+        .ld-spin {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, .05);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .8s linear infinite
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .ld-txt {
+            font-size: 14px;
+            color: var(--t3);
+            font-weight: 500
+        }
+
+        .empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--t3);
+            font-size: 13px;
+            font-style: italic
+        }
+
+        /* Month Selector */
+        .month-sel {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .month-sel label {
+            font-size: 11px;
+            color: var(--t3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600
+        }
+
+        .month-sel select {
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--t1);
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            transition: border-color .2s
+        }
+
+        .month-sel select:focus {
+            border-color: var(--accent)
+        }
+
+        .month-sel select option {
+            background: var(--bg);
+            color: var(--t1)
+        }
+
+        /* Status Board Slide — TV-optimized horizontal layout */
+        #statusBoard { flex-direction:row !important; justify-content:stretch; align-items:stretch; }
+        .sb-col { flex:1; min-width:0; display:flex; flex-direction:column; border-radius:16px; padding:12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); overflow:hidden; }
+        .sb-col-hdr { display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:10px; border-radius:10px; }
+        .sb-col-hdr .sb-icon { font-size:20px; }
+        .sb-col-hdr .sb-title { font-size:15px; font-weight:800; text-transform:uppercase; letter-spacing:.8px; }
+        .sb-col-hdr .sb-count { margin-left:auto; font-size:14px; font-weight:900; padding:3px 12px; border-radius:20px; }
+        .sb-col.afazer .sb-col-hdr { background:rgba(59,130,246,.15); color:#60a5fa; }
+        .sb-col.afazer .sb-count { background:rgba(59,130,246,.25); color:#93c5fd; }
+        .sb-col.fazendo .sb-col-hdr { background:rgba(245,158,11,.15); color:#fbbf24; }
+        .sb-col.fazendo .sb-count { background:rgba(245,158,11,.25); color:#fde68a; }
+        .sb-col.revisao .sb-col-hdr { background:rgba(168,85,247,.15); color:#c084fc; }
+        .sb-col.revisao .sb-count { background:rgba(168,85,247,.25); color:#d8b4fe; }
+        .sb-col.aprovado .sb-col-hdr { background:rgba(34,197,94,.15); color:#4ade80; }
+        .sb-col.aprovado .sb-count { background:rgba(34,197,94,.25); color:#86efac; }
+        .sb-cards { flex:1; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+        .sb-card { padding:10px 14px; border-radius:12px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); }
+        .sb-card-name { font-size:14px; font-weight:700; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
+        .sb-card-meta { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:var(--t3); }
+        .sb-card-meta .sb-avatar { width:24px; height:24px; border-radius:50%; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; overflow:hidden; flex-shrink:0; }
+        .sb-card-meta .sb-avatar img { width:100%; height:100%; object-fit:cover; }
+        .sb-card-prio { font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; margin-left:auto; text-transform:uppercase; letter-spacing:.5px; }
+        .sb-card-prio.critico { background:rgba(239,68,68,.2); color:#f87171; }
+        .sb-card-prio.alta { background:rgba(245,158,11,.2); color:#fbbf24; }
+        .sb-card-prio.media,.sb-card-prio.normal { background:rgba(99,102,241,.15); color:#818cf8; }
+        .sb-card-prio.baixa { background:rgba(100,116,139,.15); color:#94a3b8; }
+
+        /* ===== THEME SELECTOR ===== */
+        .tv-theme-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 10px;
+            color: var(--t2);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .3s;
+            font-family: 'Inter', sans-serif;
+        }
+        .tv-theme-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); }
+        .tv-theme-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: rgba(14,14,28,.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            padding: 6px;
+            z-index: 100;
+            min-width: 140px;
+            box-shadow: 0 12px 40px rgba(0,0,0,.5);
+        }
+        .tv-theme-menu.open { display: block; }
+        .tv-theme-opt {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--t2);
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            font-family: 'Inter', sans-serif;
+            transition: background .2s;
+        }
+        .tv-theme-opt:hover { background: rgba(255,255,255,.08); }
+        .tv-theme-opt.active { color: var(--accent); font-weight: 700; }
+
+        /* ===== LIGHT THEME ===== */
+        body.tv-light {
+            --bg: #f5f5f9;
+            --surface: rgba(255,255,255,.85);
+            --border: rgba(0,0,0,.08);
+            --t1: #1a1d26;
+            --t2: #4a5568;
+            --t3: #718096;
+        }
+        body.tv-light .amb { opacity: 0.03; }
+        body.tv-light .sidebar { background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(245,245,249,.98)); }
+        body.tv-light .glass { background: rgba(255,255,255,.85); }
+        body.tv-light .brand h1 { background: linear-gradient(110deg, #1a1d26 30%, #4a5568 45%, #4a5568 55%, #1a1d26 70%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; }
+        body.tv-light .tv-clock { background: linear-gradient(135deg, #5b5bd6, #8b5cf6, #ec4899); -webkit-background-clip: text; background-clip: text; }
+        body.tv-light .tv-theme-btn { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: #4a5568; }
+        body.tv-light .tv-theme-menu { background: rgba(255,255,255,.98); border-color: rgba(0,0,0,.1); box-shadow: 0 12px 40px rgba(0,0,0,.15); }
+        body.tv-light .tv-theme-opt { color: #4a5568; }
+        body.tv-light .tv-theme-opt:hover { background: rgba(0,0,0,.05); }
+        body.tv-light .dbg, body.tv-light .gauge-bg, body.tv-light .prod-ring-bg { stroke: rgba(0,0,0,.06); }
+        body.tv-light .act-item, body.tv-light .kpi-card, body.tv-light .prod-card { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.06); }
+        body.tv-light .bar-t { background: rgba(0,0,0,.04); }
+        body.tv-light .dot { background: rgba(0,0,0,.06); border-color: rgba(0,0,0,.1); }
+
+        /* ===== MONDAY THEME ===== */
+        body.tv-monday {
+            --bg: #0b0d1a;
+            --surface: rgba(16,18,36,.85);
+            --border: rgba(99,102,241,.12);
+            --t1: #e8e8ff;
+            --t2: #a5a6ff;
+            --t3: #6b6b9e;
+            --accent: #7c3aed;
+        }
+        body.tv-monday .amb .orb { opacity: .1; }
+        body.tv-monday .sidebar { background: linear-gradient(180deg, rgba(16,18,36,.95), rgba(12,12,28,.98)); border-color: rgba(99,102,241,.15); }
+        body.tv-monday .glass { border-color: rgba(99,102,241,.1); }
+    </style>
+</head>
+
+<body>
+    <div class="amb">
+        <div class="orb"></div>
+        <div class="orb"></div>
+        <div class="orb"></div>
+    </div>
+    <div class="loading" id="ld">
+        <div class="ld-spin"></div>
+        <div class="ld-txt">Conectando ao Dashboard...</div>
+    </div>
+
+    <div class="tv" id="app" style="display:none;">
+        <div style="display:flex;flex-direction:column;overflow:hidden;height:100%;">
+            <header class="hdr">
+                <div class="brand">
+                    <div class="logo"><img src="logo-pnsa.png" alt="Radar PNSA"></div>
+                    <div>
+                        <h1>Radar PNSA Dashboard</h1>
+                        <p>Paróquia Nossa Senhora da Assunção</p>
+                    </div>
+                </div>
+                <div class="month-sel">
+                    <label>📆 Mês</label>
+                    <select id="monthSelect" onchange="changeMonth(this.value)"></select>
+                </div>
+                <div class="clock-area">
+                    <!-- Theme Selector -->
+                    <div style="position:relative;">
+                        <button class="tv-theme-btn" onclick="document.getElementById('tvThemeMenu').classList.toggle('open')" id="tvThemeBtn">
+                            <span id="tvThemeIcon">🌙</span> Tema
+                        </button>
+                        <div class="tv-theme-menu" id="tvThemeMenu">
+                            <button class="tv-theme-opt active" id="optDark" onclick="setTvTheme('dark')">🌙 Escuro</button>
+                            <button class="tv-theme-opt" id="optLight" onclick="setTvTheme('light')">☀️ Claro</button>
+                            <button class="tv-theme-opt" id="optMonday" onclick="setTvTheme('monday')">🚀 Monday</button>
+                        </div>
+                    </div>
+                    <div class="dots" id="dots"></div>
+                    <div>
+                        <div class="tv-date" id="dateD"></div>
+                        <div class="tv-clock" id="clockD">00:00</div>
+                    </div>
+                </div>
+            </header>
+            <div class="metrics" id="metricsRow"></div>
+            <div class="slides" id="slides">
+                <div class="slide on" data-s="0" style="display:flex;gap:12px;">
+                    <div class="pan glass">
+                        <h3>🍩 Demandas por Status</h3>
+                        <div class="pan-c" id="donutStatus"></div>
+                    </div>
+                    <div class="pan glass">
+                        <h3>🎯 Taxa de Conclusão</h3>
+                        <div class="pan-c" id="gauge"></div>
+                    </div>
+                    <div class="pan glass">
+                        <h3>📊 Indicadores Gerais</h3>
+                        <div class="pan-c" id="kpiGrid"></div>
+                    </div>
+                </div>
+                <div class="slide" data-s="1" style="display:flex;gap:12px;">
+                    <div class="pan glass" style="flex:1.4">
+                        <h3>📈 Demandas Criadas no Mês</h3>
+                        <div class="pan-c" id="timeline"></div>
+                    </div>
+                    <div class="pan glass">
+                        <h3>📊 Por Departamento</h3>
+                        <div class="pan-c" id="barDept"></div>
+                    </div>
+                </div>
+                <div class="slide" data-s="2" style="display:flex;gap:12px;">
+                    <div class="pan glass" style="flex:1.3">
+                        <h3>👤 Produtividade Individual</h3>
+                        <div class="pan-c" id="prodList"></div>
+                    </div>
+                    <div class="pan glass">
+                        <h3>⚡ Demandas Ativas</h3>
+                        <div class="pan-c act-list" id="actList"></div>
+                    </div>
+                </div>
+                <!-- SLIDE 4: Artes Recentes -->
+                <div class="slide" data-s="3" style="display:flex;gap:12px;">
+                    <div class="pan glass" style="flex:1;">
+                        <h3>🖼️ Últimas Artes Entregues</h3>
+                        <div class="pan-c" id="latestArtsList"
+                            style="display:flex; gap:16px; overflow:hidden; justify-content:center; align-items:center; height:100%; padding: 12px 0;">
+                        </div>
+                    </div>
+                </div>
+                <!-- SLIDE 5: Status Board -->
+                <div class="slide" data-s="4" style="display:flex;gap:12px;">
+                    <div class="pan glass" style="flex:1;">
+                        <h3>📊 Painel de Status das Demandas</h3>
+                        <div class="pan-c" id="statusBoard" style="display:flex; gap:10px; height:100%; padding:8px 0; overflow:hidden;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RANKING SIDEBAR -->
+        <aside class="sidebar">
+            <div class="rk-hdr">
+                <span class="rk-trophy">🏆</span>
+                <div>
+                    <div class="rk-title">Top Entregas</div>
+                    <div class="rk-sub">Ranking por taxa de conclusão</div>
+                </div>
+            </div>
+            <div id="podiumArea"></div>
+            <div class="rk-rest" id="rkRest"></div>
+        </aside>
+    </div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script>
+        let USERS = {}, demandas = [], curSlide = 0;
+        let selectedYear = new Date().getFullYear(), selectedMonth = new Date().getMonth();
+        const TOTAL_SLIDES = 5, INTERVAL = 10000;
+        const C = { blue: '#3b82f6', orange: '#f59e0b', purple: '#a855f7', green: '#22c55e', red: '#ef4444', pink: '#ec4899', cyan: '#06b6d4' };
+        const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+        // Theme System
+        function setTvTheme(theme) {
+            document.body.classList.remove('tv-light', 'tv-monday');
+            if (theme === 'light') document.body.classList.add('tv-light');
+            else if (theme === 'monday') document.body.classList.add('tv-monday');
+
+            const icons = { dark: '🌙', light: '☀️', monday: '🚀' };
+            const el = document.getElementById('tvThemeIcon');
+            if (el) el.textContent = icons[theme] || '🌙';
+
+            // Active state
+            document.querySelectorAll('.tv-theme-opt').forEach(b => b.classList.remove('active'));
+            const optId = { dark: 'optDark', light: 'optLight', monday: 'optMonday' };
+            document.getElementById(optId[theme])?.classList.add('active');
+
+            localStorage.setItem('tv-theme', theme);
+            document.getElementById('tvThemeMenu')?.classList.remove('open');
+        }
+
+        // Init theme on load
+        (function initTvTheme() {
+            const saved = localStorage.getItem('tv-theme');
+            if (saved && saved !== 'dark') setTvTheme(saved);
+        })();
+
+        // Close menu on click outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('tvThemeMenu');
+            const btn = document.getElementById('tvThemeBtn');
+            if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('open');
+            }
+        });
+
+        /* Month filter */
+        function getMonthDemandas() {
+            const start = new Date(selectedYear, selectedMonth, 1);
+            const end = new Date(selectedYear, selectedMonth + 1, 1);
+            return demandas.filter(d => {
+                const dc = d.dataCriacao || d.dataSolicitacao;
+                if (!dc) return false;
+                const dt = new Date(dc);
+                return dt >= start && dt < end;
+            });
+        }
+
+        function buildMonthSelector() {
+            const sel = document.getElementById('monthSelect'); if (!sel) return;
+            const now = new Date();
+            const opts = [];
+            for (let i = 0; i < 12; i++) {
+                const m = now.getMonth() - i;
+                const y = now.getFullYear();
+                const dt = new Date(y, m, 1);
+                const val = `${dt.getFullYear()}-${dt.getMonth()}`;
+                const lbl = `${MONTH_NAMES[dt.getMonth()]} ${dt.getFullYear()}`;
+                opts.push(`<option value="${val}"${i === 0 ? ' selected' : ''}>${lbl}</option>`);
+            }
+            sel.innerHTML = opts.join('');
+        }
+
+        function changeMonth(val) {
+            const [y, m] = val.split('-').map(Number);
+            selectedYear = y; selectedMonth = m;
+            renderAll();
+        }
+
+        /* Firebase */
+        function loadUsers() { if (!window.firebaseDb) return; try { window.onSnapshot(window.query(window.collection(window.firebaseDb, "users")), s => { const l = {}; s.forEach(d => { const da = d.data(); if (da.id) l[da.id] = da }); USERS = l; renderAll() }) } catch (e) { console.error(e) } }
+        function loadDemandas() { if (!window.firebaseDb) return; try { window.onSnapshot(window.query(window.collection(window.firebaseDb, "demandas")), s => { const l = []; s.forEach(d => { const da = d.data(); if (!da.deletedAt) l.push({ id: d.id, ...da }) }); demandas = l; renderAll() }) } catch (e) { console.error(e) } }
+
+        function renderAll() { const md = getMonthDemandas(); updateMetrics(md); renderDonutStatus(md); renderGauge(md); renderKPIs(md); renderTimeline(md); renderBarDept(md); renderProductivity(md); renderActivity(md); renderRanking(md); renderLatestArts(md); renderStatusBoard(md); }
+
+        /* Clock */
+        function updateClock() { const n = new Date(); document.getElementById('clockD').textContent = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; const ds = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'], ms = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']; document.getElementById('dateD').textContent = `${ds[n.getDay()]}, ${n.getDate()} ${ms[n.getMonth()]}` }
+
+        /* Metrics - 5 cards com ícones */
+        function updateMetrics(md) {
+            const t = md.length, af = md.filter(d => d.status === 'A fazer').length, fz = md.filter(d => d.status === 'Fazendo').length, rv = md.filter(d => d.status === 'Para aprovação').length, dn = md.filter(d => d.status === 'Aprovado').length;
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
+            document.getElementById('metricsRow').innerHTML = `
+                <div class="metric bl glass"><span class="m-icon">📋</span><span class="m-val">${t}</span><span class="m-lbl">Total</span></div>
+                <div class="metric or glass"><span class="m-icon">🔄</span><span class="m-val">${af + fz}</span><span class="m-lbl">Em Andamento</span></div>
+                <div class="metric pu glass"><span class="m-icon">👁️</span><span class="m-val">${rv}</span><span class="m-lbl">Revisão</span></div>
+                <div class="metric gn glass"><span class="m-icon">✅</span><span class="m-val">${dn}</span><span class="m-lbl">Concluídas</span></div>
+                <div class="metric rd glass"><span class="m-icon">⚠️</span><span class="m-val">${overdue}</span><span class="m-lbl">Atrasadas</span></div>`;
+        }
+
+        /* Donut Status */
+        function renderDonutStatus(md) {
+            const data = [
+                { label: 'A Fazer', count: md.filter(d => d.status === 'A fazer').length, color: C.blue },
+                { label: 'Fazendo', count: md.filter(d => d.status === 'Fazendo').length, color: C.orange },
+                { label: 'Revisão', count: md.filter(d => d.status === 'Para aprovação').length, color: C.purple },
+                { label: 'Aprovado', count: md.filter(d => d.status === 'Aprovado').length, color: C.green }];
+            renderDonut('donutStatus', data, 'Total');
+        }
+        function renderDonut(id, data, lbl) {
+            const el = document.getElementById(id); if (!el) return;
+            const total = data.reduce((s, d) => s + d.count, 0) || 1; const R = 70, circ = 2 * Math.PI * R; let off = 0;
+            const segs = data.map(d => { const dash = (d.count / total) * circ; const s = { ...d, dash, off, pct: Math.round((d.count / total) * 100) }; off += dash; return s });
+            el.innerHTML = `<div class="dw"><div class="dc" style="width:180px;height:180px"><svg viewBox="0 0 180 180"><circle class="dbg" cx="90" cy="90" r="${R}"/>${segs.map(s => `<circle class="dseg" cx="90" cy="90" r="${R}" stroke="${s.color}" stroke-dasharray="${s.dash} ${circ}" stroke-dashoffset="-${s.off}" stroke-linecap="round"/>`).join('')}</svg><div class="dctr"><div class="dctr-v">${total}</div><div class="dctr-l">${lbl}</div></div></div><div class="dleg">${data.map(d => { const p = total > 0 ? Math.round((d.count / total) * 100) : 0; return `<div class="dleg-i"><span class="dleg-d" style="background:${d.color}"></span><span>${d.label}</span><span class="dleg-v">${d.count} (${p}%)</span></div>` }).join('')}</div></div>`;
+        }
+
+        /* Gauge */
+        function renderGauge(md) {
+            const el = document.getElementById('gauge'); if (!el) return;
+            const total = md.length, done = md.filter(d => d.status === 'Aprovado').length;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const doing = md.filter(d => d.status === 'Fazendo').length + md.filter(d => d.status === 'A fazer').length;
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
+            const avgDays = calcAvgDays(md);
+            const R = 80, circ = 2 * Math.PI * R, arc = circ * .75, fill = (pct / 100) * arc;
+            const color = pct >= 80 ? C.green : pct >= 50 ? C.orange : C.red;
+            el.innerHTML = `<div class="gw"><div class="gauge"><svg viewBox="0 0 200 200"><circle class="gauge-bg" cx="100" cy="100" r="${R}" stroke-dasharray="${arc} ${circ}"/><circle class="gauge-fill" cx="100" cy="100" r="${R}" stroke="${color}" stroke-dasharray="${fill} ${circ}"/></svg><div class="gauge-ctr"><div class="gauge-v" style="color:#fff;font-size:28px;font-weight:900;text-shadow:0 0 20px ${color}, 0 0 40px ${color}">${pct}%</div><div class="gauge-l" style="font-size:11px;color:var(--t3)">Conclusão</div></div></div><div class="gauge-stats"><div class="gauge-s"><div class="gauge-sv" style="color:var(--green)">${done}</div><div class="gauge-sl">Concluídas</div></div><div class="gauge-s"><div class="gauge-sv" style="color:var(--orange)">${doing}</div><div class="gauge-sl">Em Progresso</div></div><div class="gauge-s"><div class="gauge-sv" style="color:var(--red)">${overdue}</div><div class="gauge-sl">Atrasadas</div></div><div class="gauge-s"><div class="gauge-sv" style="color:var(--cyan)">${avgDays}d</div><div class="gauge-sl">Tempo Médio</div></div></div></div>`;
+        }
+        function calcAvgDays(md) {
+            const completed = (md || getMonthDemandas()).filter(d => d.status === 'Aprovado' && d.dataCriacao);
+            if (!completed.length) return '-';
+            const now = new Date();
+            const total = completed.reduce((sum, d) => {
+                const start = new Date(d.dataCriacao); const end = d.lastStatusChange ? new Date(d.lastStatusChange) : now;
+                return sum + Math.max(Math.ceil((end - start) / 864e5), 1)
+            }, 0);
+            return Math.round(total / completed.length);
+        }
+
+        /* KPI Grid */
+        function renderKPIs(md) {
+            const el = document.getElementById('kpiGrid'); if (!el) return;
+            const avgDays = calcAvgDays(md);
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
+            const thisWeek = md.filter(d => { const dc = d.dataCriacao; if (!dc) return false; const diff = (new Date() - new Date(dc)) / 864e5; return diff <= 7; }).length;
+            const uniqueDepts = new Set(); md.forEach(d => { if (d.pipeline) d.pipeline.forEach(s => { if (s.dept) uniqueDepts.add(s.dept); }); });
+            const totalActors = Object.values(USERS).filter(u => !isGO(u) && md.some(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id)).length;
+            el.innerHTML = `<div class="kpi-grid">
+                <div class="kpi-card" style="border-color:rgba(6,182,212,.12)"><div class="kpi-icon">⏱️</div><div class="kpi-val" style="color:var(--cyan)">${avgDays}d</div><div class="kpi-label">Tempo Médio</div><div class="kpi-sub">de conclusão</div></div>
+                <div class="kpi-card" style="border-color:rgba(239,68,68,.12)"><div class="kpi-icon">🔥</div><div class="kpi-val" style="color:var(--red)">${overdue}</div><div class="kpi-label">Atrasadas</div><div class="kpi-sub">prazo vencido</div></div>
+                <div class="kpi-card" style="border-color:rgba(99,102,241,.12)"><div class="kpi-icon">📅</div><div class="kpi-val" style="color:var(--accent)">${thisWeek}</div><div class="kpi-label">Esta Semana</div><div class="kpi-sub">novas demandas</div></div>
+                <div class="kpi-card" style="border-color:rgba(34,197,94,.12)"><div class="kpi-icon">👥</div><div class="kpi-val" style="color:var(--green)">${totalActors}</div><div class="kpi-label">Colaboradores</div><div class="kpi-sub">${uniqueDepts.size} departamentos</div></div>
+            </div>`;
+        }
+
+        /* Timeline - todos os dias do mês selecionado */
+        function renderTimeline(md) {
+            const el = document.getElementById('timeline'); if (!el) return;
+            const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            const counts = [], labels = [];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const key = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                labels.push(day);
+                counts.push(md.filter(t => { const dc = t.dataCriacao || t.dataSolicitacao; return dc && dc.startsWith(key) }).length);
+            }
+            const max = Math.max(...counts, 1);
+            const today = new Date(); const isCurrentMonth = today.getFullYear() === selectedYear && today.getMonth() === selectedMonth;
+            el.innerHTML = `<div class="tl"><div class="tl-bars">${counts.map((c, i) => { const pct = Math.max((c / max) * 100, c > 0 ? 10 : 3); const isToday = isCurrentMonth && (i + 1) === today.getDate(); return `<div class="tl-col"><span class="tl-val">${c || ''}</span><div class="tl-bar" style="height:${pct}%;${c === 0 ? 'opacity:.12;' : ''}${isToday ? 'background:var(--accent);box-shadow:0 0 8px var(--accent);' : ''}"></div></div>` }).join('')}</div><div class="tl-lbls">${labels.map((l, i) => { const isToday = isCurrentMonth && l === today.getDate(); return `<span class="tl-lbl" style="${isToday ? 'color:var(--accent);font-weight:700' : ''}">${l}</span>` }).join('')}</div></div>`;
+        }
+
+        /* Dept bars */
+        function renderBarDept(md) {
+            const depts = ['Designer', 'Videomaker', 'Social Media', 'Suporte', 'Inovação/TI', 'Transmissão'];
+            const data = depts.map(d => ({ label: d, cls: d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\/\s]/g, ''), count: md.filter(t => t.pipeline && t.pipeline.some(s => s.dept === d)).length }));
+            renderBars('barDept', data);
+        }
+        function renderBars(id, data) { const el = document.getElementById(id); if (!el) return; const max = Math.max(...data.map(d => d.count), 1); el.innerHTML = `<div class="bars">${data.map(d => `<div class="bar-i"><span class="bar-l">${d.label}</span><div class="bar-t"><div class="bar-f ${d.cls}" style="width:${Math.max((d.count / max) * 100, d.count > 0 ? 12 : 0)}%">${d.count > 0 ? d.count : ''}</div></div></div>`).join('')}</div>` }
+
+        /* Productivity - Grid de Cards com Mini-Ring */
+        function renderProductivity(md) {
+            const el = document.getElementById('prodList'); if (!el) return;
+            const all = Object.values(USERS);
+            const stats = all.map(u => {
+                const total = md.filter(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id).length;
+                const done = md.filter(d => d.status === 'Aprovado' && ((d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id)).length;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                return { user: u, total: total, done: done, pct }
+            }).filter(s => s.total > 0).sort((a, b) => b.done - a.done).slice(0, 8);
+            if (!stats.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return }
+            const R = 20, circ = 2 * Math.PI * R;
+            el.innerHTML = `<div class="prod-grid">${stats.map(s => {
+                const u = s.user;
+                const avInner = u.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : `${getInitials(u)}`;
+                const fill = (s.pct / 100) * circ;
+                const color = s.pct >= 80 ? C.green : s.pct >= 50 ? C.orange : C.red;
+                return `<div class="prod-card">
+                    <div class="prod-card-av">${u.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(u)}</div>
+                    <div class="prod-card-name">${u.nome || '-'}</div>
+                    <div class="prod-card-ring">
+                        <svg viewBox="0 0 50 50"><circle class="prod-ring-bg" cx="25" cy="25" r="${R}"/><circle class="prod-ring-fill" cx="25" cy="25" r="${R}" stroke="${color}" stroke-linecap="round" stroke-dasharray="${fill} ${circ}" stroke-dashoffset="0"/></svg>
+                        <div class="prod-card-pct" style="color:${color}">${s.pct}%</div>
+                    </div>
+                    <div class="prod-card-stat">${s.done}/${s.total} entregas</div>
+                </div>`;
+            }).join('')}</div>`;
+        }
+
+        /* Activity */
+        function renderActivity(md) {
+            const el = document.getElementById('actList'); if (!el) return;
+            const active = md.filter(d => d.status !== 'Aprovado').slice(0, 7);
+            if (!active.length) { el.innerHTML = '<div class="empty">Nenhuma demanda ativa</div>'; return }
+            el.innerHTML = active.map(t => { const stage = t.pipeline?.[t.currentStage]; const u = stage ? USERS[stage.userId] : null; const av = mkAv(u, 'act-av'); const sc = t.status === 'Fazendo' ? 'st-do' : t.status === 'A fazer' ? 'st-af' : 'st-rv'; return `<div class="act-item"><div class="act-prio ${(t.prioridade || 'normal').toLowerCase()}"></div><div class="act-inf"><div class="act-ttl">${t.nome || '-'}</div><div class="act-mta">${stage?.dept || '-'} · ${fmtD(t.dataConclusao)}</div></div>${av}<span class="act-st ${sc}">${t.status === 'Para aprovação' ? 'Revisão' : t.status}</span></div>` }).join('');
+        }
+
+        /* ===== RANKING ===== */
+        function renderRanking(md) {
+            const pod = document.getElementById('podiumArea');
+            const rest = document.getElementById('rkRest');
+            if (!pod || !rest) return;
+
+            const all = Object.values(USERS);
+            if (!all.length) { pod.innerHTML = ''; rest.innerHTML = '<div class="empty">Carregando...</div>'; return }
+            const mdLocal = md || getMonthDemandas();
+
+            const stats = all.map(u => {
+                const isIn = d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id;
+                const total = mdLocal.filter(d => isIn(d)).length;
+                const appr = mdLocal.filter(d => d.status === 'Aprovado' && isIn(d));
+                const done = appr.length; const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                let ld = null; if (appr.length) { const ds = appr.map(d => d.lastStatusChange || d.dataCriacao).filter(Boolean).map(d => new Date(d).getTime()); if (ds.length) ld = Math.max(...ds) }
+                return { user: u, total, done, pct, ld }
+            }).filter(s => s.total > 0)
+                .sort((a, b) => { if (b.pct !== a.pct) return b.pct - a.pct; if (b.done !== a.done) return b.done - a.done; if (a.ld && b.ld) return a.ld - b.ld; return 0 });
+
+            if (!stats.length) { pod.innerHTML = ''; rest.innerHTML = '<div class="empty">Nenhuma entrega</div>'; return }
+
+            // Build podium (top 3)
+            const top3 = stats.slice(0, 3);
+            const podCls = ['p1', 'p2', 'p3'];
+            const sparklesHtml = '<div class="sparkles">' + Array.from({ length: 6 }, () => '<div class="sparkle"></div>').join('') + '</div>';
+
+            pod.innerHTML = `<div class="podium">${top3.map((s, i) => {
+                const u = s.user;
+                const avInner = u.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : `<div class="pod-fb">${getInitials(u)}</div>`;
+                const dept = Array.isArray(u.dept) ? u.dept.filter(d => d !== 'Gestão').join(', ') : (u.dept || '');
+                const crownHtml = i === 0 ? '<div class="crown">👑</div>' : '';
+
+                return `<div class="podium-slot ${podCls[i]}">
+                    <div class="pod-aw">
+                        ${i === 0 ? sparklesHtml : ''}
+                        ${crownHtml}
+                        <div class="pod-ring"></div>
+                        <div class="pod-av">${avInner}</div>
+                    </div>
+                    <div class="pod-name">${u.nome || '-'}</div>
+                    <div class="pod-dept">${dept}</div>
+                    <div class="pedestal">
+                        <div class="ped-pos">${s.pct}%</div>
+                        <div class="ped-score">${s.done}/${s.total}</div>
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+
+            // Build rest (4+)
+            const remaining = stats.slice(3);
+            if (!remaining.length) { rest.innerHTML = ''; rest.style.display = 'none'; return }
+            rest.style.display = 'flex';
+            rest.innerHTML = remaining.map((s, i) => {
+                const u = s.user; const pos = i + 4;
+                const avInner = u.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : `<div class="rk-fb">${getInitials(u)}</div>`;
+                const dept = Array.isArray(u.dept) ? u.dept.filter(d => d !== 'Gestão').join(', ') : (u.dept || '');
+                const barW = s.total > 0 ? (s.done / s.total) * 100 : 0;
+                return `<div class="rk-item">
+                    <span class="rk-pos">${pos}º</span>
+                    <div class="rk-av">${avInner}</div>
+                    <div class="rk-inf"><div class="rk-name">${u.nome || '-'}</div><div class="rk-dept">${dept}</div><div class="rk-bar"><div class="rk-bar-f" style="width:${barW}%"></div></div></div>
+                    <div class="rk-sc"><div class="rk-pct">${s.pct}%</div><div class="rk-det">${s.done}/${s.total}</div></div>
+                </div>`;
+            }).join('');
+        }
+
+        /* Latest Arts (Slide 4) - Apenas entregas finais do designer para aprovação */
+        function renderLatestArts(md) {
+            const el = document.getElementById('latestArtsList'); if (!el) return;
+
+            // Filtra APENAS entregas finais enviadas pelo designer (Para aprovação ou Aprovado)
+            const arts = [];
+            md.forEach(d => {
+                if ((d.status === 'Para aprovação' || d.status === 'Aprovado' || d.status === 'Alteração') && d.pipeline) {
+                    const designerStage = d.pipeline.find(s => s.dept === 'Designer');
+                    if (!designerStage) return;
+                    // Coleta URLs de entrega do designer
+                    const urls = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+                    urls.forEach(url => {
+                        if (url && /\.(jpe?g|png|webp|gif|svg)(\?|$)/i.test(url)) {
+                            arts.push({ url, nome: d.nome, date: d.lastStatusChange || d.dataCriacao, designer: USERS[designerStage.userId]?.nome || '' });
+                        }
+                    });
+                }
+            });
+            arts.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const display = arts.slice(0, 6);
+
+            if (!display.length) { el.innerHTML = '<div class="empty">Nenhuma arte final entregue pelo designer neste mês</div>'; return }
+
+            el.innerHTML = `<div style="display:flex; gap:16px; width:100%; height:100%; overflow-x:auto; padding:8px 4px; scroll-snap-type:x mandatory;">
+                ${display.map(a => `
+                <div style="flex:0 0 auto; width:280px; height:100%; min-height:250px; border-radius:16px; overflow:hidden; position:relative; box-shadow:0 8px 40px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.08); scroll-snap-align:center; transition:transform .3s;">
+                    <img src="${a.url}" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy" />
+                    <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, transparent 60%); pointer-events:none;"></div>
+                    <div style="position:absolute; bottom:0; left:0; width:100%; padding:20px 16px 14px;">
+                        <div style="font-weight:800; font-size:14px; text-shadow:0 2px 8px rgba(0,0,0,0.9); line-height:1.3; margin-bottom:4px;">${a.nome || 'Entrega'}</div>
+                        ${a.designer ? `<div style="font-size:11px; color:rgba(255,255,255,0.6); font-weight:500;">🎨 ${a.designer}</div>` : ''}
+                    </div>
+                </div>`).join('')}
+            </div>`;
+        }
+
+        /* Status Board (Slide 5) */
+        function renderStatusBoard(md) {
+            const el = document.getElementById('statusBoard'); if (!el) return;
+            const statuses = [
+                { key: 'A fazer', cls: 'afazer', icon: '📋', label: 'A Fazer' },
+                { key: 'Fazendo', cls: 'fazendo', icon: '🔧', label: 'Fazendo' },
+                { key: 'Para aprovação', cls: 'revisao', icon: '👁️', label: 'Revisão' },
+                { key: 'Aprovado', cls: 'aprovado', icon: '✅', label: 'Aprovado' }
+            ];
+            el.innerHTML = statuses.map(st => {
+                const items = md.filter(d => d.status === st.key)
+                    .sort((a, b) => new Date(b.lastStatusChange || b.dataCriacao || 0) - new Date(a.lastStatusChange || a.dataCriacao || 0));
+                const cardsHtml = items.slice(0, 5).map(t => {
+                    const stage = t.pipeline?.[t.currentStage];
+                    const u = stage ? USERS[stage.userId] : null;
+                    const avHtml = u?.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(u);
+                    const pCls = (t.prioridade || 'normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return `<div class="sb-card">
+                        <div class="sb-card-name">${t.nome || '-'}</div>
+                        <div class="sb-card-meta">
+                            <div class="sb-avatar">${avHtml}</div>
+                            <span>${u?.nome?.split(' ')[0] || '-'}</span>
+                            <span class="sb-card-prio ${pCls}">${t.prioridade || 'Normal'}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+                const emptyMsg = items.length === 0 ? '<div class="empty" style="font-size:11px;">Nenhuma</div>' : '';
+                return `<div class="sb-col ${st.cls}">
+                    <div class="sb-col-hdr">
+                        <span class="sb-icon">${st.icon}</span>
+                        <span class="sb-title">${st.label}</span>
+                        <span class="sb-count">${items.length}</span>
+                    </div>
+                    <div class="sb-cards">${cardsHtml}${emptyMsg}</div>
+                </div>`;
+            }).join('');
+        }
+
+        /* Utils */
+        function getInitials(u) {
+            if (!u) return '?';
+            if (u.iniciais && u.iniciais !== '--' && u.iniciais !== '?') return u.iniciais;
+            if (u.nome) {
+                const p = u.nome.trim().split(' ').filter(Boolean);
+                if (p.length > 0) return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+            }
+            return '?';
+        }
+        function mkAv(u, c) { if (!u) return `<div class="${c}">?</div>`; if (u.avatarUrl) return `<img src="${u.avatarUrl}" class="${c}" style="object-fit:cover" referrerpolicy="no-referrer"/>`; return `<div class="${c}">${getInitials(u)}</div>` }
+        function isGO(u) { if (Array.isArray(u.dept)) { const f = u.dept.filter(d => d !== 'Gestão'); return u.dept.includes('Gestão') && f.length === 0 } if (typeof u.dept === 'string') { const d = u.dept.split(',').map(x => x.trim()).filter(Boolean); return d.length === 1 && d[0] === 'Gestão' } return u.dept === 'Gestão' }
+        function fmtD(d) { if (!d) return '-'; const dt = new Date(d); return isNaN(dt.getTime()) ? '-' : `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}` }
+
+        function switchSlide() { curSlide = (curSlide + 1) % TOTAL_SLIDES; document.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('on', i === curSlide)); updDots() }
+        function updDots() { const el = document.getElementById('dots'); if (!el) return; el.innerHTML = Array.from({ length: TOTAL_SLIDES }, (_, i) => `<span class="dot ${i === curSlide ? 'on' : ''}"></span>`).join('') }
+
+        function checkFb() { if (window.firebaseDb) { loadUsers(); loadDemandas() } else setTimeout(checkFb, 500) }
+        function init() { setTimeout(() => { document.getElementById('ld').style.display = 'none'; document.getElementById('app').style.display = 'grid'; try { document.documentElement.requestFullscreen() } catch (e) { } updateClock(); updDots(); buildMonthSelector(); setInterval(updateClock, 1000); setInterval(switchSlide, INTERVAL) }, 1500) }
+        window.addEventListener('firebaseLoaded', () => { loadUsers(); loadDemandas() });
+        checkFb(); init();
+    </script>
+</body>
+
+</html>
+
+

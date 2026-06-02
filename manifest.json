@@ -1,0 +1,21 @@
+{
+    "name": "Radar PNSA",
+    "short_name": "Radar PNSA",
+    "description": "Sistema de Gestão de Demandas da Paróquia Nossa Senhora da Assunção",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#181b34",
+    "theme_color": "#6161FF",
+    "icons": [
+        {
+            "src": "logo-pnsa.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "logo-pnsa.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

@@ -1,0 +1,104 @@
+/* MODERN CLEAN LIGHT DESIGN */
+
+/* 1. Body & Layout */
+html body.theme-light {
+    background-color: #F3F4F6 !important;
+    /* Cool Gray 100 */
+    color: #1F2937 !important;
+    /* Gray 800 */
+}
+
+/* 2. Cards & Panels */
+html body.theme-light .panel,
+html body.theme-light .card,
+html body.theme-light .metric-card,
+html body.theme-light .chart-panel,
+html body.theme-light .tv-metric,
+html body.theme-light .tv-chart-panel,
+html body.theme-light .modal,
+html body.theme-light .notifications-panel,
+html body.theme-light .view {
+    background: #FFFFFF !important;
+    background-color: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #E5E7EB !important;
+    /* Gray 200 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    border-radius: 16px !important;
+    color: #1F2937 !important;
+}
+
+/* 3. Sidebar - Premium Look */
+html body.theme-light .sidebar {
+    background: #FFFFFF !important;
+    border-right: 1px solid #E5E7EB !important;
+}
+
+/* 4. Typography */
+html body.theme-light h1,
+html body.theme-light h2,
+html body.theme-light h3,
+html body.theme-light h4 {
+    color: #111827 !important;
+    /* Gray 900 */
+    letter-spacing: -0.025em !important;
+}
+
+html body.theme-light p,
+html body.theme-light span,
+html body.theme-light div,
+html body.theme-light label {
+    color: #4B5563 !important;
+    /* Gray 600 */
+}
+
+/* 5. Metrics */
+html body.theme-light .metric-value {
+    background: transparent !important;
+    -webkit-text-fill-color: #111827 !important;
+    color: #111827 !important;
+    font-weight: 700 !important;
+}
+
+html body.theme-light .metric-label {
+    color: #6B7280 !important;
+    /* Gray 500 */
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+/* 6. Buttons & Interactive */
+html body.theme-light .btn-primary {
+    background: #6366f1 !important;
+    /* Indigo 500 */
+    color: white !important;
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4) !important;
+}
+
+html body.theme-light .btn-primary:hover {
+    background: #4f46e5 !important;
+    /* Indigo 600 */
+}
+
+/* 7. Forms */
+html body.theme-light input,
+html body.theme-light select,
+html body.theme-light textarea {
+    background: #F9FAFB !important;
+    /* Gray 50 */
+    border: 1px solid #D1D5DB !important;
+    /* Gray 300 */
+    color: #1F2937 !important;
+    border-radius: 8px !important;
+}
+
+html body.theme-light input:focus,
+html body.theme-light select:focus,
+html body.theme-light textarea:focus {
+    background: #FFFFFF !important;
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
