@@ -1577,6 +1577,40 @@ function showMetricDemandas(statusFilter) {
     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+function createCardHTML(t) {
+    const deadline = parseDateLocal(t.dataConclusao);
+    const today = new Date();
+    const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+    let dateClass = '';
+    if (daysUntil < 0) dateClass = 'overdue';
+    else if (daysUntil <= 3) dateClass = 'soon';
+
+    const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : { dept: '-', userId: null };
+    const responsavel = currentStage.userId ? USERS[currentStage.userId] : null;
+
+    return `
+        <div class="execution-card ${(t.prioridade || '').toLowerCase()}" onclick="openDetail('${t.id}')">
+            <div class="execution-card-header">
+                <span class="execution-id">#${t.id}</span>
+                <span class="execution-date ${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
+            </div>
+            <div class="execution-card-body">
+                <h4 class="execution-title">${t.nome || 'Sem nome'}</h4>
+                <div class="execution-meta">
+                    <span class="meta-display">📁 ${t.tipoProjeto || '-'}</span>
+                    <span class="meta-display">🏢 ${currentStage.dept || '-'}</span>
+                </div>
+            </div>
+            <div class="execution-card-footer">
+                <span class="execution-prio-badge ${(t.prioridade || '').toLowerCase()}">${t.prioridade || '-'}</span>
+                <span class="status-badge ${getStatusClass(t.status)}" style="font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; margin-left: auto;">${t.status || '-'}</span>
+                <div class="execution-avatars">
+                    ${responsavel ? `${window.renderAvatar(responsavel, 'avatar')}` : ''}
+                </div>
+            </div>
+        </div>`;
+}
+
 function renderEquipeView() {
     const grid = document.getElementById('equipeGrid');
     const deptElem = document.getElementById('gestorDeptName');
@@ -1641,7 +1675,57 @@ function renderEquipeView() {
         return;
     }
 
-    grid.innerHTML = equipeTasks.map(t => createCardHTML(t)).join('');
+    // Group tasks by assignee of the current stage
+    const grouped = {};
+    equipeTasks.forEach(t => {
+        const stage = t.pipeline ? t.pipeline[t.currentStage] : null;
+        const userId = (stage && stage.userId) ? stage.userId : 'unassigned';
+        if (!grouped[userId]) grouped[userId] = [];
+        grouped[userId].push(t);
+    });
+
+    // Render group sections
+    let html = '';
+
+    // Render defined users first
+    Object.keys(grouped).forEach(userId => {
+        if (userId === 'unassigned') return;
+        const user = USERS[userId];
+        if (!user) return;
+        const tasks = grouped[userId];
+
+        html += `
+            <div class="equipe-user-section" style="margin-bottom: 32px;">
+                <div class="equipe-user-header" style="display:flex; align-items:center; gap:12px; margin-top:28px; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                    ${window.renderAvatar(user, 'user-avatar-sm', 'width:32px; height:32px; border-radius:50%; font-size:12px; font-weight:700; background:var(--primary); display:flex; align-items:center; justify-content:center; color:white;')}
+                    <h3 style="margin:0; font-size:1.2em; font-weight:700; color:var(--text-color);">${user.nome} <span style="font-size:0.75em; color:var(--text-muted); font-weight:500;">(${user.dept || ''})</span></h3>
+                    <span style="background:rgba(99, 102, 241, 0.15); color:var(--primary, #6366f1); padding:2px 10px; border-radius:12px; font-size:12px; font-weight:700; border:1px solid rgba(99, 102, 241, 0.3);">${tasks.length}</span>
+                </div>
+                <div class="execution-grid">
+                    ${tasks.map(t => createCardHTML(t)).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    // Render unassigned tasks at the end
+    if (grouped['unassigned'] && grouped['unassigned'].length > 0) {
+        const tasks = grouped['unassigned'];
+        html += `
+            <div class="equipe-user-section" style="margin-bottom: 32px;">
+                <div class="equipe-user-header" style="display:flex; align-items:center; gap:12px; margin-top:28px; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <div style="width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:16px;">❓</div>
+                    <h3 style="margin:0; font-size:1.2em; font-weight:700; color:var(--text-color);">Sem Responsável Atribuído</h3>
+                    <span style="background:rgba(255, 255, 255, 0.1); color:var(--text-muted); padding:2px 10px; border-radius:12px; font-size:12px; font-weight:700; border:1px solid rgba(255, 255, 255, 0.15);">${tasks.length}</span>
+                </div>
+                <div class="execution-grid">
+                    ${tasks.map(t => createCardHTML(t)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    grid.innerHTML = html;
 }
 
 // === MANAGER AUTH LOGIC ===
