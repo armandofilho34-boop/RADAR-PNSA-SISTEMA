@@ -685,6 +685,9 @@
 
                 <!-- Minhas Demandas -->
                 <section id="view-requests" class="view">
+                    <div class="toolbar" id="requestsToolbar" style="display:none; margin-bottom: 16px;">
+                        <select class="filter-select" id="filterOriginReq"></select>
+                    </div>
                     <div id="requestsTable"></div>
                 </section>
 
@@ -1170,6 +1173,7 @@
                             <option value="Suporte">Suporte</option>
                             <option value="Inovação/TI">Inovação/TI</option>
                         </select>
+                        <select class="filter-select" id="filterOrigin" style="display:none;"></select>
                     </div>
                     <div class="kanban-board" id="kanbanBoard">
                         <div class="kanban-column" data-status="A fazer">

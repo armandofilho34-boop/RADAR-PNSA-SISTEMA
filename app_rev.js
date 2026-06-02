@@ -43,6 +43,7 @@ const DEFAULT_USERS = {
 let USERS = {};
 let DEPT_USERS = {};
 let managerAuthenticated = localStorage.getItem('radar_manager_auth') === 'true';
+window.currentOriginFilter = 'minhas';
 
 // Helper: Init Users
 async function initUsers() {
@@ -941,6 +942,18 @@ function initEvents() {
     document.getElementById('filterQuadroDept')?.addEventListener('change', renderQuadroGeral);
     document.getElementById('filterQuadroPrio')?.addEventListener('change', renderQuadroGeral);
     document.getElementById('quadroSearch')?.addEventListener('input', renderQuadroGeral);
+    document.getElementById('filterOrigin')?.addEventListener('change', (e) => {
+        window.currentOriginFilter = e.target.value;
+        const filterReq = document.getElementById('filterOriginReq');
+        if (filterReq) filterReq.value = window.currentOriginFilter;
+        renderKanban();
+    });
+    document.getElementById('filterOriginReq')?.addEventListener('change', (e) => {
+        window.currentOriginFilter = e.target.value;
+        const filterKanban = document.getElementById('filterOrigin');
+        if (filterKanban) filterKanban.value = window.currentOriginFilter;
+        renderRequests();
+    });
     document.getElementById('btnAgendaPrev')?.addEventListener('click', () => { agendaDate.setMonth(agendaDate.getMonth() - 1); renderAgenda(); });
     document.getElementById('btnAgendaNext')?.addEventListener('click', () => { agendaDate.setMonth(agendaDate.getMonth() + 1); renderAgenda(); });
     document.getElementById('btnAgendaToday')?.addEventListener('click', () => { agendaDate = new Date(); renderAgenda(); });
@@ -1801,8 +1814,59 @@ function updateBadges() {
     }
 }
 
+function getSocialMediaUsers() {
+    return Object.values(USERS).filter(u => u.dept === 'Social Media' || u.role === 'social_media');
+}
+
+function setupOriginFilters() {
+    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    
+    const filterSelectKanban = document.getElementById('filterOrigin');
+    const filterSelectReq = document.getElementById('filterOriginReq');
+    const reqToolbar = document.getElementById('requestsToolbar');
+
+    if (!isSMOrCoord) {
+        if (filterSelectKanban) filterSelectKanban.style.display = 'none';
+        if (reqToolbar) reqToolbar.style.display = 'none';
+        return;
+    }
+
+    // Populate dropdown options if they haven't been populated yet
+    // Or populate them dynamically to ensure correctness
+    const smUsers = getSocialMediaUsers();
+    const otherSMUsers = smUsers.filter(u => u.id !== currentUser.id);
+
+    let optionsHtml = `<option value="minhas">👤 Minhas Demandas</option>`;
+    otherSMUsers.forEach(u => {
+        optionsHtml += `<option value="user-${u.id}">👥 Demandas de ${u.nome}</option>`;
+    });
+    optionsHtml += `<option value="todas-sm">📱 Todas de Social Media</option>`;
+    optionsHtml += `<option value="todas">🌐 Todas do Sistema</option>`;
+
+    if (filterSelectKanban) {
+        // Only set innerHTML if options changed or elements don't match
+        if (filterSelectKanban.options.length !== (2 + otherSMUsers.length)) {
+            filterSelectKanban.innerHTML = optionsHtml;
+        }
+        filterSelectKanban.value = window.currentOriginFilter || 'minhas';
+        filterSelectKanban.style.display = 'block';
+    }
+
+    if (filterSelectReq) {
+        if (filterSelectReq.options.length !== (2 + otherSMUsers.length)) {
+            filterSelectReq.innerHTML = optionsHtml;
+        }
+        filterSelectReq.value = window.currentOriginFilter || 'minhas';
+    }
+    if (reqToolbar) {
+        reqToolbar.style.display = 'flex';
+    }
+}
+
 // KANBAN BOARD with Drag & Drop
 function renderKanban() {
+    setupOriginFilters();
+
     if (currentDept === 'Inovação/TI') {
         if(typeof renderTIKanban === 'function') {
             renderTIKanban();
@@ -1833,6 +1897,22 @@ function renderKanban() {
             d.solicitanteId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
         ));
+
+    // Apply Origin Filter for Social Media and Coordinator
+    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    if (isSMOrCoord && window.currentOriginFilter) {
+        const smUsers = getSocialMediaUsers();
+        const smUserIds = smUsers.map(u => u.id);
+        
+        if (window.currentOriginFilter === 'minhas') {
+            tasks = tasks.filter(t => t.solicitanteId === currentUser.id);
+        } else if (window.currentOriginFilter.startsWith('user-')) {
+            const targetId = window.currentOriginFilter.replace('user-', '');
+            tasks = tasks.filter(t => t.solicitanteId === targetId);
+        } else if (window.currentOriginFilter === 'todas-sm') {
+            tasks = tasks.filter(t => smUserIds.includes(t.solicitanteId));
+        }
+    }
     if (currentUser.role === 'executor') {
         tasks = tasks.filter(d => d.pipeline && d.pipeline.some(s => s.userId === currentUser.id));
     }
@@ -2240,6 +2320,8 @@ function renderQuadroGeral() {
 
 // TABLES
 function renderRequests() {
+    setupOriginFilters();
+
     const c = document.getElementById('requestsTable');
     let baseDemandas = getMonthDemandas();
     let t = isGlobalCoordinator()
@@ -2248,6 +2330,22 @@ function renderRequests() {
             d.solicitanteId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
         ));
+
+    // Apply Origin Filter for Social Media and Coordinator
+    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    if (isSMOrCoord && window.currentOriginFilter) {
+        const smUsers = getSocialMediaUsers();
+        const smUserIds = smUsers.map(u => u.id);
+        
+        if (window.currentOriginFilter === 'minhas') {
+            t = t.filter(x => x.solicitanteId === currentUser.id);
+        } else if (window.currentOriginFilter.startsWith('user-')) {
+            const targetId = window.currentOriginFilter.replace('user-', '');
+            t = t.filter(x => x.solicitanteId === targetId);
+        } else if (window.currentOriginFilter === 'todas-sm') {
+            t = t.filter(x => smUserIds.includes(x.solicitanteId));
+        }
+    }
 
     // Always show tabs, even if empty
     c.innerHTML = renderRequestsTabs(t);
