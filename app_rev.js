@@ -1458,7 +1458,7 @@ function renderAgenda() {
     } else {
         tasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
 
@@ -1496,7 +1496,7 @@ function updateMinhaArea() {
     const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
     let tasks = isGlobalCoordinator() ? activeDemandas : activeDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
-        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
     );
     document.getElementById('mTotal').textContent = tasks.length;
 
@@ -1516,7 +1516,7 @@ function showMetricDemandas(statusFilter) {
     const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
     let tasks = isGlobalCoordinator() ? activeDemandas : activeDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
-        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
     );
 
     // Filtrar por status
@@ -1555,13 +1555,13 @@ function showMetricDemandas(statusFilter) {
                 else if (daysUntil <= 3) dateClass = 'color:#f59e0b; font-weight:600;';
 
                 const currentStage = t.pipeline[t.currentStage];
-                const resp = currentStage ? USERS[currentStage.userId] : null;
+                const respName = currentStage ? (currentStage.userId ? USERS[currentStage.userId]?.nome : (currentStage.userIds ? currentStage.userIds.map(uid => USERS[uid]?.nome).filter(Boolean).join(', ') : '-')) : '-';
 
                 return `<div onclick="openDetail('${t.id}')" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--surface-light); border-radius:10px; border:1px solid var(--border-subtle); cursor:pointer; transition:all 0.2s ease;" onmouseenter="this.style.transform='translateX(4px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseleave="this.style.transform='none'; this.style.boxShadow='none'">
                     <div style="flex:1; min-width:0;">
                         <div style="font-weight:600; font-size:0.95em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.nome}</div>
                         <div style="font-size:0.8em; color:var(--text-muted); margin-top:2px;">
-                            ${t.tipoProjeto} • ${resp?.nome || '-'} • <span style="${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
+                            ${t.tipoProjeto} • ${respName} • <span style="${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:12px;">
@@ -1605,7 +1605,7 @@ function createCardHTML(t) {
                 <span class="execution-prio-badge ${(t.prioridade || '').toLowerCase()}">${t.prioridade || '-'}</span>
                 <span class="status-badge ${getStatusClass(t.status)}" style="font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; margin-left: auto;">${t.status || '-'}</span>
                 <div class="execution-avatars">
-                    ${responsavel ? `${window.renderAvatar(responsavel, 'avatar')}` : ''}
+                    ${responsavel ? `${window.renderAvatar(responsavel, 'avatar')}` : (currentStage.userIds ? currentStage.userIds.map(uid => USERS[uid]).filter(Boolean).map(u => window.renderAvatar(u, 'avatar')).join('') : '')}
                 </div>
             </div>
         </div>`;
@@ -1884,15 +1884,15 @@ function updateBadges() {
     } else if (currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe') {
         const myDemandas = getMonthDemandas().filter(d => !d.deletedAt && (
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         ));
         document.getElementById('badgeRequests').textContent = myDemandas.filter(d => d.status !== 'Aprovado').length;
         document.getElementById('badgeReview').textContent = myDemandas.filter(d => d.status === 'Para aprovação').length;
     } else {
-        const myDemandas = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id));
+        const myDemandas = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
         document.getElementById('badgeRequests').textContent = myDemandas.filter(d => d.status !== 'Aprovado').length;
         document.getElementById('badgeReview').textContent = myDemandas.filter(d => d.status === 'Para aprovação').length;
-        const executorTasks = myDemandas.filter(d => d.pipeline[d.currentStage]?.userId === currentUser.id && d.status !== 'Aprovado');
+        const executorTasks = myDemandas.filter(d => (d.pipeline[d.currentStage]?.userId === currentUser.id || (!d.pipeline[d.currentStage]?.userId && d.pipeline[d.currentStage]?.userIds && d.pipeline[d.currentStage].userIds.includes(currentUser.id))) && d.status !== 'Aprovado');
         const badgeTasks = document.getElementById('badgeTasks');
         if (badgeTasks) badgeTasks.textContent = executorTasks.length;
     }
@@ -1979,7 +1979,7 @@ function renderKanban() {
         ? baseDemandas.filter(d => !d.deletedAt)
         : baseDemandas.filter(d => !d.deletedAt && (
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         ));
 
     // Apply Origin Filter for Social Media and Coordinator
@@ -1998,7 +1998,7 @@ function renderKanban() {
         }
     }
     if (currentUser.role === 'executor') {
-        tasks = tasks.filter(d => d.pipeline && d.pipeline.some(s => s.userId === currentUser.id));
+        tasks = tasks.filter(d => d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
     }
 
     // Apply filters
@@ -2248,6 +2248,11 @@ function changeTaskStatus(taskId, newStatus, skipUpload = false) {
         task.lastStatusChange = new Date().toISOString();
         toast(`Status alterado para "${newStatus}"`, 'success');
 
+        // Assume titularidade se for demanda compartilhada ao iniciar atividade
+        if (newStatus === 'Fazendo') {
+            claimTaskIfShared(task, currentUser.id);
+        }
+
         // Disparo centralizado de Notificações de Mudança de Status
         if (newStatus === 'Fazendo') {
             notifySolicitante(task, '▶️', `${currentUser.nome} iniciou a demanda: ${task.nome}`);
@@ -2298,7 +2303,7 @@ function renderQuadroGeral() {
         // User sees tasks they requested OR where they are active OR were part of the pipeline (for history)
         tasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
 
@@ -2315,7 +2320,7 @@ function renderQuadroGeral() {
     } else {
         allTasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
     const stats = {
@@ -2412,7 +2417,7 @@ function renderRequests() {
         ? baseDemandas.filter(d => !d.deletedAt)
         : baseDemandas.filter(d => !d.deletedAt && (
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         ));
 
     // Apply Origin Filter for Social Media and Coordinator
@@ -2641,7 +2646,7 @@ function renderReview() {
 
 function renderTasks() {
     const c = document.getElementById('tasksTable'), f = document.getElementById('filterTasks').value;
-    let t = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id));
+    let t = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
     if (f) t = t.filter(d => (d.status || '').trim().toLowerCase().includes(f.trim().toLowerCase()));
     // Always show tabs, even if empty
     c.innerHTML = renderExecutionTasks(t);
@@ -2655,7 +2660,7 @@ function renderBoard() {
     const c = document.getElementById('boardTable'), f = document.getElementById('filterBoard').value, s = document.getElementById('boardSearch').value.toLowerCase();
     let t = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(st => st.dept === currentDept));
     if (!isGlobalCoordinator()) {
-        t = t.filter(d => d.solicitanteId === currentUser.id || (d.pipeline && d.pipeline.some(st => st.userId === currentUser.id)));
+        t = t.filter(d => d.solicitanteId === currentUser.id || (d.pipeline && d.pipeline.some(st => st.userId === currentUser.id || (!st.userId && st.userIds && st.userIds.includes(currentUser.id)))));
     }
     if (f) t = t.filter(d => d.status.includes(f)); if (s) t = t.filter(d => d.nome.toLowerCase().includes(s));
     if (!t.length) { c.innerHTML = '<div class="empty-message">Nenhuma demanda encontrada</div>'; return; }
@@ -2688,7 +2693,18 @@ function renderGroupedTable(tasks) {
                     <div class="table-th">Responsáveis</div>
                 </div>
                 ${items.map(t => {
-            const avatars = (t.pipeline || []).map(s => USERS[s.userId]).filter(Boolean);
+            const avatars = [];
+            (t.pipeline || []).forEach(s => {
+                if (s.userId) {
+                    const u = USERS[s.userId];
+                    if (u && !avatars.includes(u)) avatars.push(u);
+                } else if (s.userIds) {
+                    s.userIds.forEach(uid => {
+                        const u = USERS[uid];
+                        if (u && !avatars.includes(u)) avatars.push(u);
+                    });
+                }
+            });
             return `<div class="table-row" onclick="openDetail('${t.id}')">
                         <div class="table-td"><span class="td-title">${t.nome}</span></div>
                         <div class="table-td">Etapa ${t.currentStage + 1}/${t.pipeline ? t.pipeline.length : 0}</div>
@@ -2755,7 +2771,18 @@ function renderExecutionTasks(tasks) {
                     if (daysUntil < 0) dateClass = 'overdue';
                     else if (daysUntil <= 3) dateClass = 'soon';
 
-                    const avatars = t.pipeline.map(s => USERS[s.userId]).filter(Boolean);
+                    const avatars = [];
+                    t.pipeline.forEach(s => {
+                        if (s.userId) {
+                            const u = USERS[s.userId];
+                            if (u && !avatars.includes(u)) avatars.push(u);
+                        } else if (s.userIds) {
+                            s.userIds.forEach(uid => {
+                                const u = USERS[uid];
+                                if (u && !avatars.includes(u)) avatars.push(u);
+                            });
+                        }
+                    });
 
                     html += `
                         <div class="execution-card ${(t.prioridade || '').toLowerCase()}" onclick="openDetail('${t.id}')">
@@ -3272,23 +3299,24 @@ async function handleCreate(e) {
 
         const effectiveOffsetDays = (p80LeadTime !== null) ? p80LeadTime : manualOffsetDays;
 
-        for (const respId of selectedResponsaveis) {
-            for (let repeticaoIndex = 0; repeticaoIndex < completionDates.length; repeticaoIndex++) {
-                const targetDate = completionDates[repeticaoIndex];
-                let solDate = targetDate;
-                
-                if (repeticaoIndex === 0 && p80LeadTime === null) {
-                    // Se for a primeira demanda e NÃO estiver usando prazo probabilístico, usa o manual do input
-                    solDate = dataSolicitacao;
-                } else if (effectiveOffsetDays > 0) {
-                    const tmp = new Date(targetDate + 'T12:00:00Z');
-                    tmp.setDate(tmp.getDate() - effectiveOffsetDays);
-                    solDate = tmp.toISOString().split('T')[0];
-                }
-                const isRecurring = completionDates.length > 1 && repeticaoIndex > 0;
-                const isLastRecurring = isRecurring && repeticaoIndex === completionDates.length - 1;
+        for (let repeticaoIndex = 0; repeticaoIndex < completionDates.length; repeticaoIndex++) {
+            const targetDate = completionDates[repeticaoIndex];
+            let solDate = targetDate;
+            
+            if (repeticaoIndex === 0 && p80LeadTime === null) {
+                // Se for a primeira demanda e NÃO estiver usando prazo probabilístico, usa o manual do input
+                solDate = dataSolicitacao;
+            } else if (effectiveOffsetDays > 0) {
+                const tmp = new Date(targetDate + 'T12:00:00Z');
+                tmp.setDate(tmp.getDate() - effectiveOffsetDays);
+                solDate = tmp.toISOString().split('T')[0];
+            }
+            const isRecurring = completionDates.length > 1 && repeticaoIndex > 0;
+            const isLastRecurring = isRecurring && repeticaoIndex === completionDates.length - 1;
             let pipeline = [];
             
+            const isShared = selectedResponsaveis.length > 1;
+
             if (dependsOnDesigner && tipoProjeto === 'Design Gráfico') {
                 // SEQUENTIAL WORKFLOW: Design -> Video
                 const videoRespEl = document.getElementById('cExtraVideoResp');
@@ -3306,11 +3334,20 @@ async function handleCreate(e) {
                 const videoTypeStr = videoTypes.join(' + ');
 
                 // 1. Designer (Current selection)
-                pipeline.push({
-                    dept: 'Designer',
-                    userId: respId,
-                    status: 'A fazer'
-                });
+                if (isShared) {
+                    pipeline.push({
+                        dept: 'Designer',
+                        userId: '',
+                        userIds: [...selectedResponsaveis],
+                        status: 'A fazer'
+                    });
+                } else {
+                    pipeline.push({
+                        dept: 'Designer',
+                        userId: selectedResponsaveis[0],
+                        status: 'A fazer'
+                    });
+                }
 
                 // 2. Videomaker (Starts later)
                 pipeline.push({
@@ -3333,11 +3370,20 @@ async function handleCreate(e) {
                     targetDept = 'Designer'; // Starts with design
                 }
 
-                pipeline.push({
-                    dept: targetDept,
-                    userId: respId,
-                    status: 'A fazer'
-                });
+                if (isShared) {
+                    pipeline.push({
+                        dept: targetDept,
+                        userId: '',
+                        userIds: [...selectedResponsaveis],
+                        status: 'A fazer'
+                    });
+                } else {
+                    pipeline.push({
+                        dept: targetDept,
+                        userId: selectedResponsaveis[0],
+                        status: 'A fazer'
+                    });
+                }
 
                 // If "Design + Vídeo" was manually selected in dropdown (legacy or alternative)
                 if (tipoProjeto === 'Design + Vídeo') {
@@ -3353,7 +3399,7 @@ async function handleCreate(e) {
                 id: `WF-${String(nextId++).padStart(4, '0')}`,
                 nome: isRecurring ? `${nome} (Cópia ${repeticaoIndex})` : nome,
                 solicitanteId,
-                responsavelId: respId,
+                responsavelId: isShared ? '' : selectedResponsaveis[0],
                 tipoProjeto: (dependsOnDesigner) ? 'Design + Vídeo' : tipoProjeto, // Override type if sequential
                 subType,
                 prioridade,
@@ -3416,11 +3462,16 @@ async function handleCreate(e) {
             });
 
             demandas.push(task);
-            if (task.pipeline[0]?.userId && repeticaoIndex === 0) {
-                notifyUser(task.pipeline[0].userId, '🚀', `Nova demanda: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
+            if (repeticaoIndex === 0) {
+                if (isShared) {
+                    selectedResponsaveis.forEach(uid => {
+                        notifyUser(uid, '🚀', `Nova demanda compartilhada: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
+                    });
+                } else if (task.pipeline[0]?.userId) {
+                    notifyUser(task.pipeline[0].userId, '🚀', `Nova demanda: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
+                }
             }
-            } // FIM DO LOOP REPETICAO
-        } // FIM DO LOOP RESPONSAVEL
+        } // FIM DO LOOP REPETICAO
 
         saveData();
         closeModal('modalCreate');
@@ -3441,9 +3492,10 @@ function openDetail(id) {
     document.getElementById('detailId').innerHTML = '📋 ' + t.nome;
     const sol = USERS[t.solicitanteId], cls = getStatusClass(t.status);
     const pipeHtml = t.pipeline.map((s, i) => {
-        const u = USERS[s.userId], isCurr = i === t.currentStage && t.status !== 'Aprovado', isDone = i < t.currentStage || t.status === 'Aprovado';
+        const uNames = s.userId ? (USERS[s.userId]?.nome || '?') : (s.userIds ? s.userIds.map(uid => USERS[uid]?.nome).filter(Boolean).join(', ') : '?');
+        const isCurr = i === t.currentStage && t.status !== 'Aprovado', isDone = i < t.currentStage || t.status === 'Aprovado';
         const timeInfo = s.timeSpent ? `<span class="pipeline-time">⏱️ ${s.timeSpent}</span> ` : (s.startedAt && isCurr ? ` <span class="pipeline-time running">⏳ Em andamento...</span> ` : '');
-        return `<div class="pipeline-stage ${isCurr ? 'current' : isDone ? 'completed' : ''}"><span class="pipeline-stage-num">${i + 1}</span><div class="pipeline-stage-info"><span class="pipeline-stage-dept">${s.dept}</span> <span class="pipeline-stage-user">${u?.nome || '?'}</span>${timeInfo}</div><span class="pipeline-stage-status">${isDone ? ' ✓ Concluída' : isCurr ? s.status : 'A fazer'}</span></div> `;
+        return `<div class="pipeline-stage ${isCurr ? 'current' : isDone ? 'completed' : ''}"><span class="pipeline-stage-num">${i + 1}</span><div class="pipeline-stage-info"><span class="pipeline-stage-dept">${s.dept}</span> <span class="pipeline-stage-user">${uNames}</span>${timeInfo}</div><span class="pipeline-stage-status">${isDone ? ' ✓ Concluída' : isCurr ? s.status : 'A fazer'}</span></div> `;
     }).join('');
 
     // Comments HTML
@@ -3638,7 +3690,8 @@ function openDetail(id) {
     const status = t.status;
     const canDelete = currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
     const canEdit = canDelete; // coordinator e social_media podem editar
-    const isExecutorOnTask = t.pipeline.some(s => s.userId === currentUser.id) && t.pipeline[t.currentStage]?.userId === currentUser.id;
+    const currentStage = t.pipeline[t.currentStage];
+    const isExecutorOnTask = (currentStage?.userId === currentUser.id) || (!currentStage?.userId && currentStage?.userIds && currentStage.userIds.includes(currentUser.id));
     // Qualquer participante do pipeline, coordinator ou social_media pode mudar status
     const canChangeStatus = isExecutorOnTask || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || isGlobalCoordinator();
 
@@ -4976,7 +5029,7 @@ function renderTimeline() {
     if (currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe') {
         tasksToRender = activeDemandas;
     } else {
-        tasksToRender = activeDemandas.filter(d => d.pipeline.some(s => s.userId === currentUser.id));
+        tasksToRender = activeDemandas.filter(d => d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
     }
 
     const monthTasks = tasksToRender.filter(d => {
@@ -5052,7 +5105,7 @@ function renderAnalytics() {
     } else {
         baseTasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id))
+            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
 
@@ -5794,6 +5847,27 @@ function formatTimer(ms) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function claimTaskIfShared(task, userId) {
+    if (!task || !task.pipeline) return;
+    const stage = task.pipeline[task.currentStage];
+    if (stage && !stage.userId && stage.userIds && stage.userIds.length > 0) {
+        const claimants = stage.userIds;
+        stage.userId = userId;
+        task.responsavelId = userId;
+        
+        // Adiciona histórico da demanda
+        addHistory(task.id, 'claim', `${USERS[userId]?.nome || 'Usuário'} assumiu a titularidade exclusiva da demanda.`);
+        
+        // Notifica os outros colaboradores
+        const otherUsers = claimants.filter(id => id !== userId);
+        otherUsers.forEach(uid => {
+            notifyUser(uid, '🔒', `A demanda "${task.nome}" foi assumida por ${USERS[userId]?.nome || 'outro colaborador'} e iniciada.`);
+        });
+        
+        console.log(`Radar PNSA: Demanda ${task.id} assumida por ${userId}. Outros usuários notificados:`, otherUsers);
+    }
+}
+
 function toggleTimer(taskId) {
     if (!taskId) {
         // Toggle INDEPENDENT Global Timer
@@ -5843,6 +5917,9 @@ function toggleTimer(taskId) {
         // START
         state.running = true;
         state.lastStart = now;
+
+        // Assume titularidade caso seja demanda compartilhada/não assumida
+        claimTaskIfShared(t, currentUser.id);
 
         // Auto-change status to "Fazendo" if "A fazer"
         if (t.status === 'A fazer') {

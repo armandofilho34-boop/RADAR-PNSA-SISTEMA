@@ -2023,7 +2023,7 @@
             const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
             const thisWeek = md.filter(d => { const dc = d.dataCriacao; if (!dc) return false; const diff = (new Date() - new Date(dc)) / 864e5; return diff <= 7; }).length;
             const uniqueDepts = new Set(); md.forEach(d => { if (d.pipeline) d.pipeline.forEach(s => { if (s.dept) uniqueDepts.add(s.dept); }); });
-            const totalActors = Object.values(USERS).filter(u => !isGO(u) && md.some(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id)).length;
+            const totalActors = Object.values(USERS).filter(u => !isGO(u) && md.some(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id)).length;
             el.innerHTML = `<div class="kpi-grid">
                 <div class="kpi-card" style="border-color:rgba(6,182,212,.12)"><div class="kpi-icon">⏱️</div><div class="kpi-val" style="color:var(--cyan)">${avgDays}d</div><div class="kpi-label">Tempo Médio</div><div class="kpi-sub">de conclusão</div></div>
                 <div class="kpi-card" style="border-color:rgba(239,68,68,.12)"><div class="kpi-icon">🔥</div><div class="kpi-val" style="color:var(--red)">${overdue}</div><div class="kpi-label">Atrasadas</div><div class="kpi-sub">prazo vencido</div></div>
@@ -2060,8 +2060,8 @@
             const el = document.getElementById('prodList'); if (!el) return;
             const all = Object.values(USERS);
             const stats = all.map(u => {
-                const total = md.filter(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id).length;
-                const done = md.filter(d => d.status === 'Aprovado' && ((d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id)).length;
+                const total = md.filter(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id).length;
+                const done = md.filter(d => d.status === 'Aprovado' && ((d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id)).length;
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0;
                 return { user: u, total: total, done: done, pct }
             }).filter(s => s.total > 0).sort((a, b) => b.done - a.done).slice(0, 8);
@@ -2089,7 +2089,19 @@
             const el = document.getElementById('actList'); if (!el) return;
             const active = md.filter(d => d.status !== 'Aprovado').slice(0, 7);
             if (!active.length) { el.innerHTML = '<div class="empty">Nenhuma demanda ativa</div>'; return }
-            el.innerHTML = active.map(t => { const stage = t.pipeline?.[t.currentStage]; const u = stage ? USERS[stage.userId] : null; const av = mkAv(u, 'act-av'); const sc = t.status === 'Fazendo' ? 'st-do' : t.status === 'A fazer' ? 'st-af' : 'st-rv'; return `<div class="act-item"><div class="act-prio ${(t.prioridade || 'normal').toLowerCase()}"></div><div class="act-inf"><div class="act-ttl">${t.nome || '-'}</div><div class="act-mta">${stage?.dept || '-'} · ${fmtD(t.dataConclusao)}</div></div>${av}<span class="act-st ${sc}">${t.status === 'Para aprovação' ? 'Revisão' : t.status}</span></div>` }).join('');
+            el.innerHTML = active.map(t => {
+                const stage = t.pipeline?.[t.currentStage];
+                let av = '';
+                if (stage) {
+                    if (stage.userId) {
+                        av = mkAv(USERS[stage.userId], 'act-av');
+                    } else if (stage.userIds) {
+                        av = stage.userIds.map(uid => mkAv(USERS[uid], 'act-av')).join('');
+                    }
+                }
+                const sc = t.status === 'Fazendo' ? 'st-do' : t.status === 'A fazer' ? 'st-af' : 'st-rv';
+                return `<div class="act-item"><div class="act-prio ${(t.prioridade || 'normal').toLowerCase()}"></div><div class="act-inf"><div class="act-ttl">${t.nome || '-'}</div><div class="act-mta">${stage?.dept || '-'} · ${fmtD(t.dataConclusao)}</div></div>${av}<span class="act-st ${sc}">${t.status === 'Para aprovação' ? 'Revisão' : t.status}</span></div>`;
+            }).join('');
         }
 
         /* ===== RANKING ===== */
@@ -2103,7 +2115,7 @@
             const mdLocal = md || getMonthDemandas();
 
             const stats = all.map(u => {
-                const isIn = d => (d.pipeline && d.pipeline.some(s => s.userId === u.id)) || d.solicitanteId === u.id;
+                const isIn = d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id;
                 const total = mdLocal.filter(d => isIn(d)).length;
                 const appr = mdLocal.filter(d => d.status === 'Aprovado' && isIn(d));
                 const done = appr.length; const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -2210,14 +2222,29 @@
                     .sort((a, b) => new Date(b.lastStatusChange || b.dataCriacao || 0) - new Date(a.lastStatusChange || a.dataCriacao || 0));
                 const cardsHtml = items.slice(0, 5).map(t => {
                     const stage = t.pipeline?.[t.currentStage];
-                    const u = stage ? USERS[stage.userId] : null;
-                    const avHtml = u?.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(u);
+                    let avHtml = '';
+                    let uName = '-';
+                    if (stage) {
+                        if (stage.userId) {
+                            const u = USERS[stage.userId];
+                            avHtml = u?.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(u);
+                            uName = u?.nome?.split(' ')[0] || '-';
+                        } else if (stage.userIds && stage.userIds.length > 0) {
+                            const firstU = USERS[stage.userIds[0]];
+                            avHtml = firstU?.avatarUrl ? `<img src="${firstU.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(firstU);
+                            if (stage.userIds.length > 1) {
+                                uName = firstU?.nome?.split(' ')[0] + ` +${stage.userIds.length - 1}`;
+                            } else {
+                                uName = firstU?.nome?.split(' ')[0] || '-';
+                            }
+                        }
+                    }
                     const pCls = (t.prioridade || 'normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                     return `<div class="sb-card">
                         <div class="sb-card-name">${t.nome || '-'}</div>
                         <div class="sb-card-meta">
                             <div class="sb-avatar">${avHtml}</div>
-                            <span>${u?.nome?.split(' ')[0] || '-'}</span>
+                            <span>${uName}</span>
                             <span class="sb-card-prio ${pCls}">${t.prioridade || 'Normal'}</span>
                         </div>
                     </div>`;
