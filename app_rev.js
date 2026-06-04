@@ -1927,7 +1927,7 @@ function getSocialMediaUsers() {
 }
 
 function setupOriginFilters() {
-    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    const isSMOrCoord = isGlobalCoordinator();
     
     const filterSelectKanban = document.getElementById('filterOrigin');
     const filterSelectReq = document.getElementById('filterOriginReq');
@@ -1939,13 +1939,17 @@ function setupOriginFilters() {
         return;
     }
 
-    // Populate dropdown options if they haven't been populated yet
-    // Or populate them dynamically to ensure correctness
-    const smUsers = getSocialMediaUsers();
-    const otherSMUsers = smUsers.filter(u => u.id !== currentUser.id);
+    // Determine which users to show in the filter:
+    // Show all users who are coordinators, social_media, gestor_equipe, or Gestão, excluding currentUser
+    const filterUsers = Object.values(USERS).filter(u => {
+        if (u.id === currentUser.id) return false;
+        const uDepts = typeof getUserDepts === 'function' ? getUserDepts(u) : [u.dept];
+        const isGestao = uDepts.includes('Gestão');
+        return isGestao || u.role === 'coordinator' || u.role === 'social_media' || u.role === 'gestor_equipe';
+    });
 
     let optionsHtml = `<option value="minhas">👤 Minhas Demandas</option>`;
-    otherSMUsers.forEach(u => {
+    filterUsers.forEach(u => {
         optionsHtml += `<option value="user-${u.id}">👥 Demandas de ${u.nome}</option>`;
     });
     optionsHtml += `<option value="todas-sm">📱 Todas de Social Media</option>`;
@@ -1953,7 +1957,7 @@ function setupOriginFilters() {
 
     if (filterSelectKanban) {
         // Only set innerHTML if options changed or elements don't match
-        if (filterSelectKanban.options.length !== (2 + otherSMUsers.length)) {
+        if (filterSelectKanban.options.length !== (3 + filterUsers.length)) {
             filterSelectKanban.innerHTML = optionsHtml;
         }
         filterSelectKanban.value = window.currentOriginFilter || 'minhas';
@@ -1961,7 +1965,7 @@ function setupOriginFilters() {
     }
 
     if (filterSelectReq) {
-        if (filterSelectReq.options.length !== (2 + otherSMUsers.length)) {
+        if (filterSelectReq.options.length !== (3 + filterUsers.length)) {
             filterSelectReq.innerHTML = optionsHtml;
         }
         filterSelectReq.value = window.currentOriginFilter || 'minhas';
@@ -2007,7 +2011,7 @@ function renderKanban() {
         ));
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    const isSMOrCoord = isGlobalCoordinator();
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
@@ -2448,7 +2452,7 @@ function renderRequests() {
         ));
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = currentUser && (currentUser.role === 'social_media' || currentUser.dept === 'Social Media' || currentUser.role === 'coordinator');
+    const isSMOrCoord = isGlobalCoordinator();
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
