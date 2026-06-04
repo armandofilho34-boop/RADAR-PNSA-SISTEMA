@@ -1923,16 +1923,36 @@
             }
         });
 
-        /* Month filter */
+        function getLocalDateString() {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
         function getMonthDemandas() {
             const start = new Date(selectedYear, selectedMonth, 1);
             const end = new Date(selectedYear, selectedMonth + 1, 1);
-            return demandas.filter(d => {
-                const dc = d.dataCriacao || d.dataSolicitacao;
+            
+            // Filtrar pelo mês operacional da demanda (priorizando dataSolicitacao e dataConclusao)
+            let filtered = demandas.filter(d => {
+                const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
                 if (!dc) return false;
                 const dt = new Date(dc);
                 return dt >= start && dt < end;
             });
+
+            // Ocultar demandas futuras do painel de execução da TV
+            const todayStr = getLocalDateString();
+            filtered = filtered.filter(d => {
+                if (d.status === 'A fazer' && d.dataSolicitacao && d.dataSolicitacao > todayStr) {
+                    return false;
+                }
+                return true;
+            });
+
+            return filtered;
         }
 
         function buildMonthSelector() {

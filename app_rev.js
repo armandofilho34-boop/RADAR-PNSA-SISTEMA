@@ -350,20 +350,28 @@ function changeMonth(val) {
     refresh(); // Recarrega todas as telas ativas usando as demandas filtradas
 }
 
-function getMonthDemandas() {
+function getLocalDateString() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function getMonthDemandas(includeFuture = false) {
     const start = new Date(selectedYear, selectedMonth, 1);
     const end = new Date(selectedYear, selectedMonth + 1, 1);
     const now = new Date();
     const isCurrentMonth = (selectedYear === now.getFullYear() && selectedMonth === now.getMonth());
 
-    return demandas.filter(d => {
-        // Identifica a data de criação da demanda (com fallbacks)
-        const dc = d.dataCriacao || d.dataSolicitacao || d.dataConclusao;
+    let filtered = demandas.filter(d => {
+        // Priorizar dataSolicitacao e dataConclusao em vez de dataCriacao para colocar a demanda no mês correto de execução
+        const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
         if (!dc) return isCurrentMonth; // Sem data? Mostra no mês atual por segurança
 
         const dt = new Date(dc);
 
-        // REGRA 1: Demanda foi criada neste mês selecionado → sempre aparece
+        // REGRA 1: Demanda foi agendada/criada neste mês selecionado → sempre aparece
         if (dt >= start && dt < end) return true;
 
         // REGRA 2 (Carry-over): Se estamos no mês atual E a demanda é de meses anteriores
@@ -372,6 +380,19 @@ function getMonthDemandas() {
 
         return false;
     });
+
+    if (!includeFuture) {
+        const todayStr = getLocalDateString();
+        filtered = filtered.filter(d => {
+            // Se a demanda está "A fazer" e tem data de solicitação futura, oculta
+            if (d.status === 'A fazer' && d.dataSolicitacao && d.dataSolicitacao > todayStr) {
+                return false;
+            }
+            return true;
+        });
+    }
+
+    return filtered;
 }
 
 // Função para abrir modais
@@ -1451,7 +1472,7 @@ function renderAgenda() {
     document.getElementById('agendaUserName').textContent = `Agenda de ${currentUser.nome.split(' ')[0]}`;
     document.getElementById('agendaUserDept').textContent = `${currentUser.dept} • ${isGlobalCoordinator() ? 'Todas as demandas' : 'Minhas demandas do mês'}`;
 
-    const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    const activeDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
     let tasks;
     if (isGlobalCoordinator()) {
         tasks = activeDemandas;
@@ -5057,7 +5078,7 @@ function renderTimeline() {
     // Render task rows
     // STRICT FILTER: Only show tasks relevant to the user (excluding deleted)
     let tasksToRender = [];
-    const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    const activeDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
     if (currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe') {
         tasksToRender = activeDemandas;
     } else {
