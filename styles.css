@@ -10097,3 +10097,179 @@ body.theme-light {
 .upload-dropzone:hover .dz-icon {
     transform: translateY(-4px) scale(1.1);
 }
+
+/* =============================================
+   NOTIFICAÇÕES E ESTILOS DE ANEXOS RADAR PNSA
+   ============================================= */
+.card-attachment-badge {
+    background: #ef4444 !important;
+    color: white !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    animation: pulse-red-badge 1.5s infinite;
+    flex-shrink: 0;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+    vertical-align: middle;
+}
+
+@keyframes pulse-red-badge {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Badge de notificação da aba no modal de detalhes */
+.tab-notif-badge {
+    background: #ef4444;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+    animation: pulse-red-badge 1.5s infinite;
+}
+
+/* Grid de anexos */
+.attachment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.attachment-item-card {
+    background: var(--bg-elevated, #242435);
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.attachment-item-card:hover {
+    border-color: #ef4444;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+.attachment-preview-box {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.attachment-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.attachment-preview-icon {
+    font-size: 28px;
+}
+
+.attachment-card-info {
+    width: 100%;
+    text-align: center;
+}
+
+.attachment-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.attachment-card-size {
+    font-size: 10px;
+    color: var(--text-muted, #8a8a9e);
+    margin-top: 2px;
+}
+
+.attachment-action-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 12px;
+}
+
+.attachment-item-card:hover .attachment-action-overlay {
+    opacity: 1;
+}
+
+.attachment-action-btn {
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+/* Tab chamativa com anexos no modal de detalhes */
+.detail-tab.has-attachments {
+    animation: pulse-tab-border 1.5s infinite alternate !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    margin-left: 8px !important;
+}
+
+@keyframes pulse-tab-border {
+    0% {
+        background: rgba(239, 68, 68, 0.03);
+        border-color: rgba(239, 68, 68, 0.2);
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.1);
+    }
+    100% {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
+}

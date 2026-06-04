@@ -1588,6 +1588,9 @@ function createCardHTML(t) {
     const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : { dept: '-', userId: null };
     const responsavel = currentStage.userId ? USERS[currentStage.userId] : null;
 
+    const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+    const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
+
     return `
         <div class="execution-card ${(t.prioridade || '').toLowerCase()}" onclick="openDetail('${t.id}')">
             <div class="execution-card-header">
@@ -1595,7 +1598,7 @@ function createCardHTML(t) {
                 <span class="execution-date ${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
             </div>
             <div class="execution-card-body">
-                <h4 class="execution-title">${t.nome || 'Sem nome'}</h4>
+                <h4 class="execution-title">${t.nome || 'Sem nome'} ${attachmentBadge}</h4>
                 <div class="execution-meta">
                     <span class="meta-display">📁 ${t.tipoProjeto || '-'}</span>
                     <span class="meta-display">🏢 ${currentStage.dept || '-'}</span>
@@ -2069,10 +2072,13 @@ function renderKanban() {
             const dragAttr = isLocked ? 'false' : 'true';
             const lockedClass = isLocked ? 'locked-card' : '';
 
+            const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+            const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
+
             return `
                 <div class="kanban-card ${t.prioridade.toLowerCase()} ${lockedClass}" draggable="${dragAttr}" data-id="${t.id}" onclick="openDetail('${t.id}')">
                     <div class="kanban-card-header">
-                         <span class="kanban-card-title">${t.nome}</span>
+                         <span class="kanban-card-title">${t.nome} ${attachmentBadge}</span>
                          ${t.stale ? `<span class="stale-badge" title="Parada há ${staleDays} dias">⚠️ ${staleDays}d</span>` : ''}
                          ${isLocked ? '<span class="lock-icon" title="Bloqueado para edição" style="font-size: 12px; margin-left: auto;">🔒</span>' : ''}
                     </div>
@@ -2493,6 +2499,8 @@ function renderRequestsTabs(tasks) {
                     const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : { dept: '-', userId: null };
                     const responsavel = currentStage.userId ? USERS[currentStage.userId] : null;
                     const staggerDelay = cardIndex * 0.06;
+                    const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+                    const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
 
                     html += `
                         <div class="execution-card ${(t.prioridade || '').toLowerCase()}" onclick="openDetail('${t.id}')" style="animation-delay: ${staggerDelay}s">
@@ -2501,7 +2509,7 @@ function renderRequestsTabs(tasks) {
                                 <span class="execution-date ${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
                             </div>
                             <div class="execution-card-body">
-                                <h4 class="execution-title">${t.nome || 'Sem nome'}</h4>
+                                <h4 class="execution-title">${t.nome || 'Sem nome'} ${attachmentBadge}</h4>
                                 <div class="execution-meta">
                                     <span class="meta-display">📁 ${t.tipoProjeto || '-'}</span>
                                     <span class="meta-display">🏢 ${currentStage.dept || '-'}</span>
@@ -2784,13 +2792,16 @@ function renderExecutionTasks(tasks) {
                         }
                     });
 
+                    const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+                    const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
+
                     html += `
                         <div class="execution-card ${(t.prioridade || '').toLowerCase()}" onclick="openDetail('${t.id}')">
                             <div class="execution-card-header">
                                 <span class="execution-date ${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
                             </div>
                             <div class="execution-card-body">
-                                <h4 class="execution-title">${t.nome || 'Sem nome'}</h4>
+                                <h4 class="execution-title">${t.nome || 'Sem nome'} ${attachmentBadge}</h4>
                                 <div class="execution-meta">
                                     <span class="meta-display">📁 ${t.tipoProjeto || '-'}</span>
                                     <span class="meta-display">🏢 ${currentStage.dept || '-'}</span>
@@ -3508,11 +3519,32 @@ function openDetail(id) {
 
     // Attachments HTML
     const attachments = t.attachments || [];
-    const attachmentsHtml = attachments.length ? attachments.map((a, i) => {
-        const icon = a.type === 'image' ? '🖼️' : a.type === 'pdf' ? '📄' : a.type === 'link' ? '🔗' : '📎';
+    const attachmentsHtml = attachments.length ? `<div class="attachment-grid">` + attachments.map((a, i) => {
+        const isImage = a.type === 'image' || (a.name && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(a.name));
+        const icon = a.type === 'pdf' ? '📄' : a.type === 'link' ? '🔗' : '📎';
+        const previewHtml = isImage && a.url
+            ? `<img src="${a.url}" alt="${a.name}">`
+            : `<span class="attachment-preview-icon">${icon}</span>`;
+        
         const clickHandler = a.url ? `onclick="event.stopPropagation(); window.open('${a.url.replace(/'/g, "\\'")}', '_blank')"` : `onclick="event.stopPropagation()"`;
-        return `<div class="attachment-item" ${clickHandler} style="cursor:pointer;"><div class="attachment-icon">${icon}</div><div class="attachment-name" style="word-break: break-all;">${a.name} <br><small style="color:var(--text-muted)">${a.size || ''}</small></div></div> `;
-    }).join('') : '<div style="display: flex; justify-content: center; align-items: center; width: 100%; padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">Nenhum anexo ainda</div>';
+        
+        return `
+        <div class="attachment-item-card" ${clickHandler}>
+            <div class="attachment-preview-box">
+                ${previewHtml}
+            </div>
+            <div class="attachment-card-info">
+                <div class="attachment-card-title" title="${a.name}">${a.name}</div>
+                <div class="attachment-card-size">${a.size || ''}</div>
+            </div>
+            <div class="attachment-action-overlay">
+                <button class="attachment-action-btn">
+                    📥 Abrir / Baixar
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('') + `</div>` : '<div style="display: flex; justify-content: center; align-items: center; width: 100%; padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">Nenhum anexo ainda</div>';
 
     // Subtasks
     const subtasks = t.subtasks || [];
@@ -3655,7 +3687,7 @@ function openDetail(id) {
         <div class="detail-tabs">
             <button class="detail-tab active" onclick="switchDetailTab('subtasks')"> ✓ Subtarefas (${subtasks.length})</button>
             <button class="detail-tab" onclick="switchDetailTab('comments')">💬 Comentários (${comments.length})</button>
-            <button class="detail-tab" onclick="switchDetailTab('attachments')">📎 Anexos (${attachments.length})</button>
+            <button class="detail-tab ${attachments.length > 0 ? 'has-attachments' : ''}" onclick="switchDetailTab('attachments')">${attachments.length > 0 ? `<span style="color: #ef4444; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">📎 Anexos <span class="tab-notif-badge">${attachments.length}</span></span>` : `📎 Anexos (${attachments.length})`}</button>
         </div>
         
         <div class="detail-tab-content active" id="tabSubtasks">
@@ -8593,10 +8625,13 @@ function renderTIKanban(kpiFilter = null) {
                 </div>`;
             }
 
+            const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+            const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
+
             return `
                 <div class="kanban-card ${t.prioridade.toLowerCase()} ${extraClasses}" draggable="true" data-id="${t.id}" onclick="openDetail('${t.id}')">
                     <div class="kanban-card-header">
-                         <span class="kanban-card-title">${t.nome}</span>
+                         <span class="kanban-card-title">${t.nome} ${attachmentBadge}</span>
                     </div>
                     <div class="kanban-card-meta">
                         <span class="kanban-card-type">${t.tipoProjeto}</span>
