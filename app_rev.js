@@ -155,7 +155,40 @@ function isGlobalCoordinator() {
     if (!currentUser) return false;
     const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : (Array.isArray(currentUser.dept) ? currentUser.dept : (typeof currentUser.dept === 'string' ? currentUser.dept.split(',').map(d => d.trim()) : [currentUser.dept]));
     const isGestao = depts.includes('Gestão');
-    return isGestao || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
+    return isGestao || currentUser.role === 'coordinator' || currentUser.role === 'social_media';
+}
+
+function getUserVisibleTasks(baseDemandas) {
+    if (!currentUser) return [];
+    if (!baseDemandas) return [];
+
+    if (isGlobalCoordinator()) {
+        return baseDemandas;
+    }
+
+    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : (Array.isArray(currentUser.dept) ? currentUser.dept : [currentUser.dept]);
+
+    if (currentUser.role === 'gestor_equipe') {
+        return baseDemandas.filter(d => {
+            if (d.solicitanteId === currentUser.id) return true;
+            if (!d.pipeline) return false;
+            return d.pipeline.some(stage => {
+                if (depts.includes(stage.dept)) return true;
+                const stageUser = USERS && USERS[stage.userId];
+                if (stageUser) {
+                    const userDepts = typeof getUserDepts === 'function' ? getUserDepts(stageUser) : [stageUser.dept];
+                    return userDepts.some(ud => depts.includes(ud));
+                }
+                return false;
+            });
+        });
+    }
+
+    // Default executor
+    return baseDemandas.filter(d =>
+        d.solicitanteId === currentUser.id ||
+        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
+    );
 }
 
 
@@ -1470,18 +1503,10 @@ function renderAgenda() {
     document.getElementById('agendaTitle').textContent = `${MONTHS[mo]} ${yr}`;
     document.getElementById('agendaAvatar').innerHTML = window.renderAvatar(currentUser, 'agenda-avatar');
     document.getElementById('agendaUserName').textContent = `Agenda de ${currentUser.nome.split(' ')[0]}`;
-    document.getElementById('agendaUserDept').textContent = `${currentUser.dept} • ${isGlobalCoordinator() ? 'Todas as demandas' : 'Minhas demandas do mês'}`;
+    document.getElementById('agendaUserDept').textContent = `${currentUser.dept} • ${isGlobalCoordinator() ? 'Todas as demandas' : (currentUser.role === 'gestor_equipe' ? 'Demandas do departamento' : 'Minhas demandas do mês')}`;
 
     const activeDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
-    let tasks;
-    if (isGlobalCoordinator()) {
-        tasks = activeDemandas;
-    } else {
-        tasks = activeDemandas.filter(d =>
-            d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        );
-    }
+    const tasks = getUserVisibleTasks(activeDemandas);
 
     const monthTasks = tasks.filter(t => { const parts = (t.dataConclusao || '').split('-'); return parseInt(parts[0]) === yr && parseInt(parts[1]) - 1 === mo; });
 
@@ -1515,10 +1540,7 @@ function renderAgenda() {
 // MINHA ÁREA - Personal Dashboard
 function updateMinhaArea() {
     const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
-    let tasks = isGlobalCoordinator() ? activeDemandas : activeDemandas.filter(d =>
-        d.solicitanteId === currentUser.id ||
-        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-    );
+    let tasks = getUserVisibleTasks(activeDemandas);
     document.getElementById('mTotal').textContent = tasks.length;
 
     const fazendoTasks = tasks.filter(d => d.status === 'Fazendo');
@@ -1535,10 +1557,7 @@ function updateMinhaArea() {
 
 function showMetricDemandas(statusFilter) {
     const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
-    let tasks = isGlobalCoordinator() ? activeDemandas : activeDemandas.filter(d =>
-        d.solicitanteId === currentUser.id ||
-        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-    );
+    let tasks = getUserVisibleTasks(activeDemandas);
 
     // Filtrar por status
     const labels = {
@@ -1902,21 +1921,17 @@ function renderMeuProgresso(tasks) {
 }
 
 function updateBadges() {
-    if (isGlobalCoordinator()) {
-        document.getElementById('badgeRequests').textContent = getMonthDemandas().filter(d => d.status !== 'Aprovado').length;
-        document.getElementById('badgeReview').textContent = getMonthDemandas().filter(d => d.status === 'Para aprovação').length;
-    } else if (currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe') {
-        const myDemandas = getMonthDemandas().filter(d => !d.deletedAt && (
-            d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        ));
-        document.getElementById('badgeRequests').textContent = myDemandas.filter(d => d.status !== 'Aprovado').length;
-        document.getElementById('badgeReview').textContent = myDemandas.filter(d => d.status === 'Para aprovação').length;
-    } else {
-        const myDemandas = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
-        document.getElementById('badgeRequests').textContent = myDemandas.filter(d => d.status !== 'Aprovado').length;
-        document.getElementById('badgeReview').textContent = myDemandas.filter(d => d.status === 'Para aprovação').length;
-        const executorTasks = myDemandas.filter(d => (d.pipeline[d.currentStage]?.userId === currentUser.id || (!d.pipeline[d.currentStage]?.userId && d.pipeline[d.currentStage]?.userIds && d.pipeline[d.currentStage].userIds.includes(currentUser.id))) && d.status !== 'Aprovado');
+    const visibleTasks = getUserVisibleTasks(getMonthDemandas().filter(d => !d.deletedAt));
+    document.getElementById('badgeRequests').textContent = visibleTasks.filter(d => d.status !== 'Aprovado').length;
+    document.getElementById('badgeReview').textContent = visibleTasks.filter(d => d.status === 'Para aprovação').length;
+
+    // For ordinary executors, we also show badgeTasks
+    if (currentUser.role === 'executor') {
+        const executorTasks = visibleTasks.filter(d => 
+            (d.pipeline[d.currentStage]?.userId === currentUser.id || 
+             (!d.pipeline[d.currentStage]?.userId && d.pipeline[d.currentStage]?.userIds && d.pipeline[d.currentStage].userIds.includes(currentUser.id))) 
+            && d.status !== 'Aprovado'
+        );
         const badgeTasks = document.getElementById('badgeTasks');
         if (badgeTasks) badgeTasks.textContent = executorTasks.length;
     }
@@ -1927,7 +1942,7 @@ function getSocialMediaUsers() {
 }
 
 function setupOriginFilters() {
-    const isSMOrCoord = isGlobalCoordinator();
+    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
     
     const filterSelectKanban = document.getElementById('filterOrigin');
     const filterSelectReq = document.getElementById('filterOriginReq');
@@ -2002,16 +2017,11 @@ function renderKanban() {
         { id: 'Aprovado', title: 'Aprovado', color: 'var(--concluida)' }
     ];
 
-    let baseDemandas = getMonthDemandas();
-    let tasks = isGlobalCoordinator()
-        ? baseDemandas.filter(d => !d.deletedAt)
-        : baseDemandas.filter(d => !d.deletedAt && (
-            d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        ));
+    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    let tasks = getUserVisibleTasks(baseDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = isGlobalCoordinator();
+    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
@@ -2443,16 +2453,11 @@ function renderRequests() {
     setupOriginFilters();
 
     const c = document.getElementById('requestsTable');
-    let baseDemandas = getMonthDemandas();
-    let t = isGlobalCoordinator()
-        ? baseDemandas.filter(d => !d.deletedAt)
-        : baseDemandas.filter(d => !d.deletedAt && (
-            d.solicitanteId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        ));
+    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    let t = getUserVisibleTasks(baseDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = isGlobalCoordinator();
+    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
