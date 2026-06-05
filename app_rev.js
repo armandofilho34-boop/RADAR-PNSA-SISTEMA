@@ -172,12 +172,28 @@ function getUserVisibleTasks(baseDemandas) {
         return baseDemandas.filter(d => {
             if (d.solicitanteId === currentUser.id) return true;
             if (!d.pipeline) return false;
+
+            // Se o próprio gestor de equipe está atribuído como candidato ou executor direto da etapa atual, ele deve ver!
+            const isAssigned = d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)));
+            if (isAssigned) return true;
+
             return d.pipeline.some(stage => {
                 if (depts.includes(stage.dept)) return true;
                 const stageUser = USERS && USERS[stage.userId];
                 if (stageUser) {
                     const userDepts = typeof getUserDepts === 'function' ? getUserDepts(stageUser) : [stageUser.dept];
                     return userDepts.some(ud => depts.includes(ud));
+                }
+                // Se for compartilhado, verificar se algum dos candidatos pertence ao departamento do gestor
+                if (!stage.userId && stage.userIds) {
+                    return stage.userIds.some(uid => {
+                        const sUser = USERS && USERS[uid];
+                        if (sUser) {
+                            const userDepts = typeof getUserDepts === 'function' ? getUserDepts(sUser) : [sUser.dept];
+                            return userDepts.some(ud => depts.includes(ud));
+                        }
+                        return false;
+                    });
                 }
                 return false;
             });
@@ -2027,7 +2043,7 @@ function renderKanban() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            tasks = tasks.filter(t => t.solicitanteId === currentUser.id);
+            tasks = tasks.filter(t => t.solicitanteId === currentUser.id || (t.pipeline && t.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
             tasks = tasks.filter(t => t.solicitanteId === targetId);
@@ -2463,7 +2479,7 @@ function renderRequests() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            t = t.filter(x => x.solicitanteId === currentUser.id);
+            t = t.filter(x => x.solicitanteId === currentUser.id || (x.pipeline && x.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
             t = t.filter(x => x.solicitanteId === targetId);
