@@ -728,8 +728,13 @@ function showApp() {
             navigateTo(smartView);
         }
 
-        // Lembrete diário (1x por dia)
-        showDailyReminder();
+        // Novidades do Sistema (exibe apenas uma vez)
+        const showedUpdates = showSystemUpdates();
+
+        // Lembrete diário (1x por dia, se não exibiu novidades)
+        if (!showedUpdates) {
+            showDailyReminder();
+        }
 
     });
 }
@@ -776,6 +781,131 @@ function showDailyReminder() {
     requestAnimationFrame(() => { overlay.style.opacity = '1'; box.style.transform = 'scale(1)'; });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 8000);
+}
+
+function showSystemUpdates() {
+    const key = 'radar_updates_seen_2026-06';
+    if (localStorage.getItem(key)) {
+        return false;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:99999;opacity:0;transition:opacity 0.3s;padding:20px;box-sizing:border-box;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);';
+
+    const box = document.createElement('div');
+    box.style.cssText = [
+        'background:linear-gradient(135deg, #1e1e38 0%, #111128 100%)',
+        'border-radius:24px',
+        'padding:36px',
+        'width:100%',
+        'max-width:620px',
+        'box-shadow:0 25px 50px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(99, 102, 241, 0.25)',
+        'transform:scale(0.9)',
+        'transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+        'color:#ffffff',
+        'font-family:\'Inter\', sans-serif',
+        'position:relative',
+        'overflow:hidden'
+    ].join(';');
+
+    // Glowing background spots
+    const glow1 = document.createElement('div');
+    glow1.style.cssText = 'position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:rgba(99, 102, 241, 0.15);filter:blur(50px);pointer-events:none;';
+    const glow2 = document.createElement('div');
+    glow2.style.cssText = 'position:absolute;bottom:-50px;left:-50px;width:200px;height:200px;border-radius:50%;background:rgba(239, 68, 68, 0.1);filter:blur(50px);pointer-events:none;';
+    box.appendChild(glow1);
+    box.appendChild(glow2);
+
+    const content = document.createElement('div');
+    content.style.cssText = 'position:relative;z-index:2;display:flex;flex-direction:column;max-height:85vh;';
+
+    content.innerHTML = `
+        <div style="font-size:48px;margin-bottom:16px;text-align:center;filter:drop-shadow(0 4px 10px rgba(99,102,241,0.3));">🚀</div>
+        <h2 style="margin:0 0 8px;font-size:24px;font-weight:800;text-align:center;letter-spacing:-0.5px;background:linear-gradient(90deg, #a855f7, #6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block;align-self:center;">Novidades no Radar PNSA!</h2>
+        <p style="margin:0 0 24px;font-size:14px;color:#a1a1aa;text-align:center;font-weight:500;">Confira as últimas atualizações que implementamos para melhorar seu fluxo de trabalho:</p>
+        
+        <div style="overflow-y:auto;padding-right:8px;margin-bottom:28px;text-align:left;display:flex;flex-direction:column;gap:18px;flex:1;" class="updates-list-scroll">
+            <style>
+                .updates-list-scroll::-webkit-scrollbar { width: 5px; }
+                .updates-list-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 4px; }
+                .updates-list-scroll::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 4px; }
+                .updates-list-scroll::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.5); }
+                .update-item-wrapper { display: flex; gap: 14px; align-items: flex-start; }
+                .update-item-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+                .update-item-title { font-weight: 700; color: #f4f4f5; font-size: 15px; margin: 0 0 4px; letter-spacing: -0.2px; }
+                .update-item-desc { color: #cbd5e1; font-size: 13px; line-height: 1.5; margin: 0; }
+            </style>
+            
+            <div class="update-item-wrapper">
+                <span class="update-item-icon">👥</span>
+                <div>
+                    <h4 class="update-item-title">Demandas Compartilhadas (Fila de Trabalho)</h4>
+                    <p class="update-item-desc">Agora é possível criar tarefas para múltiplos responsáveis. Quando qualquer um de vocês iniciar a atividade (mudando para "Fazendo" ou ativando o cronômetro), a tarefa assume a titularidade dele e os demais candidatos são notificados automaticamente.</p>
+                </div>
+            </div>
+
+            <div class="update-item-wrapper">
+                <span class="update-item-icon">📎</span>
+                <div>
+                    <h4 class="update-item-title">Destaque para Anexos (Cards e Detalhes)</h4>
+                    <p class="update-item-desc">Qualquer card no sistema agora exibe um indicador vermelho brilhante e pulsante (<strong style="color:#f87171;">📎 N</strong>) se houver anexos. Além disso, a aba <strong>Anexos</strong> dentro do modal de detalhes ganha uma borda vermelha luminosa, fundo animado suave e destaque em negrito se houver arquivos para direcionar seu olhar imediatamente.</p>
+                </div>
+            </div>
+
+            <div class="update-item-wrapper">
+                <span class="update-item-icon">🔍</span>
+                <div>
+                    <h4 class="update-item-title">Filtros Personalizados e Rápidos</h4>
+                    <p class="update-item-desc">Filtre rapidamente suas demandas, demandas de colegas específicos, Todas do departamento de Social Media ou Todas do Sistema com apenas um clique.</p>
+                </div>
+            </div>
+
+            <div class="update-item-wrapper">
+                <span class="update-item-icon">📅</span>
+                <div>
+                    <h4 class="update-item-title">Demandas Futuras</h4>
+                    <p class="update-item-desc">Tarefas recorrentes agendadas em lote para datas futuras (próximas semanas ou meses).</p>
+                </div>
+            </div>
+
+            <div class="update-item-wrapper">
+                <span class="update-item-icon">✨</span>
+                <div>
+                    <h4 class="update-item-title">Melhorias Contínuas de Usabilidade</h4>
+                    <p class="update-item-desc">Ajustes visuais e otimizações de fluxo foram integrados em todo o sistema para deixar a sua navegação ainda mais simples e fluida.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align:center; margin-top: 8px;">
+            <button id="btnDismissUpdates" style="padding:14px 44px;border-radius:12px;border:none;background:linear-gradient(135deg, #a855f7, #6366f1);color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 20px rgba(99, 102, 241, 0.4);transition: all 0.2s; letter-spacing: 0.3px;">
+                Entendi, vamos lá!
+            </button>
+        </div>
+    `;
+
+    box.appendChild(content);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        box.style.transform = 'scale(1)';
+    });
+
+    const dismiss = () => {
+        localStorage.setItem(key, 'true');
+        overlay.style.opacity = '0';
+        box.style.transform = 'scale(0.9)';
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    box.querySelector('#btnDismissUpdates').addEventListener('click', dismiss);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) dismiss();
+    });
+
+    return true;
 }
 
 function showFarewellMessage() {
