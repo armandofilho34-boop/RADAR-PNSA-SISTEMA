@@ -1366,7 +1366,7 @@ function navigateTo(view) {
     } else {
         console.error(`View target view-${view} not found!`);
     }
-    const titles = { 'minha-area': 'Minha Área', 'minha-agenda': 'Minha Agenda', kanban: 'Kanban Board', 'quadro-geral': 'Quadro Geral', requests: 'Minhas Demandas', review: 'Para Revisar', tasks: 'Para Executar', timeline: 'Timeline', analytics: 'Analytics', workload: 'Carga de Trabalho', templates: 'Templates', mural: 'Mural de Avisos', lixeira: 'Lixeira / Arquivo Morto', users: 'Gestão de Usuários', guide: 'Guia de Uso', equipe: 'Demandas da Equipe' };
+    const titles = { 'minha-area': 'Minha Área', 'minha-agenda': 'Minha Agenda', kanban: 'Kanban Board', 'quadro-geral': 'Quadro Geral', requests: 'Minhas Demandas', review: 'Para Revisar', tasks: 'Para Executar', timeline: 'Timeline', analytics: 'Analytics', workload: 'Carga de Trabalho', templates: 'Templates', mural: 'Mural de Avisos', lixeira: 'Lixeira / Arquivo Morto', users: 'Gestão de Usuários', guide: 'Guia de Uso', equipe: 'Demandas da Equipe', galeria: 'Galeria de Mídias' };
     
     // Gate for Equipe View
     if (view === 'equipe' && !managerAuthenticated) {
@@ -1396,6 +1396,7 @@ function navigateTo(view) {
     if (view === 'mural') renderMural();
     if (view === 'lixeira') renderLixeira();
     if (view === 'equipe') renderEquipeView();
+    if (view === 'galeria') renderGallery();
     updateBadges();
     document.getElementById('sidebar').classList.remove('open');
 }
@@ -9034,4 +9035,201 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000); // 1s wait to ensure everything originated from app.js is bound, we just clone and replace to strip native listeners
 });
+
+let allGalleryItems = [];
+
+function renderGallery() {
+    allGalleryItems = [];
+    
+    // Reset inputs
+    const searchInput = document.getElementById('gallerySearch');
+    const typeSelect = document.getElementById('galleryFilterType');
+    const deptSelect = document.getElementById('galleryFilterDept');
+    
+    if (searchInput) searchInput.value = '';
+    if (typeSelect) typeSelect.value = '';
+    if (deptSelect) deptSelect.value = '';
+
+    demandas.forEach(d => {
+        // Only include approved demands
+        if (d.status !== 'Aprovado') return;
+
+
+        // Final Deliverables (Entregas)
+        const entregas = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+        if (entregas && Array.isArray(entregas)) {
+            // Determine the executor(s) of the demand
+            let executorId = d.responsavelId;
+            let executorNome = '';
+
+            if (!executorId && d.pipeline && d.pipeline.length > 0) {
+                // Find first stage with a userId or userIds
+                const execStage = d.pipeline.find(s => s.userId || (s.userIds && s.userIds.length > 0));
+                if (execStage) {
+                    if (execStage.userId) {
+                        executorId = execStage.userId;
+                    } else if (execStage.userIds && execStage.userIds.length > 0) {
+                        executorId = execStage.userIds[0];
+                    }
+                }
+            }
+
+            if (executorId) {
+                executorNome = USERS[executorId]?.nome || 'Desconhecido';
+            } else if (d.pipeline && d.pipeline.length > 0) {
+                const uids = [];
+                d.pipeline.forEach(s => {
+                    if (s.userId) uids.push(s.userId);
+                    if (s.userIds) uids.push(...s.userIds);
+                });
+                const uniqueUids = [...new Set(uids)].filter(uid => uid);
+                if (uniqueUids.length > 0) {
+                    executorId = uniqueUids[0];
+                    executorNome = uniqueUids.map(uid => USERS[uid]?.nome).filter(Boolean).join(', ');
+                }
+            }
+
+            if (!executorId) {
+                // Fallback to requester only if absolutely no executors exist
+                executorId = d.solicitanteId;
+                executorNome = USERS[d.solicitanteId]?.nome || 'Desconhecido';
+            }
+
+            entregas.forEach((url, index) => {
+                if (url) {
+                    const isVideo = d.entregaTipo === 'video';
+                    let fileType = 'imagem';
+                    if (isVideo) {
+                        fileType = 'video';
+                    } else {
+                        const detected = identifyFileType(url, '');
+                        if (detected === 'documento') {
+                            fileType = 'documento';
+                        } else if (detected === 'video') {
+                            if (url.includes('drive.google.com')) {
+                                fileType = 'documento';
+                            } else {
+                                fileType = 'video';
+                            }
+                        }
+                    }
+
+                    const fileName = fileType === 'video' ? `Entrega Vídeo (${d.nome})` : (fileType === 'documento' ? `Entrega Documento - ${index + 1} (${d.nome})` : `Entrega Arte - ${index + 1} (${d.nome})`);
+
+                    allGalleryItems.push({
+                        url: url,
+                        nome: fileName,
+                        tipo: fileType,
+                        categoria: 'Entrega Final',
+                        size: '-',
+                        demandaId: d.id,
+                        demandaTitulo: d.nome || d.titulo || 'Demanda sem título',
+                        data: d.dataConclusao || d.lastStatusChange || d.dataCriacao || '',
+                        departamento: d.tipoProjeto || 'Outros',
+                        criadorId: executorId,
+                        criadorNome: executorNome
+                    });
+                }
+            });
+        }
+    });
+
+    // Ordenar itens da galeria por data decrescente (mais recentes primeiro)
+    allGalleryItems.sort((a, b) => new Date(b.data || 0) - new Date(a.data || 0));
+
+    // Renderizar itens filtrados (inicialmente tudo)
+    filterGallery();
+}
+
+function identifyFileType(name, type) {
+    if (type === 'image' || /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(name)) {
+        return 'imagem';
+    }
+    if (type === 'video' || /\.(mp4|mov|avi|mkv|wmv|webm)(\?|$)/i.test(name) || name.includes('youtube.com') || name.includes('youtu.be') || name.includes('drive.google.com') || name.includes('vimeo.com')) {
+        return 'video';
+    }
+    return 'documento';
+}
+
+function filterGallery() {
+    const searchVal = document.getElementById('gallerySearch')?.value?.toLowerCase() || '';
+    const typeVal = document.getElementById('galleryFilterType')?.value || '';
+    const deptVal = document.getElementById('galleryFilterDept')?.value || '';
+
+    const filtered = allGalleryItems.filter(item => {
+        const matchesSearch = item.nome.toLowerCase().includes(searchVal) || item.demandaTitulo.toLowerCase().includes(searchVal);
+        const matchesType = !typeVal || item.tipo === typeVal;
+        const matchesDept = !deptVal || item.departamento === deptVal;
+        return matchesSearch && matchesType && matchesDept;
+    });
+
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-muted); font-style: italic; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 12px; text-align: center; width: 100%;">
+                <span style="font-size: 44px; margin-bottom: 12px;">📂</span>
+                <span>Nenhuma mídia encontrada com os filtros selecionados</span>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(item => {
+        let previewHtml = '';
+        if (item.tipo === 'imagem') {
+            previewHtml = `<img src="${item.url}" alt="${item.nome}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px;">`;
+        } else if (item.tipo === 'video') {
+            previewHtml = `
+                <div style="width: 100%; height: 140px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.08); border-radius: 8px; color: #ef4444; font-size: 38px;">
+                    🎥
+                </div>
+            `;
+        } else {
+            // Documento / Outros
+            const ext = item.nome.split('.').pop().toUpperCase();
+            const icon = ext === 'PDF' ? '📄' : ext === 'ZIP' || ext === 'RAR' ? '📦' : '📎';
+            previewHtml = `
+                <div style="width: 100%; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border-radius: 8px; color: var(--text-muted); gap: 8px;">
+                    <span style="font-size: 38px;">${icon}</span>
+                    <span style="font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px;">${ext}</span>
+                </div>
+            `;
+        }
+
+        const clickHandler = `onclick="event.stopPropagation(); window.open('${item.url.replace(/'/g, "\\'")}', '_blank')"`;
+        const openTaskHandler = `onclick="event.stopPropagation(); openDetail('${item.demandaId}')"`;
+
+        return `
+            <div class="panel" style="padding: 12px; border-radius: 14px; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; transition: all 0.25s; cursor: pointer; border: 1px solid var(--border-color); background: var(--surface-light);" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                <div ${clickHandler} style="position: relative; overflow: hidden; border-radius: 8px; background: rgba(0,0,0,0.15);">
+                    ${previewHtml}
+                    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 8px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                        <button class="btn-primary" style="padding: 6px 14px; font-size: 11.5px; border-radius: 6px; font-weight: 700; box-shadow: 0 4px 10px rgba(99,102,241,0.3);">📥 Abrir / Baixar</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-color); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all;" title="${item.nome}">${item.nome}</div>
+                    
+                    <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                        <span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">${item.categoria}</span>
+                        <span>${item.size && item.size !== '-' ? item.size : ''}</span>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-subtle); margin-top: 8px; padding-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+                        <div ${openTaskHandler} style="font-size: 11px; color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="Ver Demanda: ${item.demandaTitulo}">
+                            🔗 ${item.demandaTitulo}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                            <span>👤 ${item.criadorNome.split(' ')[0]}</span>
+                            <span>📅 ${formatDate(item.data)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 

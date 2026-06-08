@@ -302,6 +302,14 @@
                         </svg>
                         Templates
                     </a>
+                    <a class="nav-link" data-view="galeria" id="navGaleria">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        Galeria de Mídias
+                    </a>
                 </div>
 
                 <div class="nav-section" id="navDeptsSection" style="display:none;">
@@ -1374,6 +1382,43 @@
                     </div>
                     <div class="lixeira-container" id="lixeiraContainer">
                         <!-- Items injected by JS -->
+                    </div>
+                </section>
+
+                <!-- Galeria de Mídias View -->
+                <section class="view" id="view-galeria">
+                    <div class="header-tools" style="justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <div>
+                            <h2 style="font-size: 24px; color: var(--text-color); margin-bottom: 4px;">Galeria de Mídias</h2>
+                            <p style="color: var(--text-muted); font-size: 14px;">Visualize e filtre todas as artes e entregas finais das demandas aprovadas no sistema</p>
+                        </div>
+                    </div>
+
+                    <!-- Filtros da Galeria -->
+                    <div class="controls-row" style="margin-bottom: 24px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="gallerySearch" placeholder="🔍 Buscar por nome do arquivo ou demanda..." oninput="filterGallery()" style="flex: 1; min-width: 250px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); font-family: inherit; font-size: 14px;">
+                        
+                        <select id="galleryFilterType" onchange="filterGallery()" style="padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); font-family: inherit; font-size: 14px; cursor: pointer; outline: none; min-width: 150px;">
+                            <option value="">📁 Todos os Arquivos</option>
+                            <option value="imagem">🖼️ Imagens</option>
+                            <option value="video">🎥 Vídeos / Links</option>
+                            <option value="documento">📄 Documentos (PDF, ZIP, etc.)</option>
+                        </select>
+                        
+                        <select id="galleryFilterDept" onchange="filterGallery()" style="padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); font-family: inherit; font-size: 14px; cursor: pointer; outline: none; min-width: 180px;">
+                            <option value="">👥 Todos os Departamentos</option>
+                            <option value="Designer">Designer</option>
+                            <option value="Videomaker">Videomaker</option>
+                            <option value="Social Media">Social Media</option>
+                            <option value="Transmissão">Transmissão</option>
+                            <option value="Suporte">Suporte</option>
+                            <option value="Inovação/TI">Inovação/TI</option>
+                        </select>
+                    </div>
+
+                    <!-- Grid de Mídias -->
+                    <div id="galleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
+                        <!-- Injetado via Javascript: renderGallery() -->
                     </div>
                 </section>
             </div>
