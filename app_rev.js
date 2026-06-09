@@ -366,6 +366,23 @@ const TEMPLATE_EVENTO_VIDEO = [
 let savedFilters = JSON.parse(localStorage.getItem('sgta-filters') || '[]');
 let templates = JSON.parse(localStorage.getItem('sgta-templates') || '[]');
 
+let brandHubConfig = JSON.parse(localStorage.getItem('sgta-brandhub')) || {
+    colors: [
+        { name: 'Azul Primário PNSA', hex: '#0B3C5D' },
+        { name: 'Dourado PNSA', hex: '#D9B310' },
+        { name: 'Cinza Escuro', hex: '#328CC1' },
+        { name: 'Branco', hex: '#FFFFFF' }
+    ],
+    links: [
+        { label: 'Google Drive - Fotos Oficiais', url: 'https://drive.google.com' },
+        { label: 'Canva - Templates de Postagem', url: 'https://canva.com' }
+    ],
+    driveKitLink: 'https://drive.google.com',
+    logoPngUrl: 'logo-pnsa.png',
+    logoPngLabel: 'Logo PNG (Fundo Transparente)',
+    driveKitLabel: 'Kit Completo (Vetor/AI/SVG)'
+};
+
 let currentUser = null, demandas = [], nextId = 1, currentDept = null, currentTaskId = null;
 let currentView = 'minha-area';
 let agendaDate = new Date(), tvInterval = null;
@@ -628,6 +645,25 @@ async function loadDataFirestore() {
                     renderMural();
                 }
             });
+
+            // Sincronização em Tempo Real para o Brand Hub (config/brandHub)
+            window.onSnapshot(window.doc(window.firebaseDb, "config", "brandHub"), (docSnap) => {
+                if (docSnap.exists()) {
+                    brandHubConfig = docSnap.data();
+                    localStorage.setItem('sgta-brandhub', JSON.stringify(brandHubConfig));
+                    console.log('Radar PNSA: Brand Hub atualizado do Firestore.');
+                } else {
+                    console.log('Radar PNSA: Documento config/brandHub não existe. Usando fallback padrão.');
+                }
+                if (typeof updateAppLogo === 'function') {
+                    updateAppLogo(brandHubConfig.logoPngUrl);
+                }
+                if (currentView === 'brand-hub') {
+                    renderBrandHub();
+                }
+            }, (error) => {
+                console.error("Erro ao carregar Brand Hub (onSnapshot):", error);
+            });
         } catch (e) {
             console.error("Erro ao configurar motor onSnapshot no Firestore", e);
             reject(e);
@@ -742,6 +778,7 @@ function showApp() {
         // Lembrete diário (1x por dia, se não exibiu novidades)
         if (!showedUpdates) {
             showDailyReminder();
+            setTimeout(startBrandHubTour, 1000);
         }
 
     });
@@ -905,7 +942,10 @@ function showSystemUpdates() {
         localStorage.setItem(key, 'true');
         overlay.style.opacity = '0';
         box.style.transform = 'scale(0.9)';
-        setTimeout(() => overlay.remove(), 300);
+        setTimeout(() => {
+            overlay.remove();
+            setTimeout(startBrandHubTour, 500);
+        }, 300);
     };
 
     box.querySelector('#btnDismissUpdates').addEventListener('click', dismiss);
@@ -914,6 +954,191 @@ function showSystemUpdates() {
     });
 
     return true;
+}
+
+function updateTourLine() {
+    const navLink = document.getElementById('navBrandHub');
+    const popup = document.getElementById('brandHubTourPopup');
+    const line = document.getElementById('tourLine');
+    const clone = document.getElementById('navBrandHubClone');
+    if (!navLink || !popup || !line) return;
+    
+    const rect = navLink.getBoundingClientRect();
+    if (clone) {
+        clone.style.top = `${rect.top}px`;
+        clone.style.left = `${rect.left}px`;
+        clone.style.width = `${rect.width}px`;
+        clone.style.height = `${rect.height}px`;
+    }
+    
+    const popupRect = popup.getBoundingClientRect();
+    
+    const x1 = popupRect.left;
+    const y1 = popupRect.top + popupRect.height / 2;
+    const x2 = rect.right;
+    const y2 = rect.top + rect.height / 2;
+    
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+}
+
+function startBrandHubTour() {
+    if (localStorage.getItem('radar_brandhub_tour_seen')) return;
+    
+    const navLink = document.getElementById('navBrandHub');
+    if (!navLink) return;
+    
+    // Suavemente rola o menu lateral para centralizar o item
+    navLink.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    
+    setTimeout(() => {
+        // Injetar estilos
+        if (!document.getElementById('tourStyles')) {
+            const style = document.createElement('style');
+            style.id = 'tourStyles';
+            style.textContent = `
+                .tour-highlight {
+                    position: relative;
+                    box-shadow: 0 0 0 2px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.7) !important;
+                    border-radius: 8px;
+                    background: rgba(251, 191, 36, 0.2) !important;
+                    color: #fff !important;
+                }
+                .tour-beacon {
+                    position: absolute;
+                    right: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 10px;
+                    height: 10px;
+                    background: #fbbf24;
+                    border-radius: 50%;
+                    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8);
+                    animation: tour-pulse 1.5s infinite;
+                    pointer-events: none;
+                }
+                @keyframes tour-pulse {
+                    0% {
+                        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8);
+                    }
+                    70% {
+                        box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+                    }
+                    100% {
+                        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+                    }
+                }
+                @keyframes tour-dash {
+                    to {
+                        stroke-dashoffset: -100;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Criar o fundo escurecido e borrado (Backdrop Blur Overlay)
+        const backdrop = document.createElement('div');
+        backdrop.id = 'tourBackdrop';
+        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:999990;opacity:0;transition:opacity 0.4s;';
+        document.body.appendChild(backdrop);
+        
+        // Clonar o item do menu lateral para exibi-lo por cima do backdrop
+        const rect = navLink.getBoundingClientRect();
+        const clone = navLink.cloneNode(true);
+        clone.id = 'navBrandHubClone';
+        clone.classList.add('tour-highlight');
+        clone.style.cssText = `
+            position: fixed;
+            top: ${rect.top}px;
+            left: ${rect.left}px;
+            width: ${rect.width}px;
+            height: ${rect.height}px;
+            margin: 0;
+            z-index: 999992;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        `;
+        
+        const beacon = document.createElement('div');
+        beacon.className = 'tour-beacon';
+        clone.appendChild(beacon);
+        document.body.appendChild(clone);
+        
+        // Criar o Pop-up com tamanho aumentado
+        const popup = document.createElement('div');
+        popup.id = 'brandHubTourPopup';
+        popup.style.cssText = 'position:fixed;right:60px;top:50%;transform:translateY(-50%) scale(0.9);width:420px;background:linear-gradient(135deg, #2a2b4d 0%, #17182f 100%);border:2px solid #fbbf24;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.7), 0 0 35px rgba(251,191,36,0.3);padding:32px;color:#fff;z-index:999995;opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);font-family:\'Inter\', sans-serif;';
+        popup.innerHTML = `
+            <div style="font-size:48px;margin-bottom:16px;text-align:center;filter:drop-shadow(0 4px 8px rgba(251,191,36,0.4));">🎨</div>
+            <h3 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#fbbf24;text-align:center;letter-spacing:-0.3px;">Novidade: Guia de Estilo!</h3>
+            <p style="margin:0 0 24px;font-size:14px;color:#cbd5e1;line-height:1.75;text-align:justify;">
+                Olá! Apresentamos o novo <strong>Guia de Estilo (Brand Hub)</strong> do Radar PNSA. Esta seção centraliza toda a identidade visual oficial da paróquia em um só lugar. Aqui você pode copiar os códigos HEX da paleta oficial com um clique, baixar logotipos e vetores em alta resolução, e utilizar o novo <strong>Gerador de QR Code Branded</strong> personalizado com as cores da igreja!
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <button id="btnTourGo" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg, #fbbf24, #d97706);color:#000;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 15px rgba(251, 191, 36, 0.4);transition:transform 0.2s;text-transform:uppercase;letter-spacing:0.5px;">
+                    ✨ Explorar Guia de Estilo
+                </button>
+                <button id="btnTourDismiss" style="padding:10px;border-radius:12px;border:none;background:transparent;color:#a1a1aa;font-weight:600;font-size:13px;cursor:pointer;transition:color 0.2s;">
+                    Fechar
+                </button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+        
+        // Criar a Linha Conectora SVG
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = 'tourLineSvg';
+        svg.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:999994;';
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.id = 'tourLine';
+        line.setAttribute('stroke', '#fbbf24');
+        line.setAttribute('stroke-width', '3');
+        line.setAttribute('stroke-linecap', 'round');
+        line.setAttribute('stroke-dasharray', '8, 8');
+        line.style.cssText = 'filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); animation: tour-dash 5s linear infinite;';
+        svg.appendChild(line);
+        document.body.appendChild(svg);
+        
+        // Ativar animações de entrada
+        requestAnimationFrame(() => {
+            backdrop.style.opacity = '1';
+            popup.style.opacity = '1';
+            popup.style.transform = 'translateY(-50%) scale(1)';
+            updateTourLine();
+        });
+        
+        window.addEventListener('resize', updateTourLine);
+        
+        const endTour = (shouldNavigate = false) => {
+            localStorage.setItem('radar_brandhub_tour_seen', 'true');
+            window.removeEventListener('resize', updateTourLine);
+            
+            backdrop.style.opacity = '0';
+            popup.style.opacity = '0';
+            popup.style.transform = 'translateY(-50%) scale(0.9)';
+            svg.remove();
+            
+            setTimeout(() => {
+                backdrop.remove();
+                popup.remove();
+                clone.remove();
+                
+                if (shouldNavigate) {
+                    if (typeof navigateTo === 'function') {
+                        navigateTo('brand-hub');
+                    }
+                }
+            }, 400);
+        };
+        
+        document.getElementById('btnTourGo').addEventListener('click', () => endTour(true));
+        document.getElementById('btnTourDismiss').addEventListener('click', () => endTour(false));
+        clone.addEventListener('click', () => endTour(true));
+    }, 300); // Rola primeiro e aguarda concluir a animação do scroll
 }
 
 function showFarewellMessage() {
@@ -1374,7 +1599,7 @@ function navigateTo(view) {
     } else {
         console.error(`View target view-${view} not found!`);
     }
-    const titles = { 'minha-area': 'Minha Área', 'minha-agenda': 'Minha Agenda', kanban: 'Kanban Board', 'quadro-geral': 'Quadro Geral', requests: 'Minhas Demandas', review: 'Para Revisar', tasks: 'Para Executar', timeline: 'Timeline', analytics: 'Analytics', workload: 'Carga de Trabalho', templates: 'Templates', mural: 'Mural de Avisos', lixeira: 'Lixeira / Arquivo Morto', users: 'Gestão de Usuários', guide: 'Guia de Uso', equipe: 'Demandas da Equipe', galeria: 'Galeria de Mídias' };
+    const titles = { 'minha-area': 'Minha Área', 'minha-agenda': 'Minha Agenda', kanban: 'Kanban Board', 'quadro-geral': 'Quadro Geral', requests: 'Minhas Demandas', review: 'Para Revisar', tasks: 'Para Executar', timeline: 'Timeline', analytics: 'Analytics', workload: 'Carga de Trabalho', templates: 'Templates', mural: 'Mural de Avisos', lixeira: 'Lixeira / Arquivo Morto', users: 'Gestão de Usuários', guide: 'Guia de Uso', equipe: 'Demandas da Equipe', galeria: 'Galeria de Mídias', 'brand-hub': 'Guia de Estilo' };
     
     // Gate for Equipe View
     if (view === 'equipe' && !managerAuthenticated) {
@@ -1405,6 +1630,7 @@ function navigateTo(view) {
     if (view === 'lixeira') renderLixeira();
     if (view === 'equipe') renderEquipeView();
     if (view === 'galeria') renderGallery();
+    if (view === 'brand-hub') renderBrandHub();
     updateBadges();
     document.getElementById('sidebar').classList.remove('open');
 }
@@ -9411,4 +9637,616 @@ function filterGallery() {
         `;
     }).join('');
 }
+
+// =========================================================================
+// BRAND HUB & GUIA DE ESTILO
+// =========================================================================
+
+function hasBrandHubPermission() {
+    if (!currentUser) return false;
+    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : (Array.isArray(currentUser.dept) ? currentUser.dept : (typeof currentUser.dept === 'string' ? currentUser.dept.split(',').map(d => d.trim()) : [currentUser.dept]));
+    const isSocialMedia = currentUser.role === 'social_media' || depts.includes('Social Media');
+    const isCoord = isGlobalCoordinator();
+    return isCoord && !isSocialMedia;
+}
+
+function checkBrandHubPermission() {
+    if (!hasBrandHubPermission()) {
+        toast('Acesso negado: Somente coordenadores (exceto Social Media) podem fazer alterações no Brand Hub.', 'error');
+        return false;
+    }
+    return true;
+}
+
+function renderBrandHub() {
+    const isCoord = hasBrandHubPermission();
+    const btnEdit = document.getElementById('btnEditBrandHub');
+    if (btnEdit) {
+        btnEdit.style.display = isCoord ? 'flex' : 'none';
+    }
+
+    // Render colors
+    const colorsGrid = document.getElementById('bhColorsGrid');
+    if (colorsGrid) {
+        if (!brandHubConfig.colors || brandHubConfig.colors.length === 0) {
+            colorsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1;">Nenhuma cor cadastrada.</p>`;
+        } else {
+            colorsGrid.innerHTML = brandHubConfig.colors.map((c, index) => {
+                return `
+                <div class="color-swatch-card" style="background: var(--surface-light); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; align-items: center; cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;" onclick="window.copyColorHex('${c.hex}', ${index})">
+                    <div style="background: ${c.hex}; width: 100%; height: 70px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-color); text-align: center; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; width: 100%;" title="${c.name || 'Sem nome'}">${c.name || 'Sem nome'}</span>
+                    <button class="btn-copy-hex" id="btnCopyHex-${index}" style="background: rgba(255,255,255,0.05); border: none; border-radius: 6px; padding: 6px 8px; color: var(--text-muted); font-size: 11px; width: 100%; cursor: pointer; font-family: monospace; font-weight: 600;">
+                        ${c.hex}
+                    </button>
+                </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // Render links
+    const linksList = document.getElementById('bhLinksList');
+    if (linksList) {
+        if (!brandHubConfig.links || brandHubConfig.links.length === 0) {
+            linksList.innerHTML = `<p style="color: var(--text-muted); font-size: 13px;">Nenhum link útil cadastrado.</p>`;
+        } else {
+            linksList.innerHTML = brandHubConfig.links.map(l => {
+                return `
+                <a href="${l.url}" target="_blank" class="bh-link-card" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 10px; color: var(--text-color); text-decoration: none; font-weight: 500; font-size: 13.5px; transition: background 0.2s, transform 0.2s;">
+                    <span style="font-size: 18px;">🔗</span>
+                    <span style="flex: 1; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="${l.label || 'Link sem título'}">${l.label || 'Link sem título'}</span>
+                    <span style="color: var(--text-muted); font-size: 12px;">Abrir ↗</span>
+                </a>
+                `;
+            }).join('');
+        }
+    }
+
+    // Render Assets (Logos & Vetores)
+    const assetsGrid = document.getElementById('bhAssetsGrid');
+    if (assetsGrid) {
+        // Garantir que assets existe e tratar retrocompatibilidade
+        if (!brandHubConfig.assets) {
+            brandHubConfig.assets = [];
+            if (brandHubConfig.driveKitLink) {
+                brandHubConfig.assets.push({
+                    label: brandHubConfig.driveKitLabel || 'Kit Completo (Vetor/AI/SVG)',
+                    url: brandHubConfig.driveKitLink
+                });
+            }
+        }
+
+        // Criar lista de ativos a renderizar
+        const allAssets = [];
+        
+        // 1. Adicionar logotipo principal como primeiro item apenas se estiver configurado
+        if (brandHubConfig.logoPngUrl && brandHubConfig.logoPngUrl.trim() !== '') {
+            const mainLogoLabel = brandHubConfig.logoPngLabel || 'Logo Principal (Sistema)';
+            allAssets.push({ label: mainLogoLabel, url: brandHubConfig.logoPngUrl, isMain: true });
+        }
+
+        // 2. Adicionar os demais ativos
+        brandHubConfig.assets.forEach(asset => {
+            if (asset && asset.url) {
+                allAssets.push({ label: asset.label, url: asset.url, isMain: false });
+            }
+        });
+
+        assetsGrid.innerHTML = allAssets.map((asset, index) => {
+            const isImg = asset.url && identifyFileType(asset.url) === 'imagem';
+            const previewHtml = isImg 
+                ? `<img src="${asset.url}" style="height: 48px; max-width: 100%; object-fit: contain; border-radius: 4px;">`
+                : `<span style="font-size: 24px;">📦</span>`;
+            
+            // Se for imagem do firebase ou local, tenta usar atributo download
+            const isExternal = asset.url && (asset.url.startsWith('http') && !asset.url.includes('firebasestorage'));
+            const downloadAttr = isExternal ? `target="_blank"` : `download="${asset.label.replace(/\s+/g, '_')}"`;
+
+            return `
+            <div style="padding: 12px; background: rgba(0,0,0,0.15); border: 1px solid var(--border-subtle); border-radius: 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; justify-content: center; min-height: 140px; position: relative;">
+                ${asset.isMain ? `<span style="position: absolute; top: 4px; right: 4px; font-size: 9px; background: var(--primary); color: white; padding: 2px 5px; border-radius: 4px; font-weight: 700;">Principal</span>` : ''}
+                <div style="height: 48px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                    ${previewHtml}
+                </div>
+                <span style="font-weight: 600; font-size: 11px; color: var(--text-color); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 32px; align-items: center; display: flex; justify-content: center; width: 100%; text-align: center;" title="${asset.label || ''}">
+                    ${asset.label || 'Sem título'}
+                </span>
+                <a href="${asset.url || '#'}" ${downloadAttr} class="btn-primary" style="padding: 6px 12px; font-size: 10px; border-radius: 6px; text-decoration: none; width: 100%; display: block; font-weight: 600; box-sizing: border-box;">📥 Baixar</a>
+            </div>
+            `;
+        }).join('');
+    }
+
+    // Renderizar cores do QR Code
+    if (typeof renderQrCodeColors === 'function') {
+        renderQrCodeColors();
+    }
+
+    // Update paróquia logo globally across views
+    if (typeof updateAppLogo === 'function') {
+        updateAppLogo(brandHubConfig.logoPngUrl);
+    }
+}
+
+function renderQrCodeColors() {
+    const container = document.getElementById('bhQrColors');
+    if (!container) return;
+    
+    const colors = brandHubConfig.colors || [];
+    // Combinar cores oficiais com preto padrão
+    const options = [
+        ...colors,
+        { name: 'Preto Padrão', hex: '#000000' }
+    ];
+
+    container.innerHTML = options.map((c, index) => {
+        return `
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-color); font-size: 13px;">
+            <input type="radio" name="qrColor" value="${c.hex}" ${index === 0 ? 'checked' : ''} style="accent-color: var(--primary); cursor: pointer;">
+            <span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: ${c.hex}; border: 1px solid rgba(255,255,255,0.2);"></span>
+            ${c.name || 'Cor'}
+        </label>
+        `;
+    }).join('');
+}
+
+function generateQrCode() {
+    const urlInput = document.getElementById('bhQrUrlInput');
+    const url = urlInput ? urlInput.value.trim() : '';
+    
+    if (!url) {
+        toast('Por favor, insira um link ou URL válido.', 'error');
+        return;
+    }
+
+    const colorRadio = document.querySelector('input[name="qrColor"]:checked');
+    const colorHex = colorRadio ? colorRadio.value : '#000000';
+    
+    const previewContainer = document.getElementById('bhQrCodePreview');
+    const outputContainer = document.getElementById('bhQrOutputContainer');
+    
+    if (!previewContainer || !outputContainer) return;
+    
+    // Limpar QR Code anterior
+    previewContainer.innerHTML = '';
+    
+    try {
+        if (typeof QRCode === 'undefined') {
+            throw new Error("A biblioteca de QR Code não foi carregada. Verifique a conexão com a internet.");
+        }
+        
+        new QRCode(previewContainer, {
+            text: url,
+            width: 160,
+            height: 160,
+            colorDark: colorHex,
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        outputContainer.style.display = 'flex';
+        toast('QR Code gerado com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao gerar QR Code:', e);
+        toast('Erro ao gerar QR Code: ' + e.message, 'error');
+    }
+}
+
+function downloadGeneratedQrCode() {
+    const previewContainer = document.getElementById('bhQrCodePreview');
+    if (!previewContainer) return;
+    
+    const canvas = previewContainer.querySelector('canvas');
+    const img = previewContainer.querySelector('img');
+    let dataUrl = '';
+    
+    if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+    } else if (img && img.src) {
+        dataUrl = img.src;
+    }
+    
+    if (!dataUrl) {
+        toast('Nenhum QR Code gerado para download.', 'error');
+        return;
+    }
+    
+    const colorRadio = document.querySelector('input[name="qrColor"]:checked');
+    const colorHex = colorRadio ? colorRadio.value : 'custom';
+    
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `qrcode_pnsa_${colorHex.replace('#', '')}.png`;
+    link.click();
+    toast('Download do QR Code iniciado!', 'success');
+}
+
+function copyColorHex(hex, index) {
+    navigator.clipboard.writeText(hex).then(() => {
+        const btn = document.getElementById(`btnCopyHex-${index}`);
+        if (btn) {
+            btn.textContent = 'Copiado!';
+            btn.style.color = '#10B981';
+            btn.style.background = 'rgba(16, 185, 129, 0.1)';
+            setTimeout(() => {
+                btn.textContent = hex;
+                btn.style.color = 'var(--text-muted)';
+                btn.style.background = 'rgba(255,255,255,0.05)';
+            }, 1500);
+        }
+        toast(`HEX ${hex} copiado!`, 'success');
+    }).catch(err => {
+        console.error('Erro ao copiar HEX: ', err);
+        toast('Erro ao copiar HEX.', 'error');
+    });
+}
+
+function openBrandHubEditModal() {
+    if (!checkBrandHubPermission()) return;
+    document.getElementById('bhEditLogoPngUrl').value = brandHubConfig.logoPngUrl || '';
+    document.getElementById('bhEditLogoPngLabel').value = brandHubConfig.logoPngLabel || '';
+    
+    // Inicializar lista de ativos caso não exista (retrocompatibilidade)
+    if (!brandHubConfig.assets) {
+        brandHubConfig.assets = [];
+        if (brandHubConfig.driveKitLink) {
+            brandHubConfig.assets.push({
+                label: brandHubConfig.driveKitLabel || 'Kit Completo (Vetor/AI/SVG)',
+                url: brandHubConfig.driveKitLink
+            });
+        }
+    }
+
+    renderEditAssetsList();
+    renderEditColorsList();
+    renderEditLinksList();
+    openModal('modalBrandHubEdit');
+}
+
+function renderEditAssetsList() {
+    const list = document.getElementById('bhEditAssetsList');
+    if (!list) return;
+    
+    const assets = brandHubConfig.assets || [];
+    list.innerHTML = assets.map((asset, index) => {
+        return `
+        <div class="form-row bh-asset-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+            <div style="flex: 1.5;">
+                <input type="text" class="bh-asset-label" data-index="${index}" value="${asset.label || ''}" placeholder="Nome (ex: Selo Branco)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+            </div>
+            <div style="flex: 2.5; display: flex; gap: 8px; align-items: center;">
+                <input type="text" class="bh-asset-url" data-index="${index}" id="bhAssetUrl-${index}" value="${asset.url || ''}" placeholder="https://..." style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+                <input type="file" id="bhAssetFileInput-${index}" style="display: none;" onchange="window.handleDynamicAssetUpload(${index}, this)">
+                <button type="button" class="btn-primary" onclick="document.getElementById('bhAssetFileInput-${index}').click()" id="btnUploadAsset-${index}" style="padding: 10px 12px; border-radius: 8px; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 4px; border: none; cursor: pointer; background: var(--primary); color: white;">
+                    📤 Upload
+                </button>
+            </div>
+            <button class="btn-danger" onclick="window.removeBrandHubAsset(${index})" style="padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #ef4444; color: white;">🗑️</button>
+        </div>
+        `;
+    }).join('');
+}
+
+function addNewBrandHubAsset() {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    if (!brandHubConfig.assets) brandHubConfig.assets = [];
+    brandHubConfig.assets.push({ label: '', url: '' });
+    renderEditAssetsList();
+}
+
+function removeBrandHubAsset(index) {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    brandHubConfig.assets.splice(index, 1);
+    renderEditAssetsList();
+}
+
+async function handleDynamicAssetUpload(index, input) {
+    if (!checkBrandHubPermission()) {
+        input.value = '';
+        return;
+    }
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    const btn = document.getElementById(`btnUploadAsset-${index}`);
+    const inputUrl = document.getElementById(`bhAssetUrl-${index}`);
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.innerHTML = '⌛...';
+        btn.disabled = true;
+    }
+
+    try {
+        if (!window.firebaseStorage) {
+            throw new Error("Firebase Storage não está inicializado.");
+        }
+        const storageRef = window.ref(window.firebaseStorage, `arquivos_demandas/brand_assets/asset_${Date.now()}_${file.name}`);
+        await window.uploadBytes(storageRef, file);
+        const docUrl = await window.getDownloadURL(storageRef);
+        
+        if (inputUrl) {
+            inputUrl.value = docUrl;
+        }
+        toast('Arquivo enviado com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao fazer upload do ativo:', e);
+        toast('Erro ao enviar o arquivo: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+        input.value = ''; // Reset file input
+    }
+}
+
+function renderEditColorsList() {
+    const list = document.getElementById('bhEditColorsList');
+    if (!list) return;
+    
+    const colors = brandHubConfig.colors || [];
+    list.innerHTML = colors.map((c, index) => {
+        return `
+        <div class="form-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+            <div style="flex: 2;">
+                <input type="text" class="bh-color-name" data-index="${index}" value="${c.name || ''}" placeholder="Nome da Cor (ex: Azul Secundário)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+            </div>
+            <div style="flex: 1.5; display: flex; gap: 8px; align-items: center;">
+                <input type="color" class="bh-color-picker" data-index="${index}" value="${c.hex}" oninput="window.updateHexFromPicker(${index}, this.value)" style="width: 40px; height: 40px; border: none; border-radius: 6px; padding: 0; background: none; cursor: pointer;">
+                <input type="text" class="bh-color-hex" data-index="${index}" id="bhColorHex-${index}" value="${c.hex}" placeholder="#ffffff" oninput="window.updatePickerFromHex(${index}, this.value)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-family: monospace;">
+            </div>
+            <button class="btn-danger" onclick="window.removeBrandHubColor(${index})" style="padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #ef4444; color: white;">🗑️</button>
+        </div>
+        `;
+    }).join('');
+}
+
+function renderEditLinksList() {
+    const list = document.getElementById('bhEditLinksList');
+    if (!list) return;
+
+    const links = brandHubConfig.links || [];
+    list.innerHTML = links.map((l, index) => {
+        return `
+        <div class="form-row" style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+            <div style="flex: 1.5;">
+                <input type="text" class="bh-link-label" data-index="${index}" value="${l.label || ''}" placeholder="Título (ex: Canva)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+            </div>
+            <div style="flex: 2.5;">
+                <input type="text" class="bh-link-url" data-index="${index}" value="${l.url || ''}" placeholder="https://..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+            </div>
+            <button class="btn-danger" onclick="window.removeBrandHubLink(${index})" style="padding: 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #ef4444; color: white;">🗑️</button>
+        </div>
+        `;
+    }).join('');
+}
+
+function updateHexFromPicker(index, val) {
+    const input = document.getElementById(`bhColorHex-${index}`);
+    if (input) input.value = val.toUpperCase();
+}
+
+function updatePickerFromHex(index, val) {
+    const picker = document.querySelector(`.bh-color-picker[data-index="${index}"]`);
+    if (picker && val.match(/^#[0-9A-Fa-f]{6}$/)) {
+        picker.value = val;
+    }
+}
+
+function addNewBrandHubColor() {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    if (!brandHubConfig.colors) brandHubConfig.colors = [];
+    brandHubConfig.colors.push({ name: '', hex: '#000000' });
+    renderEditColorsList();
+}
+
+function removeBrandHubColor(index) {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    brandHubConfig.colors.splice(index, 1);
+    renderEditColorsList();
+}
+
+function addNewBrandHubLink() {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    if (!brandHubConfig.links) brandHubConfig.links = [];
+    brandHubConfig.links.push({ label: '', url: '' });
+    renderEditLinksList();
+}
+
+function removeBrandHubLink(index) {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+    brandHubConfig.links.splice(index, 1);
+    renderEditLinksList();
+}
+
+function syncBrandHubDraft() {
+    const names = document.querySelectorAll('.bh-color-name');
+    const hexs = document.querySelectorAll('.bh-color-hex');
+    brandHubConfig.colors = Array.from(names).map((el, i) => {
+        return {
+            name: el.value,
+            hex: hexs[i] ? hexs[i].value : '#000000'
+        };
+    });
+
+    const labels = document.querySelectorAll('.bh-link-label');
+    const urls = document.querySelectorAll('.bh-link-url');
+    brandHubConfig.links = Array.from(labels).map((el, i) => {
+        return {
+            label: el.value,
+            url: urls[i] ? urls[i].value : ''
+        };
+    });
+
+    const assetLabels = document.querySelectorAll('.bh-asset-label');
+    const assetUrls = document.querySelectorAll('.bh-asset-url');
+    brandHubConfig.assets = Array.from(assetLabels).map((el, i) => {
+        return {
+            label: el.value,
+            url: assetUrls[i] ? assetUrls[i].value : ''
+        };
+    });
+
+    const logoUrlInput = document.getElementById('bhEditLogoPngUrl');
+    const logoLabelInput = document.getElementById('bhEditLogoPngLabel');
+    if (logoUrlInput) brandHubConfig.logoPngUrl = logoUrlInput.value;
+    if (logoLabelInput) brandHubConfig.logoPngLabel = logoLabelInput.value;
+}
+
+async function saveBrandHubConfig() {
+    if (!checkBrandHubPermission()) return;
+    syncBrandHubDraft();
+
+    const btnSave = document.querySelector('#modalBrandHubEdit .btn-success');
+    let originalHtml = '';
+    if (btnSave) {
+        originalHtml = btnSave.innerHTML;
+        btnSave.innerHTML = '⌛ Salvando...';
+        btnSave.disabled = true;
+    }
+
+    try {
+        await window.setDoc(window.doc(window.firebaseDb, "config", "brandHub"), brandHubConfig);
+        localStorage.setItem('sgta-brandhub', JSON.stringify(brandHubConfig));
+        toast('Configurações do Brand Hub salvas com sucesso!', 'success');
+        closeModal('modalBrandHubEdit');
+        renderBrandHub();
+    } catch (e) {
+        console.error('Erro ao salvar config do Brand Hub no Firestore:', e);
+        toast('Erro ao salvar configurações do Brand Hub.', 'error');
+    } finally {
+        if (btnSave) {
+            btnSave.innerHTML = originalHtml;
+            btnSave.disabled = false;
+        }
+    }
+}
+
+// Bind to window to avoid scope issues in HTML inline onclick events
+window.renderBrandHub = renderBrandHub;
+window.copyColorHex = copyColorHex;
+window.openBrandHubEditModal = openBrandHubEditModal;
+window.renderEditColorsList = renderEditColorsList;
+window.renderEditLinksList = renderEditLinksList;
+window.updateHexFromPicker = updateHexFromPicker;
+window.updatePickerFromHex = updatePickerFromHex;
+window.addNewBrandHubColor = addNewBrandHubColor;
+window.removeBrandHubColor = removeBrandHubColor;
+window.addNewBrandHubLink = addNewBrandHubLink;
+window.removeBrandHubLink = removeBrandHubLink;
+window.saveBrandHubConfig = saveBrandHubConfig;
+
+async function handleBrandHubLogoUpload(input) {
+    if (!checkBrandHubPermission()) {
+        input.value = '';
+        return;
+    }
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    const btn = document.getElementById('btnUploadLogoBrandHub');
+    const inputUrl = document.getElementById('bhEditLogoPngUrl');
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.innerHTML = '⌛ Enviando...';
+        btn.disabled = true;
+    }
+
+    try {
+        if (!window.firebaseStorage) {
+            throw new Error("Firebase Storage não está inicializado.");
+        }
+        const storageRef = window.ref(window.firebaseStorage, `arquivos_demandas/brand_assets/logo_${Date.now()}_${file.name}`);
+        await window.uploadBytes(storageRef, file);
+        const docUrl = await window.getDownloadURL(storageRef);
+        
+        if (inputUrl) {
+            inputUrl.value = docUrl;
+        }
+        toast('Logo enviada com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao fazer upload da logo:', e);
+        toast('Erro ao enviar o arquivo: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+        input.value = ''; // Reset file input
+    }
+}
+
+async function handleBrandHubKitUpload(input) {
+    if (!checkBrandHubPermission()) {
+        input.value = '';
+        return;
+    }
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    const btn = document.getElementById('btnUploadKitBrandHub');
+    const inputUrl = document.getElementById('bhEditDriveKitLink');
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.innerHTML = '⌛ Enviando...';
+        btn.disabled = true;
+    }
+
+    try {
+        if (!window.firebaseStorage) {
+            throw new Error("Firebase Storage não está inicializado.");
+        }
+        const storageRef = window.ref(window.firebaseStorage, `arquivos_demandas/brand_assets/kit_${Date.now()}_${file.name}`);
+        await window.uploadBytes(storageRef, file);
+        const docUrl = await window.getDownloadURL(storageRef);
+        
+        if (inputUrl) {
+            inputUrl.value = docUrl;
+        }
+        toast('Kit de vetores enviado com sucesso!', 'success');
+    } catch (e) {
+        console.error('Erro ao fazer upload do kit:', e);
+        toast('Erro ao enviar o arquivo: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+        input.value = ''; // Reset file input
+    }
+}
+
+function updateAppLogo(url) {
+    const logoUrl = url || 'logo-pnsa.png';
+    const loginLogo = document.getElementById('appLoginLogo');
+    const sidebarLogo = document.getElementById('appSidebarLogo');
+    const modalLogo = document.getElementById('appModalLogo');
+    
+    if (loginLogo) loginLogo.src = logoUrl;
+    if (sidebarLogo) sidebarLogo.src = logoUrl;
+    if (modalLogo) modalLogo.src = logoUrl;
+}
+
+window.handleBrandHubLogoUpload = handleBrandHubLogoUpload;
+window.handleBrandHubKitUpload = handleBrandHubKitUpload;
+window.updateAppLogo = updateAppLogo;
+window.renderEditAssetsList = renderEditAssetsList;
+window.addNewBrandHubAsset = addNewBrandHubAsset;
+window.removeBrandHubAsset = removeBrandHubAsset;
+window.handleDynamicAssetUpload = handleDynamicAssetUpload;
+window.renderQrCodeColors = renderQrCodeColors;
+window.generateQrCode = generateQrCode;
+window.downloadGeneratedQrCode = downloadGeneratedQrCode;
+
+
 

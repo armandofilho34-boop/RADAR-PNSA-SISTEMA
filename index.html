@@ -67,7 +67,7 @@
                 <div class="login-box">
                     <div class="login-brand">
                         <div class="brand-logo">
-                            <img src="logo-pnsa.png" alt="Logo" class="brand-logo-img">
+                            <img src="logo-pnsa.png" alt="Logo" class="brand-logo-img" id="appLoginLogo">
                         </div>
                     </div>
 
@@ -153,7 +153,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="brand">
-                    <img src="logo-pnsa.png" alt="Radar PNSA" class="sidebar-logo">
+                    <img src="logo-pnsa.png" alt="Radar PNSA" class="sidebar-logo" id="appSidebarLogo">
                     <span class="brand-text">Área de Trabalho</span>
                 </div>
             </div>
@@ -309,6 +309,16 @@
                             <polyline points="21 15 16 10 5 21" />
                         </svg>
                         Galeria de Mídias
+                    </a>
+                    <a class="nav-link" data-view="brand-hub" id="navBrandHub">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" />
+                            <circle cx="12" cy="7.5" r="1" fill="currentColor" />
+                            <circle cx="8" cy="11.5" r="1" fill="currentColor" />
+                            <circle cx="16" cy="11.5" r="1" fill="currentColor" />
+                            <circle cx="12" cy="15.5" r="1" fill="currentColor" />
+                        </svg>
+                        Guia de Estilo
                     </a>
                 </div>
 
@@ -1427,8 +1437,160 @@
                         <!-- Injetado via Javascript: renderGallery() -->
                     </div>
                 </section>
+
+                <!-- Brand Hub View -->
+                <section class="view" id="view-brand-hub">
+                    <style>
+                        .color-swatch-card:hover {
+                            transform: translateY(-4px);
+                            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+                            border-color: var(--primary) !important;
+                        }
+                        .bh-link-card:hover {
+                            background: rgba(255,255,255,0.06) !important;
+                            transform: translateX(4px);
+                        }
+                    </style>
+                    <div class="header-tools" style="justify-content: space-between; align-items: center; margin-bottom: 24px; display: flex;">
+                        <div>
+                            <h2 style="font-size: 24px; color: var(--text-color); margin-bottom: 4px;">🎨 Guia de Estilo (Brand Hub)</h2>
+                            <p style="color: var(--text-muted); font-size: 14px;">Identidade visual, paleta de cores, logotipos oficiais e atalhos rápidos da equipe</p>
+                        </div>
+                        <button class="btn-primary" id="btnEditBrandHub" onclick="openBrandHubEditModal()" style="display: none; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; font-weight: 600;">
+                            ⚙️ Gerenciar Guia
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                        <!-- Bloco 1: Cores da Marca -->
+                        <div class="panel" style="padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--surface-light); display: flex; flex-direction: column; gap: 16px;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--text-color); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">🎨 Paleta de Cores Oficiais</h3>
+                            <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 8px;">Clique na cor ou no botão para copiar o código HEX para o seu clipboard.</p>
+                            <div id="bhColorsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px;">
+                                <!-- Injetado via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Bloco 2: Logos & Vetores -->
+                        <div class="panel" style="padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--surface-light); display: flex; flex-direction: column; gap: 16px;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--text-color); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">📐 Logotipos e Vetores Oficiais</h3>
+                            <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 8px;">Arquivos originais e variações da logomarca da paróquia para aplicação.</p>
+                            
+                            <div id="bhAssetsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; flex: 1; align-content: center; padding-right: 4px;">
+                                <!-- Injetado via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Bloco 3: Atalhos e Links Úteis -->
+                        <div class="panel" style="padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--surface-light); display: flex; flex-direction: column; gap: 16px;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--text-color); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">🔗 Links Úteis e Pastas</h3>
+                            <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 8px;">Links rápidos para pastas de fotos, templates do Canva, e arquivos compartilhados.</p>
+                            <div id="bhLinksList" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; padding-right: 4px; flex: 1;">
+                                <!-- Injetado via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Bloco 4: Gerador de QR Code Branded -->
+                        <div class="panel" style="padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--surface-light); display: flex; flex-direction: column; gap: 16px;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: var(--text-color); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">📱 Gerador de QR Code Branded</h3>
+                            <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 8px;">Gere códigos QR estilizados com as cores oficiais para panfletos e projeções da igreja.</p>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 12px; flex: 1;">
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Link / URL</label>
+                                    <input type="text" id="bhQrUrlInput" placeholder="Cole o link aqui (ex: https://...)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-color); outline: none; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Selecione a Cor</label>
+                                    <div id="bhQrColors" style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                        <!-- Preenchido via JS com cores oficiais -->
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-primary" onclick="window.generateQrCode()" style="padding: 10px; border-radius: 8px; font-weight: 600; width: 100%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    ⚡ Gerar QR Code
+                                </button>
+                                
+                                <div id="bhQrOutputContainer" style="display: none; flex-direction: column; align-items: center; gap: 12px; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                                    <div id="bhQrCodePreview" style="background: white; padding: 16px; border-radius: 12px; display: inline-flex; justify-content: center; align-items: center;"></div>
+                                    <button type="button" class="btn-primary" onclick="window.downloadGeneratedQrCode()" style="padding: 8px 16px; border-radius: 8px; font-size: 12px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                                        📥 Baixar QR Code (PNG)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
+    </div>
+
+    <!-- Modal Gerenciar Brand Hub -->
+    <div class="modal-backdrop" id="modalBrandHubEdit">
+        <div class="modal modal-lg" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2>⚙️ Gerenciar Guia de Estilo (Brand Hub)</h2>
+                <button class="modal-close" onclick="closeModal('modalBrandHubEdit')">×</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 20px;">
+                
+                <!-- Logotipo Principal do Sistema -->
+                <div class="form-row" style="display: flex; gap: 16px; margin-bottom: 12px;">
+                    <div style="flex: 1.2;">
+                        <label style="font-weight: 600; color: var(--text-color); margin-bottom: 6px; display: block;">🖼️ Logotipo Principal (Sistema)</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="bhEditLogoPngUrl" placeholder="logo-pnsa.png" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+                            <input type="file" id="bhEditLogoFileInput" accept="image/*" style="display: none;" onchange="window.handleBrandHubLogoUpload(this)">
+                            <button type="button" class="btn-primary" onclick="document.getElementById('bhEditLogoFileInput').click()" id="btnUploadLogoBrandHub" style="padding: 12px 16px; border-radius: 8px; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 6px; border: none; cursor: pointer; background: var(--primary); color: white;">
+                                📤 Upload
+                            </button>
+                        </div>
+                    </div>
+                    <div style="flex: 0.8;">
+                        <label style="font-weight: 600; color: var(--text-color); margin-bottom: 6px; display: block;">Nome do Logotipo Principal</label>
+                        <input type="text" id="bhEditLogoPngLabel" placeholder="Logo PNG (Fundo Transparente)" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none;">
+                    </div>
+                </div>
+
+                <!-- Seção Ativos Adicionais -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-color); margin: 0;">📐 Outros Logotipos, Selos e Vetores</h4>
+                        <button class="btn-primary" onclick="window.addNewBrandHubAsset()" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">➕ Adicionar Ativo</button>
+                    </div>
+                    <div id="bhEditAssetsList" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Injetado dinamicamente -->
+                    </div>
+                </div>
+
+
+                <!-- Seção Cores -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-color); margin: 0;">🎨 Paleta de Cores</h4>
+                        <button class="btn-primary" onclick="addNewBrandHubColor()" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">➕ Adicionar Cor</button>
+                    </div>
+                    <div id="bhEditColorsList" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Injetado dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Seção Links Úteis -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-color); margin: 0;">🔗 Links Úteis</h4>
+                        <button class="btn-primary" onclick="addNewBrandHubLink()" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">➕ Adicionar Link</button>
+                    </div>
+                    <div id="bhEditLinksList" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Injetado dinamicamente -->
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-cancel" onclick="closeModal('modalBrandHubEdit')" style="padding: 10px 20px; border-radius: 8px; font-weight: 600;">Cancelar</button>
+                <button class="btn-success" onclick="saveBrandHubConfig()" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;">💾 Salvar Alterações</button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Nova Demanda -->
@@ -1436,7 +1598,7 @@
         <div class="modal modal-xl">
             <div class="modal-header">
                 <div class="modal-header-brand">
-                    <img src="logo-pnsa.png" alt="Radar PNSA" class="modal-logo"
+                    <img src="logo-pnsa.png" alt="Radar PNSA" class="modal-logo" id="appModalLogo"
                         style="width: 44px; height: 44px; border-radius: 10px; object-fit: cover;">
                     <div>
                         <h2>Formulário de Solicitação de Demanda</h2>
@@ -2159,6 +2321,7 @@
     <!-- Conexão Global Firebase -->
     <script type="module" src="firebase-config.js"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="login-fix.js"></script>
     <script src="app_rev.js?v=4.2"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
