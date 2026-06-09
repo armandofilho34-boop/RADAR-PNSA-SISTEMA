@@ -1258,12 +1258,18 @@
                 <section class="view" id="view-analytics">
                     <div class="analytics-header">
                         <h2>📈 Dashboard de Produtividade</h2>
-                        <select id="analyticsPeriod" onchange="renderAnalytics()">
-                            <option value="week">Esta Semana</option>
-                            <option value="month" selected>Este Mês</option>
-                            <option value="quarter">Trimestre</option>
-                            <option value="year">Este Ano</option>
-                        </select>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <select id="analyticsUser" onchange="renderAnalytics()">
+                                <option value="">👤 Todos os Colaboradores</option>
+                            </select>
+                            <select id="analyticsPeriod" onchange="renderAnalytics()">
+                                <option value="all">Todo o Período</option>
+                                <option value="week">Esta Semana</option>
+                                <option value="month" selected>Este Mês</option>
+                                <option value="quarter">Trimestre</option>
+                                <option value="year">Este Ano</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="analytics-metrics" id="analyticsMetrics"></div>
                     <div class="analytics-charts">
@@ -2155,6 +2161,56 @@
 
     <script src="login-fix.js"></script>
     <script src="app_rev.js?v=4.2"></script>
+    <!-- MODAL: USER ANALYTICS DETAILS -->
+    <div class="modal-overlay" id="modalUserAnalytics">
+        <div class="modal modal-xl" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="uaTitle">📊 Desempenho do Colaborador</h3>
+                <button class="modal-close" onclick="closeModal('modalUserAnalytics')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Filtro de Período para o Usuário Específico -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <span style="font-size: 13.5px; color: var(--text-muted);">
+                        Filtrando histórico de atividades deste colaborador:
+                    </span>
+                    <select id="uaPeriodSelect" onchange="renderUserAnalyticsDetail()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); font-family: inherit; font-size: 13px; cursor: pointer; outline: none;">
+                        <option value="all" selected>Todo o Período</option>
+                        <option value="month">Este Mês</option>
+                        <option value="quarter">Último Trimestre</option>
+                        <option value="year">Este Ano</option>
+                    </select>
+                </div>
+
+                <div class="analytics-metrics" id="uaMetrics" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px; gap: 16px; display: grid;">
+                    <!-- Injetado via JS -->
+                </div>
+
+                <h4 style="margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 6px;">
+                    📦 Entregas e Artes Concluídas
+                </h4>
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead style="background: var(--surface-light); position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border-color); width: 100px;">ID</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border-color);">Demanda</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border-color); width: 120px;">Data</th>
+                                <th style="padding: 12px; border-bottom: 1px solid var(--border-color); width: 150px;">Mídias</th>
+                            </tr>
+                        </thead>
+                        <tbody id="uaDeliveriesTableBody">
+                            <!-- Injetado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('modalUserAnalytics')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: USER -->
     <div class="modal-overlay" id="modalUser">
         <div class="modal">

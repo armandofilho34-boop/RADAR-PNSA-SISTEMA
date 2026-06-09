@@ -5291,6 +5291,41 @@ function setTimelineScale(scale) {
 function renderAnalytics() {
     const now = new Date();
     const period = document.getElementById('analyticsPeriod')?.value || 'month';
+    const fUser = document.getElementById('analyticsUser')?.value || '';
+
+    // Populate user filter dropdown dynamically if it exists
+    const userSelect = document.getElementById('analyticsUser');
+    if (userSelect) {
+        const currentVal = userSelect.value;
+        const allUserIds = new Set();
+        demandas.forEach(d => {
+            if (d.solicitanteId) allUserIds.add(d.solicitanteId);
+            d.pipeline?.forEach(s => {
+                if (s.userId) allUserIds.add(s.userId);
+                if (s.userIds) s.userIds.forEach(uid => allUserIds.add(uid));
+            });
+        });
+
+        const usersList = Array.from(allUserIds).map(uid => {
+            return USERS[uid] || null;
+        }).filter(u => u && u.nome && u.nome !== 'undefined');
+
+        usersList.sort((a, b) => a.nome.localeCompare(b.nome));
+
+        const existingIds = Array.from(userSelect.options).map(o => o.value).filter(val => val !== '');
+        const newListIds = usersList.map(u => u.id);
+        
+        if (existingIds.join(',') !== newListIds.join(',')) {
+            userSelect.innerHTML = '<option value="">👤 Todos os Colaboradores</option>';
+            usersList.forEach(u => {
+                const option = document.createElement('option');
+                option.value = u.id;
+                option.textContent = u.nome;
+                if (u.id === currentVal) option.selected = true;
+                userSelect.appendChild(option);
+            });
+        }
+    }
 
     // Usa o mês selecionado como referência, não o mês real
     const refDate = new Date(selectedYear, selectedMonth, 1);
@@ -5305,7 +5340,7 @@ function renderAnalytics() {
     }
 
     // STRICT FILTER: Analytics only shows own performance (excluding deleted)
-    const activeDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    const activeDemandas = (period === 'all') ? demandas.filter(d => !d.deletedAt) : getMonthDemandas().filter(d => !d.deletedAt);
 
     // Coordenador global vê tudo; demais veem só suas demandas
     let baseTasks;
@@ -5316,6 +5351,14 @@ function renderAnalytics() {
             d.solicitanteId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
+    }
+
+    // Filtrar por colaborador selecionado
+    if (fUser) {
+        baseTasks = baseTasks.filter(d => {
+            return d.solicitanteId === fUser || 
+                   (d.pipeline && d.pipeline.some(s => s.userId === fUser || (s.userIds && s.userIds.includes(fUser))));
+        });
     }
 
     const filteredTasks = baseTasks.filter(d => {
@@ -5382,29 +5425,35 @@ function renderAnalytics() {
         const userStats = {};
 
         filteredTasks.forEach(t => {
-            // Conta o solicitante (criador da demanda)
-            if (t.solicitanteId) {
-                if (!userStats[t.solicitanteId]) userStats[t.solicitanteId] = { total: 0, done: 0 };
-                userStats[t.solicitanteId].total++;
-                if (t.status === 'Aprovado') userStats[t.solicitanteId].done++;
-            }
-            // Conta quem está na pipeline (executores)
+            // Conta estritamente quem executou etapas na pipeline (trabalho de execução)
             t.pipeline?.forEach(s => {
-                if (s.userId && s.userId !== t.solicitanteId) {
+                if (s.userId) {
                     if (!userStats[s.userId]) userStats[s.userId] = { total: 0, done: 0 };
                     userStats[s.userId].total++;
-                    if (s.status === 'Aprovado') userStats[s.userId].done++;
+                    if (s.status === 'Aprovado' || t.status === 'Aprovado') userStats[s.userId].done++;
+                }
+                if (s.userIds && Array.isArray(s.userIds)) {
+                    s.userIds.forEach(uid => {
+                        if (uid) {
+                            if (!userStats[uid]) userStats[uid] = { total: 0, done: 0 };
+                            userStats[uid].total++;
+                            if (s.status === 'Aprovado' || t.status === 'Aprovado') userStats[uid].done++;
+                        }
+                    });
                 }
             });
         });
 
-        const validUsers = Object.entries(userStats).filter(([uid, _]) => uid && uid !== 'undefined');
+        // Filtra apenas usuários válidos cadastrados no sistema (remove UIDs brutos e contas temporárias)
+        const validUsers = Object.entries(userStats).filter(([uid, _]) => {
+            return uid && uid !== 'undefined' && USERS[uid];
+        });
         const maxUser = Math.max(...validUsers.map(x => x[1].total), 1);
 
         userChart.innerHTML = validUsers.sort((a, b) => b[1].total - a[1].total).map(([uid, stats]) => {
             const user = USERS[uid];
             const pct = (stats.total / maxUser) * 100;
-            return `<div class="analytics-bar"><span>${user?.nome || uid}</span><div class="bar-track"><div class="bar-fill user" style="width:${pct}%"></div></div><span>${stats.total} (${stats.done}✓)</span></div>`;
+            return `<div class="analytics-bar" onclick="openUserAnalyticsDetail('${uid}')" style="cursor: pointer;" title="Clique para ver entregas de ${user?.nome || uid}"><span>👤 ${user?.nome || uid}</span><div class="bar-track"><div class="bar-fill user" style="width:${pct}%"></div></div><span>${stats.total} (${stats.done}✓)</span></div>`;
         }).join('') || '<div class="empty-message">Sem dados</div>';
     }
 
@@ -5498,6 +5547,128 @@ function renderAnalytics() {
         `).join('')}</div>`;
     }
 }
+
+let currentAnalyticsUserId = null;
+
+window.openUserAnalyticsDetail = function(uid) {
+    currentAnalyticsUserId = uid;
+    const select = document.getElementById('uaPeriodSelect');
+    if (select) select.value = 'all'; // Default to all time
+    
+    renderUserAnalyticsDetail();
+    openModal('modalUserAnalytics');
+};
+
+window.renderUserAnalyticsDetail = function() {
+    const uid = currentAnalyticsUserId;
+    if (!uid) return;
+
+    const user = USERS[uid] || { nome: uid, role: 'executor' };
+    document.getElementById('uaTitle').innerHTML = `📊 Desempenho: ${user.nome}`;
+
+    const period = document.getElementById('uaPeriodSelect')?.value || 'all';
+
+    // Filter date based on selected period
+    let filterDate = new Date(0);
+    const now = new Date();
+    if (period === 'month') {
+        filterDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === 'quarter') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    } else if (period === 'year') {
+        filterDate = new Date(now.getFullYear(), 0, 1);
+    }
+
+    // Filter demands (including all months for 'all' / date logic)
+    // We want only approved demands where they participated and delivered
+    const userDemands = demandas.filter(d => {
+        if (d.deletedAt || d.status !== 'Aprovado') return false;
+
+        const participou = d.responsavelId === uid || 
+                           (d.pipeline && d.pipeline.some(s => s.userId === uid || (s.userIds && s.userIds.includes(uid))));
+        
+        const hasDeliveries = (d.entregasUrl && d.entregasUrl.length > 0) || d.entregaUrl;
+        if (!participou || !hasDeliveries) return false;
+
+        const dc = d.dataConclusao || d.lastStatusChange || d.dataCriacao;
+        if (!dc) return true; // Show by default if no date
+
+        return new Date(dc) >= filterDate;
+    });
+
+    // Sort by completion date descending
+    userDemands.sort((a, b) => new Date(b.dataConclusao || b.lastStatusChange || 0) - new Date(a.dataConclusao || a.lastStatusChange || 0));
+
+    // Calculate metrics
+    let totalFiles = 0;
+    userDemands.forEach(d => {
+        if (d.entregasUrl && d.entregasUrl.length > 0) {
+            totalFiles += d.entregasUrl.length;
+        } else if (d.entregaUrl) {
+            totalFiles += 1;
+        }
+    });
+
+    const metricsContainer = document.getElementById('uaMetrics');
+    if (metricsContainer) {
+        metricsContainer.innerHTML = `
+            <div class="analytics-metric" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 10px; padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span class="metric-value" style="font-size: 32px; font-weight: 700; color: var(--primary); display: block;">${userDemands.length}</span>
+                <span class="metric-label" style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-top: 4px;">Demandas Aprovadas</span>
+            </div>
+            <div class="analytics-metric" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 10px; padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <span class="metric-value" style="font-size: 32px; font-weight: 700; color: #10b981; display: block;">${totalFiles}</span>
+                <span class="metric-label" style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-top: 4px;">Artes/Mídias Entregues</span>
+            </div>
+        `;
+    }
+
+    // Render table rows
+    const tbody = document.getElementById('uaDeliveriesTableBody');
+    if (tbody) {
+        if (userDemands.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 32px; color: var(--text-muted); font-style: italic;">
+                        Nenhuma entrega registrada para este período.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = userDemands.map(d => {
+            const entregas = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+            const filesCount = entregas.length;
+            const dateStr = formatDate(d.dataConclusao || d.lastStatusChange || d.dataCriacao);
+
+            // Create buttons/links to view the files
+            const linksHtml = entregas.map((url, i) => {
+                return `<a href="${url}" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 600; margin-right: 8px;" title="Ver mídia ${i+1}">[Mídia ${i+1}]</a>`;
+            }).join(' ');
+
+            return `
+                <tr style="border-bottom: 1px solid var(--border-subtle); transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 12px; font-weight: 600; color: var(--text-muted);">#${d.id}</td>
+                    <td style="padding: 12px;">
+                        <div style="font-weight: 600; color: var(--text-color); cursor: pointer; text-decoration: underline;" onclick="closeModal('modalUserAnalytics'); openDetail('${d.id}')" title="Ver Detalhes da Demanda">
+                            ${d.nome || d.titulo || 'Demanda sem título'}
+                        </div>
+                    </td>
+                    <td style="padding: 12px; color: var(--text-muted);">${dateStr}</td>
+                    <td style="padding: 12px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span style="font-weight: 700; color: var(--text-color);">${filesCount} arquivo(s)</span>
+                            <div style="font-size: 11px; margin-top: 2px;">
+                                ${linksHtml}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+};
 
 // =============================================
 // INITIALIZATION
