@@ -423,9 +423,17 @@ function getMonthDemandas(includeFuture = false) {
         // REGRA 1: Demanda foi agendada/criada neste mês selecionado → sempre aparece
         if (dt >= start && dt < end) return true;
 
-        // REGRA 2 (Carry-over): Se estamos no mês atual E a demanda é de meses anteriores
-        // E ela NÃO está "Aprovado" → aparece (pra não sumir da tela)
-        if (isCurrentMonth && dt < start && d.status !== 'Aprovado') return true;
+        // REGRA 2 (Carry-over): Se a demanda é de meses anteriores
+        if (dt < start) {
+            // Se estamos no mês atual E ela NÃO está "Aprovado" → aparece (pra não sumir da tela de trabalho)
+            if (isCurrentMonth && d.status !== 'Aprovado') return true;
+
+            // Se ela foi aprovada/concluída neste mês selecionado → aparece na coluna de Aprovados do mês de conclusão
+            if (d.status === 'Aprovado' && d.lastStatusChange) {
+                const lst = new Date(d.lastStatusChange);
+                if (lst >= start && lst < end) return true;
+            }
+        }
 
         return false;
     });
