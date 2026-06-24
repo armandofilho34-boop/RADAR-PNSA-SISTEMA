@@ -1907,6 +1907,7 @@ function renderAgenda() {
         const dateStr = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const isToday = isCurrentMonth && day === today.getDate();
         const dayTasks = tasks.filter(t => t.dataConclusao === dateStr);
+        dayTasks.sort((a, b) => getPriorityWeight(b.prioridade) - getPriorityWeight(a.prioridade));
         html += `<div class="calendar-day ${isToday ? 'today' : ''}"><span class="calendar-day-num">${day}</span>
             ${dayTasks.slice(0, 3).map(t => `<div class="calendar-event ${t.prioridade.toLowerCase()}" onclick="openDetail('${t.id}')">${t.nome}</div>`).join('')}
             ${dayTasks.length > 3 ? `<div class="calendar-event" style="background:var(--bg-hover);color:var(--text-muted);">+${dayTasks.length - 3} mais</div>` : ''}
@@ -1951,6 +1952,7 @@ function showMetricDemandas(statusFilter) {
     if (statusFilter !== 'all') {
         tasks = tasks.filter(d => d.status === statusFilter);
     }
+    sortTasksByDateAndPriority(tasks);
 
     // Highlight card ativo
     document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('metric-active'));
@@ -2093,6 +2095,7 @@ function renderEquipeView() {
     if (statusFilter) {
         equipeTasks = equipeTasks.filter(t => t.status === statusFilter);
     }
+    sortTasksByDateAndPriority(equipeTasks);
 
     if (equipeTasks.length === 0) {
         grid.innerHTML = '<div class="empty-state">Nenhuma demanda da equipe encontrada com estes filtros.</div>';
@@ -2424,6 +2427,8 @@ function renderKanban() {
     if (filterPrio !== 'all') tasks = tasks.filter(t => t.prioridade === filterPrio);
     if (filterDept !== 'all') tasks = tasks.filter(t => t.pipeline && t.pipeline.some(s => s.dept === filterDept));
     if (search) tasks = tasks.filter(t => t.nome.toLowerCase().includes(search));
+
+    sortTasksByDateAndPriority(tasks);
 
     const statuses = ['A fazer', 'Fazendo', 'Para aprovação', 'Alteração', 'Aprovado'];
     const containerIds = { 'A fazer': 'cardsAFazer', 'Fazendo': 'cardsFazendo', 'Para aprovação': 'cardsAprovacao', 'Alteração': 'cardsAlteracao', 'Aprovado': 'cardsAprovado' };
@@ -2858,6 +2863,7 @@ function renderRequests() {
 }
 
 function renderRequestsTabs(tasks) {
+    sortTasksByDateAndPriority(tasks);
     const groups = {};
     tasks.forEach(t => {
         const st = (t.status || '').trim();
@@ -3087,6 +3093,7 @@ function renderBoard() {
 }
 
 function renderGroupedTable(tasks) {
+    sortTasksByDateAndPriority(tasks);
     const groups = {}; tasks.forEach(t => { if (!groups[t.status]) groups[t.status] = []; groups[t.status].push(t); });
     // Standard order: A FAZER, FAZENDO, PARA APROVAÇÃO, ALTERAÇÃO, APROVADO
     const statusOrder = [
@@ -3138,6 +3145,7 @@ function renderGroupedTable(tasks) {
 }
 
 function renderExecutionTasks(tasks) {
+    sortTasksByDateAndPriority(tasks);
     const groups = {};
     tasks.forEach(t => {
         const s = (t.status || '').trim();
@@ -4689,6 +4697,31 @@ function closeModal(id) { document.getElementById(id).classList.remove('active')
 function getStatusClass(s) { const m = { 'A fazer': 'a-fazer', 'Fazendo': 'fazendo', 'Para aprovação': 'aprovacao', 'Alteração': 'alteracao', 'Aprovado': 'aprovado' }; return m[s] || 'a-fazer'; }
 
 function parseDateLocal(d) { if(!d) return new Date(); return new Date(d.length === 10 ? d + 'T12:00:00' : d); }
+function getPriorityWeight(prio) {
+    if (!prio) return 1;
+    const p = prio.toLowerCase().trim();
+    if (p === 'crítico' || p === 'critico') return 5;
+    if (p === 'urgente') return 4;
+    if (p === 'alta') return 3;
+    if (p === 'média' || p === 'media') return 2;
+    if (p === 'normal') return 1;
+    if (p === 'baixa') return 0;
+    return 1;
+}
+function sortTasksByDateAndPriority(tasks) {
+    if (!Array.isArray(tasks)) return tasks;
+    return tasks.sort((a, b) => {
+        const valA = a.dataConclusao || '';
+        const valB = b.dataConclusao || '';
+        if (valA !== valB) {
+            if (valA && valB) {
+                return valA.localeCompare(valB);
+            }
+            return valA ? -1 : 1;
+        }
+        return getPriorityWeight(b.prioridade) - getPriorityWeight(a.prioridade);
+    });
+}
 function formatDate(d) {
     if (!d) return '-'; const dt = parseDateLocal(d); return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
 }
