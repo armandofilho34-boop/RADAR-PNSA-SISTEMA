@@ -1518,8 +1518,302 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </section>
+                    </div> <!-- Fechamento da Grade de 4 Colunas -->
+
+                    <!-- Bloco 5: Ferramentas de Arquivos (Conversor & Compactador) -->
+                    <div class="panel full-width-panel" id="panel-file-tools" style="padding: 24px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--surface-light); display: flex; flex-direction: column; gap: 20px; margin-top: 24px;">
+                            <style>
+                                .btn-tab {
+                                    background: rgba(255, 255, 255, 0.05);
+                                    color: var(--text-muted);
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 8px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 6px;
+                                    font-size: 13px;
+                                    transition: all 0.2s;
+                                }
+                                .btn-tab.active {
+                                    background: var(--primary) !important;
+                                    color: white !important;
+                                    box-shadow: 0 0 10px rgba(162, 93, 220, 0.4);
+                                }
+                                .media-tabs-content {
+                                    display: none;
+                                    flex-direction: column;
+                                    gap: 16px;
+                                }
+                                .media-tabs-content.active {
+                                    display: flex;
+                                }
+                                .file-dropzone {
+                                    border: 2px dashed rgba(255, 255, 255, 0.15);
+                                    border-radius: 12px;
+                                    padding: 30px 20px;
+                                    text-align: center;
+                                    background: rgba(0, 0, 0, 0.15);
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    display: flex;
+                                    flex-direction: column;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 10px;
+                                }
+                                .file-dropzone:hover, .file-dropzone.dragover {
+                                    border-color: var(--primary);
+                                    background: rgba(162, 93, 220, 0.05);
+                                    box-shadow: 0 0 15px rgba(162, 93, 220, 0.1);
+                                }
+                                .file-list-item {
+                                    background: rgba(255, 255, 255, 0.02);
+                                    border: 1px solid rgba(255, 255, 255, 0.05);
+                                    border-radius: 8px;
+                                    padding: 10px 12px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: space-between;
+                                    gap: 12px;
+                                }
+                                .file-list-item:hover {
+                                    background: rgba(255, 255, 255, 0.04);
+                                }
+                                .file-preview {
+                                    width: 40px;
+                                    height: 40px;
+                                    border-radius: 6px;
+                                    object-fit: cover;
+                                    background: rgba(0, 0, 0, 0.2);
+                                    border: 1px solid rgba(255, 255, 255, 0.1);
+                                }
+                                .progress-bar-container {
+                                    background: rgba(255, 255, 255, 0.05);
+                                    border-radius: 10px;
+                                    height: 8px;
+                                    width: 100%;
+                                    overflow: hidden;
+                                    position: relative;
+                                    display: none;
+                                    margin-top: 4px;
+                                }
+                                .progress-bar-fill {
+                                    background: linear-gradient(90deg, var(--primary), #818cf8);
+                                    height: 100%;
+                                    width: 0%;
+                                    transition: width 0.2s ease;
+                                }
+                                .file-order-btn {
+                                    background: rgba(255, 255, 255, 0.05);
+                                    border: none;
+                                    border-radius: 4px;
+                                    color: var(--text-color);
+                                    cursor: pointer;
+                                    padding: 4px 8px;
+                                    font-size: 11px;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                }
+                                .file-order-btn:hover {
+                                    background: rgba(255, 255, 255, 0.15);
+                                }
+                            </style>
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 4px;">
+                                <h3 style="font-size: 18px; font-weight: 700; color: var(--text-color); display: flex; align-items: center; gap: 8px; margin: 0;">
+                                    ⚡ Conversor e Compactador de Arquivos
+                                    <span onclick="window.startRadarTour(true)" onmouseenter="this.style.opacity = 1" onmouseleave="this.style.opacity = 0.6" style="cursor: pointer; font-size: 14px; opacity: 0.6; transition: opacity 0.2s; padding: 4px; display: inline-flex; align-items: center;" title="Ver Tutorial de Uso">❓</span>
+                                </h3>
+                                <p style="color: var(--text-muted); font-size: 13px; margin: 0;">100% no navegador (rápido, privado e sem custos)</p>
+                            </div>
+
+                            <!-- Tabs Navigation -->
+                            <div style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                                <button type="button" class="btn-tab active" onclick="window.switchMediaTab('img-conv')" id="tab-img-conv">
+                                    🖼️ Conversor de Imagens & PDF
+                                </button>
+                                <button type="button" class="btn-tab" onclick="window.switchMediaTab('pdf-tools')" id="tab-pdf-tools">
+                                    🗜️ Compactar Qualquer Arquivo
+                                </button>
+                            </div>
+
+                            <!-- Tab 1: Conversor de Imagens & PDF -->
+                            <div class="media-tabs-content active" id="content-img-conv">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
+                                    <!-- Lado Esquerdo: Dropzone e Fila de Arquivos -->
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        <div class="file-dropzone" onclick="document.getElementById('img-conv-file-input').click()" id="img-conv-dropzone">
+                                            <span style="font-size: 32px;">📥</span>
+                                            <span style="font-weight: 600; color: var(--text-color); font-size: 14px;">Arraste imagens ou clique para selecionar</span>
+                                            <span style="font-size: 11.5px; color: var(--text-muted);">Suporta JPG, PNG, WEBP, SVG</span>
+                                            <input type="file" id="img-conv-file-input" multiple accept="image/*" style="display: none;" onchange="window.handleImageConvSelect(event)">
+                                        </div>
+                                        
+                                        <div id="img-conv-list-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                                            <p id="img-conv-empty-text" style="color: var(--text-muted); font-size: 13px; text-align: center; margin: 12px 0;">Nenhuma imagem selecionada.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Lado Direito: Configurações e Ações -->
+                                    <div style="padding: 20px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 16px;">
+                                        <h4 style="font-size: 14px; font-weight: 700; color: var(--text-color); margin: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">⚙️ Configurações de Saída</h4>
+                                        
+                                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                            <div style="flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Converter Para</label>
+                                                <select id="img-conv-format" onchange="window.updateImgConvOptions()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-size: 13px;">
+                                                    <option value="jpeg" selected>JPG (Otimizado)</option>
+                                                    <option value="webp">WEBP (Mais Leve)</option>
+                                                    <option value="png">PNG (Sem Perda)</option>
+                                                    <option value="pdf">PDF (Juntar todas em um único arquivo)</option>
+                                                </select>
+                                            </div>
+                                            <div style="flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Resolução Máxima</label>
+                                                <select id="img-conv-resolution" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-size: 13px;">
+                                                    <option value="original" selected>Original</option>
+                                                    <option value="1920">Full HD (1920px)</option>
+                                                    <option value="1280">HD (1280px)</option>
+                                                    <option value="800">Compacto (800px)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="img-conv-quality-container" style="display: flex; flex-direction: column; gap: 6px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Qualidade de Compressão</label>
+                                                <span id="img-conv-quality-val" style="font-size: 12px; font-weight: 700; color: var(--primary);">80%</span>
+                                            </div>
+                                            <input type="range" id="img-conv-quality" min="10" max="100" value="80" oninput="document.getElementById('img-conv-quality-val').innerText = this.value + '%'" style="width: 100%; accent-color: var(--primary); cursor: pointer;">
+                                        </div>
+
+                                        <div id="img-conv-pdf-title-container" style="display: none; flex-direction: column; gap: 6px;">
+                                            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Nome do PDF Final</label>
+                                            <input type="text" id="img-conv-pdf-title" placeholder="imagens-juntas" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-color); outline: none; font-size: 13px;">
+                                        </div>
+                                        
+                                        <div class="progress-bar-container" id="img-conv-progress-container">
+                                            <div class="progress-bar-fill" id="img-conv-progress-bar"></div>
+                                        </div>
+                                        <div id="img-conv-status" style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: -4px; display: none;">Processando...</div>
+
+                                        <button type="button" class="btn-primary" onclick="window.processImageConversion()" id="btn-process-img-conv" style="padding: 12px; border-radius: 8px; font-weight: 600; width: 100%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
+                                            ⚡ Converter e Baixar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Compactador Universal de Arquivos -->
+                            <div class="media-tabs-content" id="content-pdf-tools">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
+                                    <!-- Lado Esquerdo: Dropzone de Arquivos -->
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        <div class="file-dropzone" onclick="document.getElementById('universal-compress-file-input').click()" id="pdf-compress-dropzone">
+                                            <span style="font-size: 32px;">🗜️</span>
+                                            <span style="font-weight: 600; color: var(--text-color); font-size: 14px;">Arraste arquivos ou clique para selecionar</span>
+                                            <span style="font-size: 11.5px; color: var(--text-muted);">Qualquer formato (PDF, imagens, documentos, etc.)</span>
+                                            <input type="file" id="universal-compress-file-input" multiple style="display: none;" onchange="window.handleUniversalCompressSelect(event)">
+                                        </div>
+                                        
+                                        <div id="compress-file-list" style="display: none; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                                            <!-- Preenchido via JS -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Lado Direito: Ações e Opções de Otimização -->
+                                    <div style="padding: 20px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 16px;">
+                                        <h4 style="font-size: 14px; font-weight: 700; color: var(--text-color); margin: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">⚙️ Opções de Compactação</h4>
+                                        
+                                        <!-- Container de Ajuda / Inicial -->
+                                        <div id="compress-placeholder-options" style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0;">
+                                            Selecione um ou mais arquivos para ver as opções de compactação correspondentes.
+                                        </div>
+
+                                        <!-- Opções para PDF -->
+                                        <div id="compress-pdf-options" style="display: none; flex-direction: column; gap: 12px;">
+                                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Ação</label>
+                                                <select id="pdf-compress-mode" onchange="window.updatePdfCompressOptions()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-size: 13px;">
+                                                    <option value="compress" selected>Compactar PDF (PDF ➔ PDF Otimizado)</option>
+                                                    <option value="extract-jpg">Extrair Páginas como Imagens (JPG)</option>
+                                                    <option value="extract-png">Extrair Páginas como Imagens (PNG)</option>
+                                                </select>
+                                            </div>
+
+                                            <div id="pdf-resolution-container" style="display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Resolução das Páginas (Escala)</label>
+                                                <select id="pdf-compress-scale" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-size: 13px;">
+                                                    <option value="1.0">Resolução Padrão (1.0x)</option>
+                                                    <option value="0.75" selected>Compactação Leve (0.75x - Recomendado)</option>
+                                                    <option value="0.5">Compactação Máxima (0.5x)</option>
+                                                    <option value="1.5">Super Alta Resolução (1.5x)</option>
+                                                </select>
+                                            </div>
+
+                                            <div id="pdf-quality-container" style="display: flex; flex-direction: column; gap: 6px;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Qualidade das Imagens</label>
+                                                    <span id="pdf-compress-quality-val" style="font-size: 12px; font-weight: 700; color: var(--primary);">70%</span>
+                                                </div>
+                                                <input type="range" id="pdf-compress-quality" min="10" max="100" value="70" oninput="document.getElementById('pdf-compress-quality-val').innerText = this.value + '%'" style="width: 100%; accent-color: var(--primary); cursor: pointer;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Opções para Imagem única -->
+                                        <div id="compress-img-options" style="display: none; flex-direction: column; gap: 12px;">
+                                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Resolução Máxima</label>
+                                                <select id="single-img-resolution" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-light); color: var(--text-color); outline: none; font-size: 13px;">
+                                                    <option value="original" selected>Original</option>
+                                                    <option value="1920">Full HD (1920px)</option>
+                                                    <option value="1280">HD (1280px)</option>
+                                                    <option value="800">Compacto (800px)</option>
+                                                </select>
+                                            </div>
+
+                                            <div style="display: flex; flex-direction: column; gap: 6px;" id="single-img-quality-container">
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Qualidade de Compressão</label>
+                                                    <span id="single-img-quality-val" style="font-size: 12px; font-weight: 700; color: var(--primary);">70%</span>
+                                                </div>
+                                                <input type="range" id="single-img-quality" min="10" max="100" value="70" oninput="document.getElementById('single-img-quality-val').innerText = this.value + '%'" style="width: 100%; accent-color: var(--primary); cursor: pointer;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Opções para ZIP (Vários arquivos ou arquivos gerais) -->
+                                        <div id="compress-zip-options" style="display: none; flex-direction: column; gap: 12px;">
+                                            <p style="color: var(--text-muted); font-size: 12.5px; margin: 0; line-height: 1.4;">
+                                                📦 Arquivos gerais ou múltiplos arquivos serão compactados em uma pasta compactada <strong>.zip</strong> para reduzir o tamanho total.
+                                            </p>
+                                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                                <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Nome do ZIP Final</label>
+                                                <input type="text" id="zip-compress-title" placeholder="arquivos-compactados" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-color); outline: none; font-size: 13px;">
+                                            </div>
+                                        </div>
+
+                                        <!-- Progresso e Resultados -->
+                                        <div class="progress-bar-container" id="pdf-compress-progress-container">
+                                            <div class="progress-bar-fill" id="pdf-compress-progress-bar"></div>
+                                        </div>
+                                        <div id="pdf-compress-status" style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: -4px; display: none;">Processando...</div>
+
+                                        <div id="pdf-result-card" style="display: none; padding: 12px; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 8px; flex-direction: column; gap: 4px; font-size: 13px; text-align: center; color: #4ade80;">
+                                            🎉 Processado com sucesso!
+                                            <div id="pdf-result-sizes" style="font-weight: 700; margin-top: 2px;"></div>
+                                        </div>
+
+                                        <button type="button" class="btn-primary" onclick="window.processUniversalCompression()" id="btn-process-pdf" style="padding: 12px; border-radius: 8px; font-weight: 600; width: 100%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
+                                            ⚡ Compactar Arquivo(s)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
             </div>
         </main>
     </div>
@@ -2322,6 +2616,9 @@
     <script type="module" src="firebase-config.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="login-fix.js"></script>
     <script src="app_rev.js?v=4.2"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
@@ -2946,6 +3243,72 @@
             </div>
         </div>
     </div>
+
+    <!-- Onboarding Tour Overlay -->
+    <div id="radar-tour-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10100; pointer-events: none;">
+        <!-- Backdrop edges to create a sharp cutout on the target element -->
+        <div id="radar-tour-backdrop" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+            <div id="tour-edge-top" style="position: absolute; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: auto; transition: all 0.25s ease;"></div>
+            <div id="tour-edge-bottom" style="position: absolute; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: auto; transition: all 0.25s ease;"></div>
+            <div id="tour-edge-left" style="position: absolute; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: auto; transition: all 0.25s ease;"></div>
+            <div id="tour-edge-right" style="position: absolute; background: rgba(0,0,0,0.65); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: auto; transition: all 0.25s ease;"></div>
+        </div>
+        
+        <!-- SVG Canvas for pointer lines -->
+        <svg id="radar-tour-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+            <defs>
+                <linearGradient id="neon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#818cf8" />
+                    <stop offset="100%" stop-color="#a25ddc" />
+                </linearGradient>
+                <filter id="glow-filter" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            <path id="radar-tour-path" d="" fill="none" stroke="url(#neon-gradient)" stroke-width="3" filter="url(#glow-filter)" stroke-linecap="round" stroke-dasharray="8 4" style="animation: dash 35s linear infinite;" />
+            <circle id="radar-tour-dot" r="6" fill="#a25ddc" filter="url(#glow-filter)" />
+        </svg>
+        
+        <!-- Card Tooltip -->
+        <div id="radar-tour-card" style="position: fixed; pointer-events: auto; width: 330px; padding: 22px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); background: rgba(22,22,30,0.8); backdrop-filter: blur(16px); box-shadow: 0 10px 40px rgba(0,0,0,0.65), 0 0 20px rgba(162,93,220,0.2); color: var(--text-color); font-family: 'Space Grotesk', sans-serif; display: flex; flex-direction: column; gap: 14px; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease; opacity: 0; transform: scale(0.9); z-index: 10101;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+                <h4 id="radar-tour-title" style="margin: 0; font-size: 15px; font-weight: 700; color: #a25ddc; display: flex; align-items: center; gap: 6px;">📢 Novidade!</h4>
+                <span id="radar-tour-progress" style="font-size: 11px; color: var(--text-muted); font-weight: bold; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 20px;">1/6</span>
+            </div>
+            
+            <p id="radar-tour-text" style="margin: 0; font-size: 13.5px; line-height: 1.55; color: rgba(255,255,255,0.85); font-family: 'Inter', sans-serif;"></p>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                <button type="button" id="btn-tour-prev" onclick="window.prevRadarTourStep()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: var(--text-color); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    Voltar
+                </button>
+                <button type="button" id="btn-tour-next" onclick="window.nextRadarTourStep()" style="background: var(--primary); border: none; color: white; border-radius: 8px; padding: 6px 16px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(162,93,220,0.4);">
+                    Próximo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -1000;
+            }
+        }
+        /* Style to highlight the target element during onboarding */
+        .radar-tour-target-highlight {
+            position: relative !important;
+            z-index: 10105 !important;
+            pointer-events: auto !important;
+            box-shadow: 0 0 15px rgba(162, 93, 220, 0.6) !important;
+            border-color: var(--primary) !important;
+            transition: box-shadow 0.3s, border-color 0.3s;
+        }
+    </style>
 </body>
 
 </html>

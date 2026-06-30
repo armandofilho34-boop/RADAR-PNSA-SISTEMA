@@ -778,7 +778,12 @@ function showApp() {
         // Lembrete diário (1x por dia, se não exibiu novidades)
         if (!showedUpdates) {
             showDailyReminder();
-            setTimeout(startBrandHubTour, 1000);
+            // Onboarding Tour (Radar Tour)
+            setTimeout(() => {
+                if (typeof window.startRadarTour === 'function') {
+                    window.startRadarTour();
+                }
+            }, 800);
         }
 
     });
@@ -956,190 +961,465 @@ function showSystemUpdates() {
     return true;
 }
 
-function updateTourLine() {
-    const navLink = document.getElementById('navBrandHub');
-    const popup = document.getElementById('brandHubTourPopup');
-    const line = document.getElementById('tourLine');
-    const clone = document.getElementById('navBrandHubClone');
-    if (!navLink || !popup || !line) return;
-    
-    const rect = navLink.getBoundingClientRect();
-    if (clone) {
-        clone.style.top = `${rect.top}px`;
-        clone.style.left = `${rect.left}px`;
-        clone.style.width = `${rect.width}px`;
-        clone.style.height = `${rect.height}px`;
+// ==========================================
+// RADAR ONBOARDING TOUR MANAGER
+// ==========================================
+
+const RADAR_TOUR_STEPS = [
+    {
+        title: "🎨 Guia de Estilo (Brand Hub)",
+        text: "Desenvolvemos uma nova ferramenta de <strong>Conversão e Compactação de Arquivos</strong>! Clique no botão <strong>Guia de Estilo</strong> no menu lateral para acessá-la.",
+        target: "navBrandHub",
+        position: "right",
+        beforeShow: () => {
+            const navLink = document.getElementById('navBrandHub');
+            if (navLink) {
+                navLink.scrollIntoView({ block: 'center', behavior: 'auto' });
+            }
+        }
+    },
+    {
+        title: "🗜️ Nova Central de Arquivos",
+        text: "Esta é a nova central de arquivos no rodapé da página! Com ela, você pode converter ou compactar seus arquivos 100% localmente no seu navegador.",
+        target: "panel-file-tools",
+        position: "top",
+        beforeShow: () => {
+            const activeView = document.querySelector('.view.active');
+            if (!activeView || activeView.id !== 'view-brand-hub') {
+                const btn = document.getElementById('navBrandHub');
+                if (btn) btn.click();
+            }
+            // Instant scroll
+            const panel = document.getElementById('panel-file-tools');
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }
+    },
+    {
+        title: "🖼️ Conversor de Imagens & PDF",
+        text: "Na primeira aba, você pode converter formatos de imagem (como JPG, PNG, WEBP) ou combinar várias fotos em um único PDF oficial.",
+        target: "tab-img-conv",
+        position: "top",
+        beforeShow: () => {
+            if (typeof window.switchMediaTab === 'function') {
+                window.switchMediaTab('img-conv');
+            }
+            const panel = document.getElementById('panel-file-tools');
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }
+    },
+    {
+        title: "🗜️ Compactar Qualquer Arquivo",
+        text: "Na segunda aba, você pode reduzir o tamanho de arquivos individuais (como PDFs ou imagens) ou empacotar múltiplos arquivos juntos em um ZIP leve.",
+        target: "tab-pdf-tools",
+        position: "top",
+        beforeShow: () => {
+            if (typeof window.switchMediaTab === 'function') {
+                window.switchMediaTab('pdf-tools');
+            }
+            const panel = document.getElementById('panel-file-tools');
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }
+    },
+    {
+        title: "📥 Área de Upload",
+        text: "Arraste e solte seus arquivos aqui ou clique para selecionar. O sistema identificará o formato e mostrará as opções de otimização ideais.",
+        target: "pdf-compress-dropzone",
+        position: "top",
+        beforeShow: () => {
+            if (typeof window.switchMediaTab === 'function') {
+                window.switchMediaTab('pdf-tools');
+            }
+            const dropzone = document.getElementById('pdf-compress-dropzone');
+            if (dropzone) {
+                dropzone.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }
+    },
+    {
+        title: "⚡ Iniciar Otimização",
+        text: "Configure a resolução ou qualidade desejada no menu lateral e clique em **Compactar** para salvar e baixar seus arquivos leves e prontos para uso!",
+        target: "btn-process-pdf",
+        position: "top",
+        beforeShow: () => {
+            if (typeof window.switchMediaTab === 'function') {
+                window.switchMediaTab('pdf-tools');
+            }
+            const btn = document.getElementById('btn-process-pdf');
+            if (btn) {
+                btn.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }
+    }
+];
+
+let radarTourCurrentStep = -1;
+let tourResizeTimeout = null;
+
+function startRadarTour(force = false) {
+    const isCompleted = localStorage.getItem('radar_pnsa_tour_completed_v2');
+    if (isCompleted === 'true' && !force) {
+        return; // Don't run tour
     }
     
-    const popupRect = popup.getBoundingClientRect();
+    // Always start at Step 1 (never skip!)
+    radarTourCurrentStep = 0;
     
-    const x1 = popupRect.left;
-    const y1 = popupRect.top + popupRect.height / 2;
-    const x2 = rect.right;
-    const y2 = rect.top + rect.height / 2;
+    const overlay = document.getElementById('radar-tour-overlay');
+    if (overlay) {
+        overlay.style.display = 'block';
+    }
     
-    line.setAttribute('x1', x1);
-    line.setAttribute('y1', y1);
-    line.setAttribute('x2', x2);
-    line.setAttribute('y2', y2);
+    showRadarTourStep(radarTourCurrentStep);
+    
+    // Add resize listener
+    window.addEventListener('resize', handleTourResize);
+    
+    // Register click hook to automatically transition on sidebar click
+    const navLink = document.getElementById('navBrandHub');
+    if (navLink && !navLink.dataset.tourHooked) {
+        navLink.addEventListener('click', () => {
+            if (radarTourCurrentStep === 0) {
+                setTimeout(() => {
+                    nextRadarTourStep();
+                }, 100);
+            }
+        });
+        navLink.dataset.tourHooked = 'true';
+    }
 }
 
-function startBrandHubTour() {
-    if (localStorage.getItem('radar_brandhub_tour_seen')) return;
+function handleTourResize() {
+    clearTimeout(tourResizeTimeout);
+    tourResizeTimeout = setTimeout(() => {
+        if (radarTourCurrentStep >= 0) {
+            showRadarTourStep(radarTourCurrentStep);
+        }
+    }, 150);
+}
+
+function showRadarTourStep(stepIndex) {
+    if (stepIndex < 0 || stepIndex >= RADAR_TOUR_STEPS.length) {
+        endRadarTour();
+        return;
+    }
     
-    const navLink = document.getElementById('navBrandHub');
-    if (!navLink) return;
+    // Clear highlights
+    document.querySelectorAll('.radar-tour-target-highlight').forEach(el => {
+        el.classList.remove('radar-tour-target-highlight');
+    });
     
-    // Suavemente rola o menu lateral para centralizar o item
-    navLink.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    radarTourCurrentStep = stepIndex;
+    const step = RADAR_TOUR_STEPS[stepIndex];
     
+    // Run pre-show triggers
+    if (typeof step.beforeShow === 'function') {
+        step.beforeShow();
+    }
+    
+    // Select elements
+    const targetEl = document.getElementById(step.target);
+    const card = document.getElementById('radar-tour-card');
+    const title = document.getElementById('radar-tour-title');
+    const progress = document.getElementById('radar-tour-progress');
+    const text = document.getElementById('radar-tour-text');
+    const btnPrev = document.getElementById('btn-tour-prev');
+    const btnNext = document.getElementById('btn-tour-next');
+    
+    if (!targetEl) {
+        console.warn(`Target element not found: ${step.target}, trying next.`);
+        if (stepIndex < RADAR_TOUR_STEPS.length - 1) {
+            nextRadarTourStep();
+        } else {
+            endRadarTour();
+        }
+        return;
+    }
+    
+    // Highlight target
+    targetEl.classList.add('radar-tour-target-highlight');
+    
+    // Setup text & titles
+    title.innerHTML = `📢 ${step.title}`;
+    progress.innerText = `${stepIndex + 1}/${RADAR_TOUR_STEPS.length}`;
+    text.innerHTML = step.text;
+    
+    // Button setup
+    if (stepIndex === 0) {
+        if (btnPrev) btnPrev.style.display = 'none';
+    } else {
+        if (btnPrev) btnPrev.style.display = 'block';
+    }
+    
+    if (btnNext) {
+        if (stepIndex === RADAR_TOUR_STEPS.length - 1) {
+            btnNext.innerText = "Concluir";
+            btnNext.style.background = '#10b981'; // Green for completion
+        } else {
+            btnNext.innerText = "Próximo";
+            btnNext.style.background = 'var(--primary)';
+        }
+    }
+    
+    // Position tooltip card and draw SVG line (short delay after instant scroll)
     setTimeout(() => {
-        // Injetar estilos
-        if (!document.getElementById('tourStyles')) {
-            const style = document.createElement('style');
-            style.id = 'tourStyles';
-            style.textContent = `
-                .tour-highlight {
-                    position: relative;
-                    box-shadow: 0 0 0 2px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.7) !important;
-                    border-radius: 8px;
-                    background: rgba(251, 191, 36, 0.2) !important;
-                    color: #fff !important;
-                }
-                .tour-beacon {
-                    position: absolute;
-                    right: 12px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    width: 10px;
-                    height: 10px;
-                    background: #fbbf24;
-                    border-radius: 50%;
-                    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8);
-                    animation: tour-pulse 1.5s infinite;
-                    pointer-events: none;
-                }
-                @keyframes tour-pulse {
-                    0% {
-                        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8);
-                    }
-                    70% {
-                        box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
-                    }
-                    100% {
-                        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
-                    }
-                }
-                @keyframes tour-dash {
-                    to {
-                        stroke-dashoffset: -100;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
+        positionTourTooltipAndLine(targetEl, card, step.position);
+    }, 150);
+}
+
+function updateTourBackdropCutout(targetRect) {
+    const topEdge = document.getElementById('tour-edge-top');
+    const bottomEdge = document.getElementById('tour-edge-bottom');
+    const leftEdge = document.getElementById('tour-edge-left');
+    const rightEdge = document.getElementById('tour-edge-right');
+    
+    if (!topEdge || !bottomEdge || !leftEdge || !rightEdge) return;
+    
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // If target has no dimensions (fallback modal), cover the entire screen
+    if (!targetRect || (targetRect.width === 0 && targetRect.height === 0)) {
+        topEdge.style.top = '0px';
+        topEdge.style.left = '0px';
+        topEdge.style.width = '100%';
+        topEdge.style.height = '100%';
+        
+        bottomEdge.style.width = '0px';
+        bottomEdge.style.height = '0px';
+        leftEdge.style.width = '0px';
+        leftEdge.style.height = '0px';
+        rightEdge.style.width = '0px';
+        rightEdge.style.height = '0px';
+        return;
+    }
+    
+    // Padding around target to make the cutout look comfortable
+    const padding = 6;
+    const tTop = Math.max(0, targetRect.top - padding);
+    const tBottom = Math.min(screenHeight, targetRect.bottom + padding);
+    const tLeft = Math.max(0, targetRect.left - padding);
+    const tRight = Math.min(screenWidth, targetRect.right + padding);
+    
+    // Top block
+    topEdge.style.top = '0px';
+    topEdge.style.left = '0px';
+    topEdge.style.width = '100%';
+    topEdge.style.height = `${tTop}px`;
+    
+    // Bottom block
+    bottomEdge.style.top = `${tBottom}px`;
+    bottomEdge.style.left = '0px';
+    bottomEdge.style.width = '100%';
+    bottomEdge.style.height = `${screenHeight - tBottom}px`;
+    
+    // Left block
+    leftEdge.style.top = `${tTop}px`;
+    leftEdge.style.left = '0px';
+    leftEdge.style.width = `${tLeft}px`;
+    leftEdge.style.height = `${tBottom - tTop}px`;
+    
+    // Right block
+    rightEdge.style.top = `${tTop}px`;
+    rightEdge.style.left = `${tRight}px`;
+    rightEdge.style.width = `${screenWidth - tRight}px`;
+    rightEdge.style.height = `${tBottom - tTop}px`;
+}
+
+function positionTourTooltipAndLine(targetEl, card, position) {
+    if (!card) return;
+    const targetRect = targetEl.getBoundingClientRect();
+    const cardWidth = card.offsetWidth || 330;
+    const cardHeight = card.offsetHeight || 150;
+    
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Bulletproof Fallback: if element has display:none or zero size, center card as a modal
+    if (targetRect.width === 0 && targetRect.height === 0) {
+        card.style.left = `${(screenWidth - cardWidth) / 2}px`;
+        card.style.top = `${(screenHeight - cardHeight) / 2}px`;
+        card.style.opacity = '1';
+        card.style.transform = 'scale(1)';
+        
+        // Hide SVG pointer path and point dot
+        const path = document.getElementById('radar-tour-path');
+        const dot = document.getElementById('radar-tour-dot');
+        if (path) path.setAttribute('d', '');
+        if (dot) {
+            dot.setAttribute('cx', -100);
+            dot.setAttribute('cy', -100);
         }
         
-        // Criar o fundo escurecido e borrado (Backdrop Blur Overlay)
-        const backdrop = document.createElement('div');
-        backdrop.id = 'tourBackdrop';
-        backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:999990;opacity:0;transition:opacity 0.4s;';
-        document.body.appendChild(backdrop);
+        updateTourBackdropCutout(null);
+        return;
+    }
+    
+    // Frame the target with spotlight edges
+    updateTourBackdropCutout(targetRect);
+    
+    let cardX = 0;
+    let cardY = 0;
+    const offset = 45; // Spacing between card and element
+    
+    // Positioning logic
+    if (position === 'right') {
+        cardX = targetRect.right + offset;
+        cardY = targetRect.top + (targetRect.height / 2) - (cardHeight / 2);
         
-        // Clonar o item do menu lateral para exibi-lo por cima do backdrop
-        const rect = navLink.getBoundingClientRect();
-        const clone = navLink.cloneNode(true);
-        clone.id = 'navBrandHubClone';
-        clone.classList.add('tour-highlight');
-        clone.style.cssText = `
-            position: fixed;
-            top: ${rect.top}px;
-            left: ${rect.left}px;
-            width: ${rect.width}px;
-            height: ${rect.height}px;
-            margin: 0;
-            z-index: 999992;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-        `;
+        if (cardX + cardWidth > screenWidth) {
+            cardX = targetRect.left - cardWidth - offset;
+        }
+    } else if (position === 'left') {
+        cardX = targetRect.left - cardWidth - offset;
+        cardY = targetRect.top + (targetRect.height / 2) - (cardHeight / 2);
         
-        const beacon = document.createElement('div');
-        beacon.className = 'tour-beacon';
-        clone.appendChild(beacon);
-        document.body.appendChild(clone);
+        if (cardX < 0) {
+            cardX = targetRect.right + offset;
+        }
+    } else if (position === 'top') {
+        cardX = targetRect.left + (targetRect.width / 2) - (cardWidth / 2);
+        cardY = targetRect.top - cardHeight - offset;
         
-        // Criar o Pop-up com tamanho aumentado
-        const popup = document.createElement('div');
-        popup.id = 'brandHubTourPopup';
-        popup.style.cssText = 'position:fixed;right:60px;top:50%;transform:translateY(-50%) scale(0.9);width:420px;background:linear-gradient(135deg, #2a2b4d 0%, #17182f 100%);border:2px solid #fbbf24;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.7), 0 0 35px rgba(251,191,36,0.3);padding:32px;color:#fff;z-index:999995;opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);font-family:\'Inter\', sans-serif;';
-        popup.innerHTML = `
-            <div style="font-size:48px;margin-bottom:16px;text-align:center;filter:drop-shadow(0 4px 8px rgba(251,191,36,0.4));">🎨</div>
-            <h3 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#fbbf24;text-align:center;letter-spacing:-0.3px;">Novidade: Guia de Estilo!</h3>
-            <p style="margin:0 0 24px;font-size:14px;color:#cbd5e1;line-height:1.75;text-align:justify;">
-                Olá! Apresentamos o novo <strong>Guia de Estilo (Brand Hub)</strong> do Radar PNSA. Esta seção centraliza toda a identidade visual oficial da paróquia em um só lugar. Aqui você pode copiar os códigos HEX da paleta oficial com um clique, baixar logotipos e vetores em alta resolução, e utilizar o novo <strong>Gerador de QR Code Branded</strong> personalizado com as cores da igreja!
-            </p>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-                <button id="btnTourGo" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg, #fbbf24, #d97706);color:#000;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 15px rgba(251, 191, 36, 0.4);transition:transform 0.2s;text-transform:uppercase;letter-spacing:0.5px;">
-                    ✨ Explorar Guia de Estilo
-                </button>
-                <button id="btnTourDismiss" style="padding:10px;border-radius:12px;border:none;background:transparent;color:#a1a1aa;font-weight:600;font-size:13px;cursor:pointer;transition:color 0.2s;">
-                    Fechar
-                </button>
-            </div>
-        `;
-        document.body.appendChild(popup);
+        if (cardY < 0) {
+            cardY = targetRect.bottom + offset;
+        }
+    } else { // 'bottom'
+        cardX = targetRect.left + (targetRect.width / 2) - (cardWidth / 2);
+        cardY = targetRect.bottom + offset;
         
-        // Criar a Linha Conectora SVG
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.id = 'tourLineSvg';
-        svg.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:999994;';
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.id = 'tourLine';
-        line.setAttribute('stroke', '#fbbf24');
-        line.setAttribute('stroke-width', '3');
-        line.setAttribute('stroke-linecap', 'round');
-        line.setAttribute('stroke-dasharray', '8, 8');
-        line.style.cssText = 'filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); animation: tour-dash 5s linear infinite;';
-        svg.appendChild(line);
-        document.body.appendChild(svg);
-        
-        // Ativar animações de entrada
-        requestAnimationFrame(() => {
-            backdrop.style.opacity = '1';
-            popup.style.opacity = '1';
-            popup.style.transform = 'translateY(-50%) scale(1)';
-            updateTourLine();
-        });
-        
-        window.addEventListener('resize', updateTourLine);
-        
-        const endTour = (shouldNavigate = false) => {
-            localStorage.setItem('radar_brandhub_tour_seen', 'true');
-            window.removeEventListener('resize', updateTourLine);
-            
-            backdrop.style.opacity = '0';
-            popup.style.opacity = '0';
-            popup.style.transform = 'translateY(-50%) scale(0.9)';
-            svg.remove();
-            
-            setTimeout(() => {
-                backdrop.remove();
-                popup.remove();
-                clone.remove();
-                
-                if (shouldNavigate) {
-                    if (typeof navigateTo === 'function') {
-                        navigateTo('brand-hub');
-                    }
-                }
-            }, 400);
-        };
-        
-        document.getElementById('btnTourGo').addEventListener('click', () => endTour(true));
-        document.getElementById('btnTourDismiss').addEventListener('click', () => endTour(false));
-        clone.addEventListener('click', () => endTour(true));
-    }, 300); // Rola primeiro e aguarda concluir a animação do scroll
+        if (cardY + cardHeight > screenHeight) {
+            cardY = targetRect.top - cardHeight - offset;
+        }
+    }
+    
+    // Bound corrections
+    cardX = Math.max(20, Math.min(cardX, screenWidth - cardWidth - 20));
+    cardY = Math.max(20, Math.min(cardY, screenHeight - cardHeight - 20));
+    
+    // Position card
+    card.style.left = `${cardX}px`;
+    card.style.top = `${cardY}px`;
+    card.style.opacity = '1';
+    card.style.transform = 'scale(1)';
+    
+    // Draw pointer line
+    drawPointerLine(targetEl, card, cardX, cardY, cardWidth, cardHeight);
 }
+
+function drawPointerLine(targetEl, card, cardX, cardY, cardWidth, cardHeight) {
+    const svg = document.getElementById('radar-tour-svg');
+    const path = document.getElementById('radar-tour-path');
+    const dot = document.getElementById('radar-tour-dot');
+    
+    if (!svg || !path || !dot) return;
+    
+    const targetRect = targetEl.getBoundingClientRect();
+    
+    const targetCenterX = targetRect.left + (targetRect.width / 2);
+    const targetCenterY = targetRect.top + (targetRect.height / 2);
+    
+    const cardCenterX = cardX + (cardWidth / 2);
+    const cardCenterY = cardY + (cardHeight / 2);
+    
+    // Find anchor point on card edge
+    let startX = cardCenterX;
+    let startY = cardCenterY;
+    
+    if (cardCenterX < targetRect.left) {
+        startX = cardX + cardWidth;
+    } else if (cardCenterX > targetRect.right) {
+        startX = cardX;
+    }
+    
+    if (cardCenterY < targetRect.top) {
+        startY = cardY + cardHeight;
+    } else if (cardCenterY > targetRect.bottom) {
+        startY = cardY;
+    }
+    
+    // Find anchor point on target edge
+    let endX = targetCenterX;
+    let endY = targetCenterY;
+    
+    if (startX < targetRect.left) {
+        endX = targetRect.left;
+    } else if (startX > targetRect.right) {
+        endX = targetRect.right;
+    }
+    
+    if (startY < targetRect.top) {
+        endY = targetRect.top;
+    } else if (startY > targetRect.bottom) {
+        endY = targetRect.bottom;
+    }
+    
+    // Draw Bezier curve
+    const midX = (startX + endX) / 2;
+    const midY = (startY + endY) / 2;
+    let cpX = midX;
+    let cpY = midY;
+    
+    if (Math.abs(startX - endX) > Math.abs(startY - endY)) {
+        cpY += (startY < endY ? -30 : 30);
+    } else {
+        cpX += (startX < endX ? -30 : 30);
+    }
+    
+    const d = `M ${startX} ${startY} Q ${cpX} ${cpY} ${endX} ${endY}`;
+    path.setAttribute('d', d);
+    
+    // Position pointer dot
+    dot.setAttribute('cx', endX);
+    dot.setAttribute('cy', endY);
+}
+
+function prevRadarTourStep() {
+    if (radarTourCurrentStep > 0) {
+        showRadarTourStep(radarTourCurrentStep - 1);
+    }
+}
+
+function nextRadarTourStep() {
+    if (radarTourCurrentStep < RADAR_TOUR_STEPS.length - 1) {
+        showRadarTourStep(radarTourCurrentStep + 1);
+    } else {
+        endRadarTour();
+    }
+}
+
+function endRadarTour() {
+    document.querySelectorAll('.radar-tour-target-highlight').forEach(el => {
+        el.classList.remove('radar-tour-target-highlight');
+    });
+    
+    const overlay = document.getElementById('radar-tour-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+    
+    radarTourCurrentStep = -1;
+    
+    // Persist
+    localStorage.setItem('radar_pnsa_tour_completed_v2', 'true');
+    
+    // Remove resize listener
+    window.removeEventListener('resize', handleTourResize);
+    
+    toast('Guia rápido finalizado! Você pode revê-lo a qualquer momento clicando no botão ❓.', 'success');
+}
+
+// Bind to window
+window.startRadarTour = startRadarTour;
+window.prevRadarTourStep = prevRadarTourStep;
+window.nextRadarTourStep = nextRadarTourStep;
+window.endRadarTour = endRadarTour;
+
 
 function showFarewellMessage() {
     const overlay = document.createElement('div');
@@ -10281,5 +10561,818 @@ window.renderQrCodeColors = renderQrCodeColors;
 window.generateQrCode = generateQrCode;
 window.downloadGeneratedQrCode = downloadGeneratedQrCode;
 
+// ==========================================
+// FERRAMENTAS DE CONVERSÃO E COMPACTAÇÃO DE ARQUIVOS
+// ==========================================
 
+let imageConvQueue = [];
+let imageConvIdCounter = 0;
+let universalCompressFiles = [];
 
+function switchMediaTab(tabId) {
+    document.getElementById('tab-img-conv').classList.remove('active');
+    document.getElementById('tab-pdf-tools').classList.remove('active');
+    
+    document.getElementById('content-img-conv').classList.remove('active');
+    document.getElementById('content-pdf-tools').classList.remove('active');
+    
+    if (tabId === 'img-conv') {
+        document.getElementById('tab-img-conv').classList.add('active');
+        document.getElementById('content-img-conv').classList.add('active');
+    } else {
+        document.getElementById('tab-pdf-tools').classList.add('active');
+        document.getElementById('content-pdf-tools').classList.add('active');
+    }
+}
+
+function handleImageConvSelect(event) {
+    if (event.target.files && event.target.files.length > 0) {
+        handleImageConvFiles(event.target.files);
+    }
+    event.target.value = '';
+}
+
+function handleImageConvFiles(files) {
+    Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) {
+            toast('Apenas arquivos de imagem são suportados.', 'error');
+            return;
+        }
+        
+        const previewUrl = URL.createObjectURL(file);
+        imageConvQueue.push({
+            id: ++imageConvIdCounter,
+            file: file,
+            preview: previewUrl
+        });
+    });
+    
+    renderImageConvQueue();
+}
+
+function renderImageConvQueue() {
+    const container = document.getElementById('img-conv-list-container');
+    if (!container) return;
+    
+    if (imageConvQueue.length === 0) {
+        container.innerHTML = `<p id="img-conv-empty-text" style="color: var(--text-muted); font-size: 13px; text-align: center; margin: 12px 0;">Nenhuma imagem selecionada.</p>`;
+        return;
+    }
+    
+    container.innerHTML = imageConvQueue.map((item, index) => {
+        const sizeFormatted = formatBytes(item.file.size);
+        return `
+        <div class="file-list-item" data-id="${item.id}">
+            <div style="display: flex; align-items: center; gap: 10px; width: 70%; overflow: hidden;">
+                <img src="${item.preview}" class="file-preview" alt="preview">
+                <div style="display: flex; flex-direction: column; overflow: hidden; width: 100%;">
+                    <span style="font-size: 12.5px; font-weight: 600; color: var(--text-color); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="${item.file.name}">${item.file.name}</span>
+                    <span style="font-size: 11px; color: var(--text-muted);">${sizeFormatted}</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" class="file-order-btn" onclick="window.moveImageInQueue(${index}, -1)" ${index === 0 ? 'disabled style="opacity: 0.3; cursor: default;"' : ''} title="Mover para Cima">↑</button>
+                <button type="button" class="file-order-btn" onclick="window.moveImageInQueue(${index}, 1)" ${index === imageConvQueue.length - 1 ? 'disabled style="opacity: 0.3; cursor: default;"' : ''} title="Mover para Baixo">↓</button>
+                <button type="button" class="file-order-btn" onclick="window.removeImageFromQueue(${item.id})" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);" title="Remover">×</button>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+function moveImageInQueue(index, direction) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= imageConvQueue.length) return;
+    
+    const temp = imageConvQueue[index];
+    imageConvQueue[index] = imageConvQueue[targetIndex];
+    imageConvQueue[targetIndex] = temp;
+    
+    renderImageConvQueue();
+}
+
+function removeImageFromQueue(id) {
+    const index = imageConvQueue.findIndex(item => item.id === id);
+    if (index !== -1) {
+        URL.revokeObjectURL(imageConvQueue[index].preview);
+        imageConvQueue.splice(index, 1);
+    }
+    renderImageConvQueue();
+}
+
+function updateImgConvOptions() {
+    const formatSelect = document.getElementById('img-conv-format');
+    const format = formatSelect ? formatSelect.value : 'jpeg';
+    
+    const pdfTitleContainer = document.getElementById('img-conv-pdf-title-container');
+    const qualityContainer = document.getElementById('img-conv-quality-container');
+    
+    if (pdfTitleContainer) {
+        pdfTitleContainer.style.display = format === 'pdf' ? 'flex' : 'none';
+    }
+    
+    if (qualityContainer) {
+        qualityContainer.style.display = format === 'png' ? 'none' : 'flex';
+    }
+}
+
+async function processImageConversion() {
+    if (imageConvQueue.length === 0) {
+        toast('Selecione pelo menos uma imagem para converter.', 'error');
+        return;
+    }
+    
+    const formatSelect = document.getElementById('img-conv-format');
+    const resolutionSelect = document.getElementById('img-conv-resolution');
+    const qualitySlider = document.getElementById('img-conv-quality');
+    const pdfTitleInput = document.getElementById('img-conv-pdf-title');
+    
+    const format = formatSelect ? formatSelect.value : 'jpeg';
+    const resolution = resolutionSelect ? resolutionSelect.value : 'original';
+    const quality = qualitySlider ? parseInt(qualitySlider.value, 10) / 100 : 0.8;
+    let pdfTitle = pdfTitleInput ? pdfTitleInput.value.trim() : '';
+    if (!pdfTitle) pdfTitle = 'imagens-juntas';
+    
+    const btn = document.getElementById('btn-process-img-conv');
+    const progressContainer = document.getElementById('img-conv-progress-container');
+    const progressBar = document.getElementById('img-conv-progress-bar');
+    const statusText = document.getElementById('img-conv-status');
+    
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Processando...';
+    }
+    
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    if (statusText) {
+        statusText.style.display = 'block';
+        statusText.innerText = 'Iniciando conversão...';
+    }
+    
+    try {
+        const total = imageConvQueue.length;
+        const processedImages = [];
+        
+        for (let i = 0; i < total; i++) {
+            const item = imageConvQueue[i];
+            if (statusText) statusText.innerText = `Processando imagem ${i + 1} de ${total}...`;
+            if (progressBar) progressBar.style.width = `${Math.round((i / total) * 100)}%`;
+            
+            const result = await processSingleImage(item.file, resolution, quality, format === 'pdf' ? 'jpeg' : format);
+            processedImages.push({
+                name: item.file.name,
+                blob: result.blob,
+                width: result.width,
+                height: result.height
+            });
+        }
+        
+        if (progressBar) progressBar.style.width = '100%';
+        if (statusText) statusText.innerText = 'Finalizando arquivos...';
+        
+        if (format === 'pdf') {
+            if (typeof window.jspdf === 'undefined') {
+                throw new Error("Biblioteca jsPDF não carregada.");
+            }
+            const { jsPDF } = window.jspdf;
+            let pdf = null;
+            
+            for (let i = 0; i < processedImages.length; i++) {
+                const imgInfo = processedImages[i];
+                const dataUrl = await blobToDataURL(imgInfo.blob);
+                const orientation = imgInfo.width > imgInfo.height ? 'l' : 'p';
+                
+                if (i === 0) {
+                    pdf = new jsPDF({
+                        orientation: orientation,
+                        unit: 'px',
+                        format: [imgInfo.width, imgInfo.height]
+                    });
+                } else {
+                    pdf.addPage([imgInfo.width, imgInfo.height], orientation);
+                }
+                pdf.addImage(dataUrl, 'JPEG', 0, 0, imgInfo.width, imgInfo.height);
+            }
+            
+            pdf.save(`${pdfTitle}.pdf`);
+            toast('PDF gerado e baixado com sucesso!', 'success');
+        } else {
+            if (processedImages.length === 1) {
+                const imgInfo = processedImages[0];
+                const cleanName = imgInfo.name.substring(0, imgInfo.name.lastIndexOf('.')) || imgInfo.name;
+                const ext = format === 'jpeg' ? 'jpg' : format;
+                downloadBlob(imgInfo.blob, `${cleanName}_otimizado.${ext}`);
+                toast('Imagem convertida com sucesso!', 'success');
+            } else {
+                if (typeof JSZip === 'undefined') {
+                    throw new Error("Biblioteca JSZip não carregada.");
+                }
+                const zip = new JSZip();
+                processedImages.forEach(imgInfo => {
+                    const cleanName = imgInfo.name.substring(0, imgInfo.name.lastIndexOf('.')) || imgInfo.name;
+                    const ext = format === 'jpeg' ? 'jpg' : format;
+                    zip.file(`${cleanName}_otimizado.${ext}`, imgInfo.blob);
+                });
+                
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                downloadBlob(zipBlob, `imagens_convertidas.zip`);
+                toast('ZIP de imagens gerado com sucesso!', 'success');
+            }
+        }
+        
+        imageConvQueue.forEach(item => URL.revokeObjectURL(item.preview));
+        imageConvQueue = [];
+        renderImageConvQueue();
+        
+    } catch (err) {
+        console.error('Erro na conversão de imagem:', err);
+        toast(`Erro ao processar: ${err.message}`, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (statusText) statusText.style.display = 'none';
+    }
+}
+
+function processSingleImage(file, maxWidth, quality, outputFormat) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                if (maxWidth !== 'original') {
+                    const maxDim = parseInt(maxWidth, 10);
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const mimeType = `image/${outputFormat}`;
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve({
+                            blob: blob,
+                            width: width,
+                            height: height
+                        });
+                    } else {
+                        reject(new Error("Erro ao gerar Blob da imagem."));
+                    }
+                }, mimeType, quality);
+            };
+            img.onerror = () => reject(new Error("Erro ao processar imagem (formato não suportado pelo navegador, como HEIC ou TIFF)."));
+            img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error("Erro ao ler arquivo."));
+        reader.readAsDataURL(file);
+    });
+}
+
+// ==========================================
+// NOVO COMPACTADOR UNIVERSAL (ABAS DILUÍDAS)
+// ==========================================
+
+function handleUniversalCompressSelect(event) {
+    if (event.target.files && event.target.files.length > 0) {
+        handleUniversalCompressFiles(event.target.files);
+    }
+    event.target.value = '';
+}
+
+function handleUniversalCompressFiles(files) {
+    universalCompressFiles = Array.from(files);
+    renderUniversalCompressFileList();
+}
+
+function removeUniversalCompressFile(index) {
+    universalCompressFiles.splice(index, 1);
+    renderUniversalCompressFileList();
+}
+
+function renderUniversalCompressFileList() {
+    const listContainer = document.getElementById('compress-file-list');
+    const placeholderOpts = document.getElementById('compress-placeholder-options');
+    const pdfOpts = document.getElementById('compress-pdf-options');
+    const imgOpts = document.getElementById('compress-img-options');
+    const zipOpts = document.getElementById('compress-zip-options');
+    const resultCard = document.getElementById('pdf-result-card');
+    
+    if (resultCard) resultCard.style.display = 'none';
+    if (!listContainer) return;
+    
+    if (universalCompressFiles.length === 0) {
+        listContainer.style.display = 'none';
+        if (placeholderOpts) placeholderOpts.style.display = 'block';
+        if (pdfOpts) pdfOpts.style.display = 'none';
+        if (imgOpts) imgOpts.style.display = 'none';
+        if (zipOpts) zipOpts.style.display = 'none';
+        return;
+    }
+    
+    listContainer.style.display = 'flex';
+    if (placeholderOpts) placeholderOpts.style.display = 'none';
+    
+    listContainer.innerHTML = universalCompressFiles.map((file, index) => {
+        const icon = file.type.startsWith('image/') ? '🖼️' : (file.name.toLowerCase().endsWith('.pdf') ? '📄' : '📁');
+        return `
+        <div class="file-list-item" style="padding: 8px 12px; margin-bottom: 2px;">
+            <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; width: 100%;">
+                <span style="font-size: 18px;">${icon}</span>
+                <span style="font-size: 12.5px; font-weight: 600; color: var(--text-color); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; flex: 1;" title="${file.name}">${file.name}</span>
+                <span style="font-size: 11px; color: var(--text-muted); font-weight: bold; white-space: nowrap; margin-left: 8px;">${formatBytes(file.size)}</span>
+            </div>
+            <button type="button" class="file-order-btn" onclick="window.removeUniversalCompressFile(${index})" style="color: #ef4444; background: rgba(239, 68, 68, 0.1); border: none; padding: 2px 6px; font-size: 11px; margin-left: 8px;" title="Remover">×</button>
+        </div>
+        `;
+    }).join('');
+    
+    // Determine dynamic options display
+    if (universalCompressFiles.length === 1) {
+        const file = universalCompressFiles[0];
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        const isImg = file.type.startsWith('image/');
+        
+        if (isPdf) {
+            if (pdfOpts) pdfOpts.style.display = 'flex';
+            if (imgOpts) imgOpts.style.display = 'none';
+            if (zipOpts) zipOpts.style.display = 'none';
+        } else if (isImg) {
+            if (pdfOpts) pdfOpts.style.display = 'none';
+            if (imgOpts) imgOpts.style.display = 'flex';
+            if (zipOpts) zipOpts.style.display = 'none';
+            
+            // Hide quality slider for PNG files as it is lossless
+            const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+            const qualityContainer = document.getElementById('single-img-quality-container');
+            if (qualityContainer) {
+                qualityContainer.style.display = isPng ? 'none' : 'flex';
+            }
+            
+            const qualitySlider = document.getElementById('single-img-quality');
+            const qualityVal = document.getElementById('single-img-quality-val');
+            if (qualitySlider && qualityVal) {
+                qualityVal.innerText = qualitySlider.value + '%';
+            }
+        } else {
+            if (pdfOpts) pdfOpts.style.display = 'none';
+            if (imgOpts) imgOpts.style.display = 'none';
+            if (zipOpts) zipOpts.style.display = 'flex';
+            
+            const zipInput = document.getElementById('zip-compress-title');
+            if (zipInput) {
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                zipInput.value = baseName + '_compactado';
+            }
+        }
+    } else {
+        // Multiple files
+        if (pdfOpts) pdfOpts.style.display = 'none';
+        if (imgOpts) imgOpts.style.display = 'none';
+        if (zipOpts) zipOpts.style.display = 'flex';
+        
+        const zipInput = document.getElementById('zip-compress-title');
+        if (zipInput && (!zipInput.value || zipInput.value === '')) {
+            zipInput.value = 'arquivos_compactados';
+        }
+    }
+}
+
+function updatePdfCompressOptions() {
+    const modeSelect = document.getElementById('pdf-compress-mode');
+    const mode = modeSelect ? modeSelect.value : 'compress';
+    
+    const qualityContainer = document.getElementById('pdf-quality-container');
+    
+    if (qualityContainer) {
+        qualityContainer.style.display = mode === 'extract-png' ? 'none' : 'flex';
+    }
+}
+
+async function processUniversalCompression() {
+    if (universalCompressFiles.length === 0) {
+        toast('Selecione pelo menos um arquivo para compactar.', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('btn-process-pdf');
+    const progressContainer = document.getElementById('pdf-compress-progress-container');
+    const progressBar = document.getElementById('pdf-compress-progress-bar');
+    const statusText = document.getElementById('pdf-compress-status');
+    const resultCard = document.getElementById('pdf-result-card');
+    const resultSizes = document.getElementById('pdf-result-sizes');
+    
+    let originalHtml = '';
+    if (btn) {
+        originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Processando...';
+    }
+    
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    if (statusText) {
+        statusText.style.display = 'block';
+        statusText.innerText = 'Iniciando compactação...';
+    }
+    if (resultCard) resultCard.style.display = 'none';
+    
+    try {
+        const isSingle = universalCompressFiles.length === 1;
+        const file = universalCompressFiles[0];
+        const isPdf = isSingle && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
+        const isImg = isSingle && file.type.startsWith('image/');
+        
+        if (isPdf) {
+            // PDF COMPRESSION LOGIC
+            const modeSelect = document.getElementById('pdf-compress-mode');
+            const scaleSelect = document.getElementById('pdf-compress-scale');
+            const qualitySlider = document.getElementById('pdf-compress-quality');
+            
+            const mode = modeSelect ? modeSelect.value : 'compress';
+            const scale = scaleSelect ? parseFloat(scaleSelect.value) : 0.75;
+            const quality = qualitySlider ? parseInt(qualitySlider.value, 10) / 100 : 0.7;
+            
+            if (typeof pdfjsLib === 'undefined') {
+                throw new Error("Biblioteca PDF.js não está carregada.");
+            }
+            
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            
+            const arrayBuffer = await fileToArrayBuffer(file);
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdfDoc = await loadingTask.promise;
+            const numPages = pdfDoc.numPages;
+            
+            if (numPages === 0) {
+                throw new Error("O PDF selecionado não possui páginas.");
+            }
+            
+            let pdfOutput = null;
+            let zipOutput = null;
+            if (mode.startsWith('extract-')) {
+                if (typeof JSZip === 'undefined') {
+                    throw new Error("Biblioteca JSZip não está carregada.");
+                }
+                zipOutput = new JSZip();
+            }
+            
+            for (let i = 1; i <= numPages; i++) {
+                if (statusText) statusText.innerText = `Processando página ${i} de ${numPages}...`;
+                if (progressBar) progressBar.style.width = `${Math.round((i / numPages) * 100)}%`;
+                
+                const page = await pdfDoc.getPage(i);
+                const viewport = page.getViewport({ scale: scale });
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                
+                if (mode === 'compress') {
+                    const pageBlob = await canvasToBlob(canvas, 'image/jpeg', quality);
+                    const dataUrl = await blobToDataURL(pageBlob);
+                    const orientation = viewport.width > viewport.height ? 'l' : 'p';
+                    
+                    if (i === 1) {
+                        pdfOutput = new window.jspdf.jsPDF({
+                            orientation: orientation,
+                            unit: 'px',
+                            format: [viewport.width, viewport.height]
+                        });
+                    } else {
+                        pdfOutput.addPage([viewport.width, viewport.height], orientation);
+                    }
+                    pdfOutput.addImage(dataUrl, 'JPEG', 0, 0, viewport.width, viewport.height);
+                } else {
+                    const ext = mode === 'extract-jpg' ? 'jpg' : 'png';
+                    const mime = mode === 'extract-jpg' ? 'image/jpeg' : 'image/png';
+                    const q = mode === 'extract-jpg' ? quality : 1.0;
+                    
+                    const pageBlob = await canvasToBlob(canvas, mime, q);
+                    zipOutput.file(`pagina_${i}.${ext}`, pageBlob);
+                }
+                
+                canvas.width = 0;
+                canvas.height = 0;
+            }
+            
+            const cleanName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            
+            if (mode === 'compress') {
+                const finalPdfBlob = pdfOutput.output('blob');
+                const origSize = file.size;
+                const compSize = finalPdfBlob.size;
+                
+                if (compSize >= origSize) {
+                    downloadBlob(file, `${cleanName}_compactado.pdf`);
+                    if (resultSizes) {
+                        resultSizes.innerHTML = `O PDF já estava otimizado ao máximo.<br>Mantido o arquivo original de ${formatBytes(origSize)}.`;
+                    }
+                    toast('O PDF já estava no tamanho mínimo possível!', 'success');
+                } else {
+                    downloadBlob(finalPdfBlob, `${cleanName}_compactado.pdf`);
+                    const savedPercentage = Math.round(((origSize - compSize) / origSize) * 100);
+                    if (resultSizes) {
+                        resultSizes.innerHTML = `PDF Original: ${formatBytes(origSize)} | PDF Compactado: ${formatBytes(compSize)}<br>Redução de ${savedPercentage}% no tamanho do PDF!`;
+                    }
+                    toast('PDF compactado com sucesso!', 'success');
+                }
+            } else {
+                const zipBlob = await zipOutput.generateAsync({ type: 'blob' });
+                const ext = mode === 'extract-jpg' ? 'jpg' : 'png';
+                downloadBlob(zipBlob, `${cleanName}_paginas_${ext}.zip`);
+                
+                if (resultSizes) {
+                    resultSizes.innerHTML = `${numPages} páginas extraídas do PDF salvas em ZIP.`;
+                }
+                toast('Páginas extraídas com sucesso!', 'success');
+            }
+            if (resultCard) resultCard.style.display = 'flex';
+            
+        } else if (isImg) {
+            // SINGLE IMAGE COMPRESSION
+            const resolutionSelect = document.getElementById('single-img-resolution');
+            const qualitySlider = document.getElementById('single-img-quality');
+            
+            const resolution = resolutionSelect ? resolutionSelect.value : 'original';
+            const quality = qualitySlider ? parseInt(qualitySlider.value, 10) / 100 : 0.7;
+            
+            // Map input format to output format (keep the same format!)
+            const cleanName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            const ext = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
+            let format = 'jpeg';
+            let outExt = 'jpg';
+            
+            if (ext === 'png') {
+                format = 'png';
+                outExt = 'png';
+            } else if (ext === 'webp') {
+                format = 'webp';
+                outExt = 'webp';
+            } else {
+                format = 'jpeg';
+                outExt = ext; // preserve original extension (jpg, jpeg, etc.)
+            }
+            
+            if (progressBar) progressBar.style.width = '50%';
+            if (statusText) statusText.innerText = 'Redimensionando e compactando imagem...';
+            
+            const result = await processSingleImage(file, resolution, quality, format);
+            
+            let finalBlob = result.blob;
+            let finalCompSize = result.blob.size;
+            let wasFallback = false;
+            
+            // Safeguard: check if compressed file is larger than original
+            if (finalCompSize >= file.size) {
+                // If it is larger, try compressing at a lower quality (like 50%) for JPG/WEBP
+                if (format !== 'png' && quality > 0.5) {
+                    const retryResult = await processSingleImage(file, resolution, 0.5, format);
+                    if (retryResult.blob.size < file.size) {
+                        finalBlob = retryResult.blob;
+                        finalCompSize = retryResult.blob.size;
+                    } else {
+                        finalBlob = file;
+                        finalCompSize = file.size;
+                        wasFallback = true;
+                    }
+                } else {
+                    finalBlob = file;
+                    finalCompSize = file.size;
+                    wasFallback = true;
+                }
+            }
+            
+            if (progressBar) progressBar.style.width = '100%';
+            if (statusText) statusText.innerText = 'Pronto!';
+            
+            downloadBlob(finalBlob, `${cleanName}_compactado.${outExt}`);
+            
+            const origSize = file.size;
+            const savedPercentage = Math.round(((origSize - finalCompSize) / origSize) * 100);
+            
+            if (wasFallback) {
+                if (resultSizes) {
+                    resultSizes.innerHTML = `O arquivo já estava otimizado ao máximo.<br>Mantida a imagem original de ${formatBytes(origSize)}.`;
+                }
+                toast('Imagem já estava no tamanho mínimo possível!', 'success');
+            } else {
+                if (resultSizes) {
+                    resultSizes.innerHTML = `Imagem Original: ${formatBytes(origSize)} | Compactada: ${formatBytes(finalCompSize)}<br>Redução de ${savedPercentage}% no tamanho do arquivo!`;
+                }
+                toast('Imagem compactada com sucesso!', 'success');
+            }
+            if (resultCard) resultCard.style.display = 'flex';
+            
+        } else {
+            // ZIP COMPRESSION FOR GENERAL/MULTIPLE FILES
+            if (typeof JSZip === 'undefined') {
+                throw new Error("Biblioteca JSZip não está carregada.");
+            }
+            
+            const zipInput = document.getElementById('zip-compress-title');
+            let zipName = zipInput ? zipInput.value.trim() : 'arquivos-compactados';
+            if (!zipName) zipName = 'arquivos-compactados';
+            
+            const zip = new JSZip();
+            const total = universalCompressFiles.length;
+            
+            let originalTotalSize = 0;
+            
+            for (let i = 0; i < total; i++) {
+                const f = universalCompressFiles[i];
+                if (statusText) statusText.innerText = `Empacotando arquivo ${i + 1} de ${total}...`;
+                if (progressBar) progressBar.style.width = `${Math.round((i / total) * 100)}%`;
+                
+                zip.file(f.name, f);
+                originalTotalSize += f.size;
+            }
+            
+            if (statusText) statusText.innerText = 'Compactando pacote ZIP...';
+            if (progressBar) progressBar.style.width = '95%';
+            
+            const zipBlob = await zip.generateAsync({ 
+                type: 'blob',
+                compression: "DEFLATE",
+                compressionOptions: { level: 9 }
+            });
+            
+            downloadBlob(zipBlob, `${zipName}.zip`);
+            
+            if (progressBar) progressBar.style.width = '100%';
+            
+            const compSize = zipBlob.size;
+            const savedPercentage = Math.round(((originalTotalSize - compSize) / originalTotalSize) * 100);
+            
+            if (resultSizes) {
+                resultSizes.innerHTML = `Total Original: ${formatBytes(originalTotalSize)} | ZIP Compactado: ${formatBytes(compSize)}<br>Redução de ${savedPercentage}% no armazenamento!`;
+            }
+            if (resultCard) resultCard.style.display = 'flex';
+            toast('Arquivos compactados em ZIP com sucesso!', 'success');
+        }
+        
+        // Reset file list
+        universalCompressFiles = [];
+        renderUniversalCompressFileList();
+        
+    } catch (err) {
+        console.error('Erro na compactação:', err);
+        toast(`Erro ao processar compactação: ${err.message}`, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (statusText) statusText.style.display = 'none';
+    }
+}
+
+// Helpers
+function fileToArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), type, quality);
+    });
+}
+
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function setupDragAndDrop() {
+    const imgDropzone = document.getElementById('img-conv-dropzone');
+    const pdfDropzone = document.getElementById('pdf-compress-dropzone');
+    
+    if (imgDropzone) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            imgDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                imgDropzone.classList.add('dragover');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            imgDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                imgDropzone.classList.remove('dragover');
+            }, false);
+        });
+        
+        imgDropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                const imgFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+                if (imgFiles.length > 0) {
+                    handleImageConvFiles(imgFiles);
+                } else {
+                    toast('Por favor, selecione apenas arquivos de imagem.', 'error');
+                }
+            }
+        });
+    }
+    
+    if (pdfDropzone) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            pdfDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                pdfDropzone.classList.add('dragover');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            pdfDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                pdfDropzone.classList.remove('dragover');
+            }, false);
+        });
+        
+        pdfDropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                handleUniversalCompressFiles(files);
+            }
+        });
+    }
+}
+
+// Bind methods globally
+window.switchMediaTab = switchMediaTab;
+window.handleImageConvSelect = handleImageConvSelect;
+window.handleImageConvFiles = handleImageConvFiles;
+window.renderImageConvQueue = renderImageConvQueue;
+window.moveImageInQueue = moveImageInQueue;
+window.removeImageFromQueue = removeImageFromQueue;
+window.updateImgConvOptions = updateImgConvOptions;
+window.processImageConversion = processImageConversion;
+window.handleUniversalCompressSelect = handleUniversalCompressSelect;
+window.handleUniversalCompressFiles = handleUniversalCompressFiles;
+window.removeUniversalCompressFile = removeUniversalCompressFile;
+window.renderUniversalCompressFileList = renderUniversalCompressFileList;
+window.updatePdfCompressOptions = updatePdfCompressOptions;
+window.processUniversalCompression = processUniversalCompression;
+window.setupDragAndDrop = setupDragAndDrop;
+
+// Initialize drag and drop on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    setupDragAndDrop();
+});
