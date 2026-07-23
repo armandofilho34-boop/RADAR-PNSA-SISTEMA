@@ -2645,22 +2645,33 @@ function renderKanban() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            tasks = tasks.filter(t => t.solicitanteId === currentUser.id || (t.pipeline && t.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
+            tasks = tasks.filter(t => t.solicitanteId === currentUser.id || t.responsavelId === currentUser.id || (t.pipeline && t.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
-            tasks = tasks.filter(t => t.solicitanteId === targetId);
+            tasks = tasks.filter(t => t.solicitanteId === targetId || t.responsavelId === targetId);
         } else if (window.currentOriginFilter === 'todas-sm') {
-            tasks = tasks.filter(t => smUserIds.includes(t.solicitanteId));
+            tasks = tasks.filter(t => smUserIds.includes(t.solicitanteId) || smUserIds.includes(t.responsavelId));
         }
     }
     if (currentUser.role === 'executor') {
-        tasks = tasks.filter(d => d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
+        const userDepts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [currentUser.dept];
+        tasks = tasks.filter(d =>
+            d.solicitanteId === currentUser.id ||
+            d.responsavelId === currentUser.id ||
+            (d.pipeline && d.pipeline.some(s =>
+                s.userId === currentUser.id ||
+                (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
+                userDepts.includes(normalizeDept(s.dept))
+            ))
+        );
     }
 
     // Apply filters
-    if (filterPrio !== 'all') tasks = tasks.filter(t => t.prioridade === filterPrio);
-    if (filterDept !== 'all') tasks = tasks.filter(t => t.pipeline && t.pipeline.some(s => s.dept === filterDept));
-    if (search) tasks = tasks.filter(t => t.nome.toLowerCase().includes(search));
+    if (filterPrio !== 'all' && filterPrio !== '') tasks = tasks.filter(t => t.prioridade === filterPrio);
+    if (filterDept !== 'all' && filterDept !== '') {
+        tasks = tasks.filter(t => (t.pipeline && t.pipeline.some(s => normalizeDept(s.dept) === normalizeDept(filterDept))) || normalizeDept(t.tipoProjeto) === normalizeDept(filterDept));
+    }
+    if (search) tasks = tasks.filter(t => (t.nome || '').toLowerCase().includes(search) || (t.id || '').toLowerCase().includes(search));
 
     sortTasksByDateAndPriority(tasks);
 
@@ -2964,15 +2975,16 @@ function renderQuadroGeral() {
         // User sees tasks they requested OR where they are active OR were part of the pipeline (for history)
         tasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
+            d.responsavelId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
 
     // Apply filters
     if (fStatus) tasks = tasks.filter(t => t.status === fStatus);
-    if (fDept) tasks = tasks.filter(t => t.pipeline && t.pipeline.some(s => s.dept === fDept));
+    if (fDept) tasks = tasks.filter(t => (t.pipeline && t.pipeline.some(s => normalizeDept(s.dept) === normalizeDept(fDept))) || normalizeDept(t.tipoProjeto) === normalizeDept(fDept));
     if (fPrio) tasks = tasks.filter(t => t.prioridade === fPrio);
-    if (searchTerm) tasks = tasks.filter(t => t.nome.toLowerCase().includes(searchTerm) || t.id.toLowerCase().includes(searchTerm));
+    if (searchTerm) tasks = tasks.filter(t => (t.nome || '').toLowerCase().includes(searchTerm) || (t.id || '').toLowerCase().includes(searchTerm));
 
     // Render stats
     let allTasks = [];
@@ -2981,6 +2993,7 @@ function renderQuadroGeral() {
     } else {
         allTasks = activeDemandas.filter(d =>
             d.solicitanteId === currentUser.id ||
+            d.responsavelId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
         );
     }
@@ -3083,12 +3096,12 @@ function renderRequests() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            t = t.filter(x => x.solicitanteId === currentUser.id || (x.pipeline && x.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
+            t = t.filter(x => x.solicitanteId === currentUser.id || x.responsavelId === currentUser.id || (x.pipeline && x.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
-            t = t.filter(x => x.solicitanteId === targetId);
+            t = t.filter(x => x.solicitanteId === targetId || x.responsavelId === targetId);
         } else if (window.currentOriginFilter === 'todas-sm') {
-            t = t.filter(x => smUserIds.includes(x.solicitanteId));
+            t = t.filter(x => smUserIds.includes(x.solicitanteId) || smUserIds.includes(x.responsavelId));
         }
     }
 
@@ -3210,7 +3223,7 @@ function switchRequestTab(key) {
 
 function renderReview() {
     const c = document.getElementById('reviewTable');
-    let baseDemandas = getMonthDemandas();
+    let baseDemandas = getMonthDemandas(true);
     const canReview = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
     
     // Debug: log all statuses to find mismatches
@@ -3304,8 +3317,9 @@ function renderReview() {
 }
 
 function renderTasks() {
-    const c = document.getElementById('tasksTable'), f = document.getElementById('filterTasks').value;
-    let t = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))));
+    const c = document.getElementById('tasksTable'), f = document.getElementById('filterTasks')?.value || '';
+    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
+    let t = getUserVisibleTasks(baseDemandas);
     if (f) t = t.filter(d => (d.status || '').trim().toLowerCase().includes(f.trim().toLowerCase()));
     // Always show tabs, even if empty
     c.innerHTML = renderExecutionTasks(t);
@@ -4169,7 +4183,7 @@ async function handleCreate(e) {
             }
         } // FIM DO LOOP REPETICAO
 
-        saveData();
+        await saveData();
         closeModal('modalCreate');
         toast('Demanda(s) enviada(s) com sucesso!', 'success');
         refresh();
