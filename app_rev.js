@@ -159,37 +159,39 @@ function isGlobalCoordinator() {
 }
 
 function getUserVisibleTasks(baseDemandas) {
-    if (!currentUser) return [];
+    if (!currentUser) return baseDemandas || [];
     if (!baseDemandas) return [];
 
     if (isGlobalCoordinator()) {
         return baseDemandas;
     }
 
-    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : (Array.isArray(currentUser.dept) ? currentUser.dept : [currentUser.dept]);
+    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)];
+    const currName = (currentUser.nome || '').toLowerCase().trim();
 
     if (currentUser.role === 'gestor_equipe' || currentUser.role === 'social_media' || depts.includes('Social Media')) {
         return baseDemandas.filter(d => {
-            if (d.solicitanteId === currentUser.id) return true;
-            if (!d.pipeline) return false;
+            if (d.solicitanteId === currentUser.id || d.responsavelId === currentUser.id) return true;
+            if (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) return true;
+            if (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) return true;
+            if (!d.pipeline) return true;
 
-            // Se o próprio gestor ou social media está atribuído como candidato ou executor direto da etapa atual, ele deve ver!
             const isAssigned = d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)));
             if (isAssigned) return true;
 
             return d.pipeline.some(stage => {
-                if (depts.includes(stage.dept)) return true;
+                const sDept = normalizeDept(stage.dept);
+                if (depts.includes(sDept)) return true;
                 const stageUser = USERS && USERS[stage.userId];
                 if (stageUser) {
-                    const userDepts = typeof getUserDepts === 'function' ? getUserDepts(stageUser) : [stageUser.dept];
+                    const userDepts = typeof getUserDepts === 'function' ? getUserDepts(stageUser) : [normalizeDept(stageUser.dept)];
                     return userDepts.some(ud => depts.includes(ud));
                 }
-                // Se for compartilhado, verificar se algum dos candidatos pertence ao departamento do gestor
                 if (!stage.userId && stage.userIds) {
                     return stage.userIds.some(uid => {
                         const sUser = USERS && USERS[uid];
                         if (sUser) {
-                            const userDepts = typeof getUserDepts === 'function' ? getUserDepts(sUser) : [sUser.dept];
+                            const userDepts = typeof getUserDepts === 'function' ? getUserDepts(sUser) : [normalizeDept(sUser.dept)];
                             return userDepts.some(ud => depts.includes(ud));
                         }
                         return false;
@@ -204,6 +206,8 @@ function getUserVisibleTasks(baseDemandas) {
     return baseDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
         d.responsavelId === currentUser.id ||
+        (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) ||
+        (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) ||
         (d.pipeline && d.pipeline.some(s =>
             s.userId === currentUser.id ||
             (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
@@ -463,18 +467,46 @@ function getLocalDateString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-function getMonthDemandas(includeFuture = false) {
+function parseTaskDate(dc) {
+    if (!dc) return null;
+    if (dc instanceof Date) return isNaN(dc.getTime()) ? null : dc;
+    let str = String(dc).trim();
+    if (!str) return null;
+
+    // Se estiver no formato DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(str)) {
+        const parts = str.split(' ')[0].split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+    }
+
+    // Se estiver no formato YYYY-MM-DD
+    if (/^\d{4}-\d{1,2}-\d{1,2}/.test(str)) {
+        const parts = str.split('T')[0].split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+    }
+
+    const dt = new Date(str);
+    return isNaN(dt.getTime()) ? null : dt;
+}
+
+function getMonthDemandas(includeFuture = true) {
     const start = new Date(selectedYear, selectedMonth, 1);
     const end = new Date(selectedYear, selectedMonth + 1, 1);
     const now = new Date();
     const isCurrentMonth = (selectedYear === now.getFullYear() && selectedMonth === now.getMonth());
 
     let filtered = demandas.filter(d => {
-        // Priorizar dataSolicitacao e dataConclusao em vez de dataCriacao para colocar a demanda no mês correto de execução
         const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
-        if (!dc) return isCurrentMonth; // Sem data? Mostra no mês atual por segurança
+        if (!dc) return true; // Sem data? Mostra por segurança
 
-        const dt = new Date(dc);
+        const dt = parseTaskDate(dc);
+        if (!dt) return true; // Data não identificada? Mostra por segurança pra não sumir!
 
         // REGRA 1: Demanda foi agendada/criada neste mês selecionado → sempre aparece
         if (dt >= start && dt < end) return true;
@@ -486,8 +518,8 @@ function getMonthDemandas(includeFuture = false) {
 
             // Se ela foi aprovada/concluída neste mês selecionado → aparece na coluna de Aprovados do mês de conclusão
             if (d.status === 'Aprovado' && d.lastStatusChange) {
-                const lst = new Date(d.lastStatusChange);
-                if (lst >= start && lst < end) return true;
+                const lst = parseTaskDate(d.lastStatusChange);
+                if (lst && lst >= start && lst < end) return true;
             }
         }
 
