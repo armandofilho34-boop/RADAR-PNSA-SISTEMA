@@ -258,13 +258,30 @@ function normalizeStatus(s) {
     return s.trim();
 }
 
-// Normaliza todos os status de um array de demandas
+// Normaliza todos os status e departamentos de um array de demandas
 function normalizeDemandas(arr) {
+    if (!Array.isArray(arr)) return;
     arr.forEach(d => {
         if (d.status) d.status = normalizeStatus(d.status);
         if (d.pipeline && Array.isArray(d.pipeline)) {
             d.pipeline.forEach(stage => {
                 if (stage && stage.status) stage.status = normalizeStatus(stage.status);
+            });
+        }
+        // Migração Retroativa: Se a demanda foi criada para um Videomaker ou tem tipo/formato de vídeo,
+        // ajusta a etapa do pipeline para o departamento Videomaker para que apareça imediatamente no painel
+        const respId = d.responsavelId || (d.pipeline && d.pipeline[0]?.userId);
+        const respUser = (typeof USERS !== 'undefined' && USERS && respId) ? USERS[respId] : null;
+        const respDepts = respUser ? (typeof getUserDepts === 'function' ? getUserDepts(respUser) : [respUser.dept]) : [];
+
+        const isVideoResp = respDepts.includes('Videomaker');
+        const isVideoType = d.tipoProjeto === 'Videomaker' || (Array.isArray(d.formatos) && d.formatos.some(f => f && (f.toLowerCase().includes('vídeo') || f.toLowerCase().includes('video'))));
+
+        if ((isVideoResp || isVideoType) && d.tipoProjeto !== 'Design Gráfico' && d.pipeline && Array.isArray(d.pipeline)) {
+            d.pipeline.forEach(stage => {
+                if (stage && (stage.dept === 'Social Media' || !stage.dept || isVideoResp)) {
+                    stage.dept = 'Videomaker';
+                }
             });
         }
     });
