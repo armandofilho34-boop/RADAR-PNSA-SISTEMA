@@ -203,21 +203,37 @@ function getUserVisibleTasks(baseDemandas) {
     // Default executor (ex: Videomaker)
     return baseDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
+        d.responsavelId === currentUser.id ||
         (d.pipeline && d.pipeline.some(s =>
             s.userId === currentUser.id ||
             (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
-            depts.includes(s.dept)
+            depts.includes(normalizeDept(s.dept))
         ))
     );
 }
 
 
+function normalizeDept(d) {
+    if (!d) return '';
+    const s = String(d).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (s === 'videomaker' || s === 'video' || s === 'video maker' || s.includes('video')) return 'Videomaker';
+    if (s === 'designer' || s === 'design' || s === 'design grafico' || s === 'design + video') return 'Designer';
+    if (s === 'social media' || s === 'social' || s === 'social_media' || s.includes('social')) return 'Social Media';
+    if (s === 'inovacao/ti' || s === 'ti' || s === 'inovacao' || s === 'tecnologia') return 'Inovação/TI';
+    if (s === 'suporte') return 'Suporte';
+    if (s === 'transmissao') return 'Transmissão';
+    if (s === 'gestao' || s === 'coordinator') return 'Gestão';
+    return d;
+}
+
 function getUserDepts(u) {
     if (!u) return [];
-    if (u.allDepts && Array.isArray(u.allDepts) && u.allDepts.length > 0) return u.allDepts;
-    if (Array.isArray(u.dept)) return u.dept;
-    if (typeof u.dept === 'string') return u.dept.split(',').map(d => d.trim()).filter(Boolean);
-    return [u.dept].filter(Boolean);
+    let list = [];
+    if (u.allDepts && Array.isArray(u.allDepts) && u.allDepts.length > 0) list = u.allDepts;
+    else if (Array.isArray(u.dept)) list = u.dept;
+    else if (typeof u.dept === 'string') list = u.dept.split(',').map(d => d.trim()).filter(Boolean);
+    else if (u.dept) list = [u.dept];
+    return list.map(normalizeDept).filter(Boolean);
 }
 
 // =============================================
@@ -263,25 +279,27 @@ function normalizeDemandas(arr) {
     if (!Array.isArray(arr)) return;
     arr.forEach(d => {
         if (d.status) d.status = normalizeStatus(d.status);
+        if (d.tipoProjeto) d.tipoProjeto = normalizeDept(d.tipoProjeto);
         if (d.pipeline && Array.isArray(d.pipeline)) {
             d.pipeline.forEach(stage => {
                 if (stage && stage.status) stage.status = normalizeStatus(stage.status);
+                if (stage && stage.dept) stage.dept = normalizeDept(stage.dept);
             });
         }
-        // Migração Retroativa: Se a demanda foi criada para um Videomaker ou tem tipo/formato de vídeo,
-        // ajusta a etapa do pipeline para o departamento Videomaker para que apareça imediatamente no painel
+        // Migração Retroativa: Se a demanda foi criada para um Videomaker (ex: Guilherme, Pedro, Maria) ou possui indicativo de vídeo,
+        // ajusta a etapa do pipeline para o departamento Videomaker para que apareça no painel
         const respId = d.responsavelId || (d.pipeline && d.pipeline[0]?.userId);
         const respUser = (typeof USERS !== 'undefined' && USERS && respId) ? USERS[respId] : null;
         const respDepts = respUser ? (typeof getUserDepts === 'function' ? getUserDepts(respUser) : [respUser.dept]) : [];
+        const isVideoResp = respDepts.map(normalizeDept).includes('Videomaker');
+        
+        const isVideoType = (normalizeDept(d.tipoProjeto) === 'Videomaker') || 
+                            (Array.isArray(d.formatos) && d.formatos.some(f => f && (String(f).toLowerCase().includes('vídeo') || String(f).toLowerCase().includes('video')))) ||
+                            (d.nome && (String(d.nome).toLowerCase().includes('vídeo') || String(d.nome).toLowerCase().includes('video') || String(d.nome).toLowerCase().includes('videomaker')));
 
-        const isVideoResp = respDepts.includes('Videomaker');
-        const isVideoType = d.tipoProjeto === 'Videomaker' || (Array.isArray(d.formatos) && d.formatos.some(f => f && (f.toLowerCase().includes('vídeo') || f.toLowerCase().includes('video'))));
-
-        if ((isVideoResp || isVideoType) && d.tipoProjeto !== 'Design Gráfico' && d.pipeline && Array.isArray(d.pipeline)) {
+        if ((isVideoResp || isVideoType) && normalizeDept(d.tipoProjeto) !== 'Designer' && d.pipeline && Array.isArray(d.pipeline)) {
             d.pipeline.forEach(stage => {
-                if (stage && (stage.dept === 'Social Media' || !stage.dept || isVideoResp)) {
-                    stage.dept = 'Videomaker';
-                }
+                if (stage) stage.dept = 'Videomaker';
             });
         }
     });
