@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.0-FIX (23/07/2026 20:00) - Pipeline null-safety ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.1-FIX (23/07/2026 20:06) - Future date filter fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -521,6 +521,12 @@ function getMonthDemandas(includeFuture = true) {
                 const lst = parseTaskDate(d.lastStatusChange);
                 if (lst && lst >= start && lst < end) return true;
             }
+        }
+
+        // REGRA 3 (Futuro / Próximos meses): Se a demanda tem data no futuro
+        if (dt >= end) {
+            if (includeFuture) return true;
+            if (isCurrentMonth && d.status !== 'Aprovado') return true; // Demandas pendentes para entregas futuras também devem aparecer no mês atual
         }
 
         return false;
