@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.1-FIX (23/07/2026 20:06) - Future date filter fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.2-FIX (23/07/2026 20:10) - Recurring tasks filter fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -495,10 +495,18 @@ function parseTaskDate(dc) {
     return isNaN(dt.getTime()) ? null : dt;
 }
 
+function isRecurringTask(d) {
+    if (!d) return false;
+    if (d.isRecurring) return true;
+    if (d.nome && (/\(Cópia \d+\)/i.test(d.nome) || d.nome.includes('(Cópia '))) return true;
+    return false;
+}
+
 function getMonthDemandas(includeFuture = true) {
     const start = new Date(selectedYear, selectedMonth, 1);
     const end = new Date(selectedYear, selectedMonth + 1, 1);
     const now = new Date();
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const isCurrentMonth = (selectedYear === now.getFullYear() && selectedMonth === now.getMonth());
 
     let filtered = demandas.filter(d => {
@@ -507,6 +515,21 @@ function getMonthDemandas(includeFuture = true) {
 
         const dt = parseTaskDate(dc);
         if (!dt) return true; // Data não identificada? Mostra por segurança pra não sumir!
+
+        const isRec = isRecurringTask(d);
+
+        // REGRA DE CÓPIAS RECORRENTES:
+        if (isRec) {
+            // 1. Se estivermos no mês atual e a data de início (dataSolicitacao/dataConclusao) for no futuro (depois de hoje), NÃO MOSTRA ainda no "A fazer"
+            const solDt = parseTaskDate(d.dataSolicitacao || d.dataConclusao);
+            if (isCurrentMonth && solDt && solDt > endOfToday && d.status === 'A fazer') {
+                return false;
+            }
+            // 2. Se a cópia recorrente for de um mês futuro (dt >= end) e estivermos no mês atual, NÃO MOSTRA no mês atual
+            if (dt >= end && isCurrentMonth) {
+                return false;
+            }
+        }
 
         // REGRA 1: Demanda foi agendada/criada neste mês selecionado → sempre aparece
         if (dt >= start && dt < end) return true;
@@ -523,10 +546,10 @@ function getMonthDemandas(includeFuture = true) {
             }
         }
 
-        // REGRA 3 (Futuro / Próximos meses): Se a demanda tem data no futuro
+        // REGRA 3 (Futuro / Próximos meses): Demandas AVULSAS (não-recorrentes) com data no futuro
         if (dt >= end) {
-            if (includeFuture) return true;
-            if (isCurrentMonth && d.status !== 'Aprovado') return true; // Demandas pendentes para entregas futuras também devem aparecer no mês atual
+            if (!isRec && includeFuture) return true;
+            if (!isRec && isCurrentMonth && d.status !== 'Aprovado') return true;
         }
 
         return false;
