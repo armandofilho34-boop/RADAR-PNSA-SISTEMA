@@ -476,17 +476,6 @@ function getMonthDemandas(includeFuture = false) {
         return false;
     });
 
-    if (!includeFuture) {
-        const todayStr = getLocalDateString();
-        filtered = filtered.filter(d => {
-            // Se a demanda está "A fazer" e tem data de solicitação futura, oculta
-            if (d.status === 'A fazer' && d.dataSolicitacao && d.dataSolicitacao > todayStr) {
-                return false;
-            }
-            return true;
-        });
-    }
-
     return filtered;
 }
 
