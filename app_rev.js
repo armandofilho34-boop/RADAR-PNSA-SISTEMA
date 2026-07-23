@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v4.2-FIX (29/04/2026 17:30) ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.0-FIX (23/07/2026 20:00) - Pipeline null-safety ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -2236,7 +2236,7 @@ function showMetricDemandas(statusFilter) {
                 if (daysUntil < 0) dateClass = 'color:#ef4444; font-weight:600;';
                 else if (daysUntil <= 3) dateClass = 'color:#f59e0b; font-weight:600;';
 
-                const currentStage = t.pipeline[t.currentStage];
+                const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : null;
                 const respName = currentStage ? (currentStage.userId ? USERS[currentStage.userId]?.nome : (currentStage.userIds ? currentStage.userIds.map(uid => USERS[uid]?.nome).filter(Boolean).join(', ') : '-')) : '-';
 
                 return `<div onclick="openDetail('${t.id}')" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--surface-light); border-radius:10px; border:1px solid var(--border-subtle); cursor:pointer; transition:all 0.2s ease;" onmouseenter="this.style.transform='translateX(4px)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseleave="this.style.transform='none'; this.style.boxShadow='none'">
@@ -2667,8 +2667,9 @@ function renderKanban() {
         { id: 'Aprovado', title: 'Aprovado', color: 'var(--concluida)' }
     ];
 
-    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.length > 0);
     let tasks = getUserVisibleTasks(baseDemandas);
+    console.log('renderKanban: baseDemandas=' + baseDemandas.length + ', visibleTasks=' + tasks.length);
 
     // Apply Origin Filter for Social Media and Coordinator
     const isSMOrCoord = isSMOrCoordUser();
@@ -2724,7 +2725,9 @@ function renderKanban() {
         }
 
         container.innerHTML = statusTasks.map(t => {
-            const currentStage = t.pipeline[t.currentStage];
+            if (!t.pipeline || !t.pipeline.length) return ''; // Safety: skip demands without pipeline
+            const stageIndex = (t.currentStage != null && t.currentStage < t.pipeline.length) ? t.currentStage : 0;
+            const currentStage = t.pipeline[stageIndex] || {};
             const avatars = t.pipeline.map(s => USERS[s.userId]).filter(Boolean);
             const deadline = parseDateLocal(t.dataConclusao);
             const today = new Date();
@@ -4453,7 +4456,7 @@ function openDetail(id) {
     const status = t.status;
     const canDelete = currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
     const canEdit = canDelete; // coordinator e social_media podem editar
-    const currentStage = t.pipeline[t.currentStage];
+    const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : {};
     const isExecutorOnTask = (currentStage?.userId === currentUser.id) || (!currentStage?.userId && currentStage?.userIds && currentStage.userIds.includes(currentUser.id));
     // Qualquer participante do pipeline, coordinator ou social_media pode mudar status
     const canChangeStatus = isExecutorOnTask || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || isGlobalCoordinator();
@@ -9518,7 +9521,9 @@ function renderTIKanban(kpiFilter = null) {
         }
         
         container.innerHTML = statusTasks.map(t => {
-            const currentStage = t.pipeline[t.currentStage];
+            if (!t.pipeline || !t.pipeline.length) return '';
+            const stageIdx = (t.currentStage != null && t.currentStage < t.pipeline.length) ? t.currentStage : 0;
+            const currentStage = t.pipeline[stageIdx] || {};
             const avatars = t.pipeline.map(s => USERS[s.userId]).filter(Boolean);
             const deadline = parseDateLocal(t.dataConclusao);
             const today = new Date();
