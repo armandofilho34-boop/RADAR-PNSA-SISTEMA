@@ -168,12 +168,12 @@ function getUserVisibleTasks(baseDemandas) {
 
     const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : (Array.isArray(currentUser.dept) ? currentUser.dept : [currentUser.dept]);
 
-    if (currentUser.role === 'gestor_equipe') {
+    if (currentUser.role === 'gestor_equipe' || currentUser.role === 'social_media' || depts.includes('Social Media')) {
         return baseDemandas.filter(d => {
             if (d.solicitanteId === currentUser.id) return true;
             if (!d.pipeline) return false;
 
-            // Se o próprio gestor de equipe está atribuído como candidato ou executor direto da etapa atual, ele deve ver!
+            // Se o próprio gestor ou social media está atribuído como candidato ou executor direto da etapa atual, ele deve ver!
             const isAssigned = d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)));
             if (isAssigned) return true;
 
@@ -200,10 +200,14 @@ function getUserVisibleTasks(baseDemandas) {
         });
     }
 
-    // Default executor
+    // Default executor (ex: Videomaker)
     return baseDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
-        (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
+        (d.pipeline && d.pipeline.some(s =>
+            s.userId === currentUser.id ||
+            (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
+            depts.includes(s.dept)
+        ))
     );
 }
 
@@ -2605,8 +2609,15 @@ function getSocialMediaUsers() {
     return Object.values(USERS).filter(u => u.dept === 'Social Media' || u.role === 'social_media');
 }
 
+function isSMOrCoordUser() {
+    if (!currentUser) return false;
+    if (isGlobalCoordinator()) return true;
+    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [currentUser.dept];
+    return currentUser.role === 'gestor_equipe' || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || depts.includes('Social Media');
+}
+
 function setupOriginFilters() {
-    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
+    const isSMOrCoord = isSMOrCoordUser();
     
     const filterSelectKanban = document.getElementById('filterOrigin');
     const filterSelectReq = document.getElementById('filterOriginReq');
@@ -2685,7 +2696,7 @@ function renderKanban() {
     let tasks = getUserVisibleTasks(baseDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
+    const isSMOrCoord = isSMOrCoordUser();
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
@@ -3123,7 +3134,7 @@ function renderRequests() {
     let t = getUserVisibleTasks(baseDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
-    const isSMOrCoord = isGlobalCoordinator() || currentUser.role === 'gestor_equipe';
+    const isSMOrCoord = isSMOrCoordUser();
     if (isSMOrCoord && window.currentOriginFilter) {
         const smUsers = getSocialMediaUsers();
         const smUserIds = smUsers.map(u => u.id);
@@ -4078,6 +4089,15 @@ async function handleCreate(e) {
                 else if (tipoProjeto === 'Transmissão') targetDept = 'Transmissão';
                 else if (tipoProjeto === 'Design + Vídeo') {
                     targetDept = 'Designer'; // Starts with design
+                }
+
+                // Se o responsável atribuído pertencer ao departamento Videomaker e não for puramente Design Gráfico
+                if (selectedResponsaveis.length > 0 && tipoProjeto !== 'Design Gráfico' && tipoProjeto !== 'Design + Vídeo') {
+                    const primaryResp = USERS[selectedResponsaveis[0]];
+                    const primaryDepts = primaryResp ? (typeof getUserDepts === 'function' ? getUserDepts(primaryResp) : [primaryResp.dept]) : [];
+                    if (primaryDepts.includes('Videomaker')) {
+                        targetDept = 'Videomaker';
+                    }
                 }
 
                 if (isShared) {
