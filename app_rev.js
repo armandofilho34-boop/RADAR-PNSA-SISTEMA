@@ -2044,94 +2044,13 @@ function openBoard(dept) {
             return;
         }
 
-        boardTable.innerHTML = `
-            <div style="
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 55vh;
-                padding: 60px 20px;
-                text-align: center;
-            ">
-                <div style="
-                    background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(0, 206, 201, 0.06));
-                    backdrop-filter: blur(20px);
-                    border: 1px solid rgba(108, 92, 231, 0.15);
-                    border-radius: 24px;
-                    padding: 60px 50px;
-                    max-width: 520px;
-                    width: 100%;
-                    position: relative;
-                    overflow: hidden;
-                    animation: comingSoonPulse 3s ease-in-out infinite;
-                ">
-                    <div style="
-                        position: absolute;
-                        top: -50%;
-                        left: -50%;
-                        width: 200%;
-                        height: 200%;
-                        background: radial-gradient(circle, rgba(108, 92, 231, 0.05) 0%, transparent 70%);
-                        animation: comingSoonGlow 6s ease-in-out infinite;
-                        pointer-events: none;
-                    "></div>
-                    
-                    <div style="
-                        font-size: 64px;
-                        margin-bottom: 20px;
-                        animation: comingSoonFloat 3s ease-in-out infinite;
-                    ">🚀</div>
-                    
-                    <h2 style="
-                        font-size: 1.8rem;
-                        font-weight: 700;
-                        background: linear-gradient(135deg, #6c5ce7, #00cec9);
-                        -webkit-background-clip: text;
-                        -webkit-text-fill-color: transparent;
-                        background-clip: text;
-                        margin-bottom: 12px;
-                        letter-spacing: -0.5px;
-                    ">Em Breve</h2>
-                    
-                    <p style="
-                        color: var(--text-muted);
-                        font-size: 1.05rem;
-                        line-height: 1.6;
-                        margin-bottom: 24px;
-                        max-width: 380px;
-                        margin-left: auto;
-                        margin-right: auto;
-                    ">
-                        O painel do departamento <strong style="color: var(--text-primary)">${dept}</strong> 
-                        está sendo desenvolvido e estará disponível em breve.
-                    </p>
-                    
-                    <div style="
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding: 10px 24px;
-                        border-radius: 50px;
-                        background: rgba(108, 92, 231, 0.1);
-                        border: 1px solid rgba(108, 92, 231, 0.2);
-                        color: #6c5ce7;
-                        font-weight: 600;
-                        font-size: 0.85rem;
-                        letter-spacing: 0.5px;
-                    ">
-                        <span style="
-                            width: 8px;
-                            height: 8px;
-                            border-radius: 50%;
-                            background: #6c5ce7;
-                            animation: comingSoonBlink 1.5s ease-in-out infinite;
-                        "></span>
-                        EM DESENVOLVIMENTO
-                    </div>
-                </div>
-            </div>
-        `;
+        renderBoard();
+        
+        // Add listeners for toolbar
+        const bs = document.getElementById('boardSearch');
+        const fb = document.getElementById('filterBoard');
+        if (bs) bs.oninput = () => renderBoard();
+        if (fb) fb.onchange = () => renderBoard();
     }
 
     // Inject animations if not already present
@@ -3373,14 +3292,37 @@ function renderBoard() {
     // Skip if Suporte — it has its own dashboard
     if (currentDept === 'Suporte') { renderSuporteDashboard(false); return; }
 
-    const c = document.getElementById('boardTable'), f = document.getElementById('filterBoard').value, s = document.getElementById('boardSearch').value.toLowerCase();
-    let t = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(st => st.dept === currentDept));
+    const c = document.getElementById('boardTable');
+    if (!c) return;
+    const f = document.getElementById('filterBoard')?.value || '';
+    const s = document.getElementById('boardSearch')?.value?.toLowerCase() || '';
+
+    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
+    let t = baseDemandas.filter(d =>
+        (d.pipeline && d.pipeline.some(st => st.dept === currentDept)) ||
+        (d.tipoProjeto === currentDept) ||
+        (currentDept === 'Videomaker' && (d.tipoProjeto === 'Videomaker' || d.tipoProjeto === 'Design + Vídeo'))
+    );
+
+    const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [currentUser?.dept];
     if (!isGlobalCoordinator()) {
-        t = t.filter(d => d.solicitanteId === currentUser.id || (d.pipeline && d.pipeline.some(st => st.userId === currentUser.id || (!st.userId && st.userIds && st.userIds.includes(currentUser.id)))));
+        t = t.filter(d =>
+            d.solicitanteId === currentUser?.id ||
+            userDepts.includes(currentDept) ||
+            (d.pipeline && d.pipeline.some(st =>
+                st.dept === currentDept ||
+                st.userId === currentUser?.id ||
+                (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
+            ))
+        );
     }
-    if (f) t = t.filter(d => d.status.includes(f)); if (s) t = t.filter(d => d.nome.toLowerCase().includes(s));
-    if (!t.length) { c.innerHTML = '<div class="empty-message">Nenhuma demanda encontrada</div>'; return; }
-    c.innerHTML = renderGroupedTable(t); initCollapse();
+
+    if (f) t = t.filter(d => (d.status || '').includes(f));
+    if (s) t = t.filter(d => (d.nome || '').toLowerCase().includes(s));
+
+    if (!t.length) { c.innerHTML = '<div class="empty-message">Nenhuma demanda encontrada neste departamento</div>'; return; }
+    c.innerHTML = renderGroupedTable(t);
+    initCollapse();
 }
 
 function renderGroupedTable(tasks) {
