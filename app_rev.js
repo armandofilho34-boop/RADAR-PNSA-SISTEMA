@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.4-FIX (24/07/2026 10:40) - Strict board & team executor permissions fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.5-FIX (24/07/2026 10:50) - Delivery modal upload fix for designers and videomakers ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -2904,22 +2904,32 @@ function changeTaskStatus(taskId, newStatus, skipUpload = false) {
         return;
     }
 
-    // Interceptar envio para aprovação para solicitar a arte/vídeo
+    // Interceptar envio para aprovação para solicitar a arte/vídeo/documentos
     if (newStatus === 'Para aprovação' && !skipUpload && task.status !== 'Para aprovação') {
-        const checkDesign = task.tipoProjeto === 'Design Gráfico' || (Array.isArray(task.tipoProjeto) && task.tipoProjeto.includes('Design Gráfico'));
-        const checkVideo = task.tipoProjeto === 'Videomaker' || (Array.isArray(task.tipoProjeto) && task.tipoProjeto.includes('Videomaker'));
+        const checkDesign = normalizeDept(task.tipoProjeto) === 'Designer' || 
+                            (task.tipoProjeto && (String(task.tipoProjeto).toLowerCase().includes('design') || String(task.tipoProjeto).toLowerCase().includes('arte'))) ||
+                            (task.pipeline && task.pipeline.some(s => normalizeDept(s.dept) === 'Designer'));
 
-        if (checkDesign || checkVideo) {
+        const checkVideo = normalizeDept(task.tipoProjeto) === 'Videomaker' || 
+                           (task.tipoProjeto && String(task.tipoProjeto).toLowerCase().includes('video')) ||
+                           (task.pipeline && task.pipeline.some(s => normalizeDept(s.dept) === 'Videomaker'));
+
+        if (checkDesign || checkVideo || (currentUser && currentUser.role === 'executor')) {
             window.currentEntregaTaskId = taskId;
-            window.currentEntregaTipo = checkDesign ? 'arte' : 'video';
+            window.currentEntregaTipo = (checkVideo && !checkDesign) ? 'video' : 'arte';
 
-            document.getElementById('entregaArteSection').style.display = checkDesign ? 'flex' : 'none';
-            document.getElementById('entregaVideoSection').style.display = checkVideo ? 'flex' : 'none';
+            const arteSection = document.getElementById('entregaArteSection');
+            if (arteSection) arteSection.style.display = 'flex';
+            const videoSection = document.getElementById('entregaVideoSection');
+            if (videoSection) videoSection.style.display = 'flex';
 
             // reset file
             window.currentEntregaFile = null;
-            document.getElementById('entregaFileName').textContent = 'Clique ou arraste a imagem aqui';
-            document.getElementById('entregaLinkInput').value = '';
+            window.currentEntregaFiles = [];
+            const fileNameEl = document.getElementById('entregaFileName');
+            if (fileNameEl) fileNameEl.textContent = 'Clique ou arraste as imagens / documentos aqui';
+            const linkInputEl = document.getElementById('entregaLinkInput');
+            if (linkInputEl) linkInputEl.value = '';
 
             openModal('modalEntrega');
             return;
@@ -4655,11 +4665,13 @@ function startExecution(id) {
 }
 
 function submitForReview(id) {
-    openDeliveryModal(id, 'review');
+    closeModal('modalDetail');
+    changeTaskStatus(id, 'Para aprovação');
 }
 
 function submitCorrection(id) {
-    openDeliveryModal(id, 'correction');
+    closeModal('modalDetail');
+    changeTaskStatus(id, 'Para aprovação');
 }
 
 // Modal de Entrega — pede arquivo/link antes de enviar para aprovação
@@ -7512,61 +7524,59 @@ window.submitEntrega = async function () {
     const task = demandas.find(d => d.id === taskId);
     if (!task) return;
 
-    const tipo = window.currentEntregaTipo; // 'arte' ou 'video'
+    const files = window.currentEntregaFiles || [];
+    const linksText = document.getElementById('entregaLinkInput')?.value || '';
+    const links = linksText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+
+    if (files.length === 0 && links.length === 0) {
+        toast('Por favor, selecione ao menos um arquivo ou informe um link para entrega.', 'error');
+        return;
+    }
+
     let entregasUrl = [];
-
     const btn = document.getElementById('btnSubmitEntrega');
-    const originalText = btn.innerHTML;
+    const originalText = btn ? btn.innerHTML : 'Enviar';
 
-    if (tipo === 'arte') {
-        const files = window.currentEntregaFiles || [];
-        if (files.length === 0) {
-            toast('Selecione ao menos uma imagem para enviar.', 'error');
-            return;
-        }
-        try {
+    try {
+        if (btn) {
             btn.innerHTML = 'Enviando... <svg class="spinner" viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin_t 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"></circle></svg>';
             btn.disabled = true;
+        }
 
+        if (files.length > 0) {
             const storage = window.firebaseStorage;
-
-            // Faz o upload em paralelo de todas as artes selecionadas
             const uploadPromises = files.map(async (file, index) => {
                 const nomeArquivo = `arquivos_demandas/${taskId}/entrega_${Date.now()}_${index}_${file.name}`;
                 const refStorage = window.ref(storage, nomeArquivo);
                 const snapshot = await window.uploadBytes(refStorage, file);
                 return await window.getDownloadURL(snapshot.ref);
             });
+            const uploadedUrls = await Promise.all(uploadPromises);
+            entregasUrl.push(...uploadedUrls);
+        }
 
-            entregasUrl = await Promise.all(uploadPromises);
-
-        } catch (error) {
-            console.error('Erro no upload das artes', error);
-            toast('Erro ao fazer upload das artes. O Storage está ativo no Firebase?', 'error');
+        if (links.length > 0) {
+            entregasUrl.push(...links);
+        }
+    } catch (error) {
+        console.error('Erro no upload das entregas:', error);
+        toast('Erro ao fazer upload dos arquivos de entrega. O Storage do Firebase está ativo?', 'error');
+        if (btn) {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            return;
         }
-    } else if (tipo === 'video') {
-        const linksText = document.getElementById('entregaLinkInput').value;
-        // Divide o texto do textarea em links considerando vírgulas ou quebras de linha
-        const links = linksText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
-
-        if (links.length === 0) {
-            toast('Cole ao menos um link de vídeo para enviar.', 'error');
-            return;
-        }
-        entregasUrl = links;
+        return;
     }
 
-    // Salva na tarefa (Criamos um novo campo 'entregasUrl' como array)
-    task.entregasUrl = entregasUrl;
-    // Opcional: Manter retrocompatibilidade com o app base se ainda quiser a primeira thumbnail no Dashboard
-    task.entregaUrl = entregasUrl[0] || '';
-    task.entregaTipo = tipo;
+    if (!task.entregasUrl) task.entregasUrl = [];
+    task.entregasUrl = [...task.entregasUrl, ...entregasUrl];
+    task.entregaUrl = task.entregasUrl[0] || '';
+    task.entregaTipo = files.length > 0 ? 'arte' : 'video';
 
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    if (btn) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
     closeModal('modalEntrega');
 
     // Força a mudança de status bypassando o bloqueio de upload

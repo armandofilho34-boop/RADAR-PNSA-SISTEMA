@@ -2621,7 +2621,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="login-fix.js"></script>
-    <script src="app_rev.js?v=5.4"></script>
+    <script src="app_rev.js?v=5.5"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
     <div class="modal-overlay" id="modalUserAnalytics">
         <div class="modal modal-xl" style="max-width: 800px;">
@@ -2815,11 +2815,10 @@
                     alterado após o envio.</p>
 
                 <div id="entregaArteSection" style="display:none; flex-direction: column; gap: 8px;">
-                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Upload da Arte
-                        (PNG/JPG)</label>
+                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Upload de Arte ou Documentos (PNG, JPG, PDF, DOCX, etc.)</label>
                     <div class="upload-dropzone" id="entregaDropzone"
                         onclick="document.getElementById('entregaFileInput').click()"
-                        style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99, 102, 241, 0.03);">
+                        style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(99, 102, 241, 0.03);">
                         <svg viewBox="0 0 24 24" fill="none" class="dz-icon" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round"
                             style="width: 32px; height: 32px; color: var(--accent-color); margin-bottom: 12px;">
@@ -2828,19 +2827,17 @@
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         <p id="entregaFileName" style="color:var(--text-color); font-weight: 500; font-size: 14px;">
-                            Clique ou arraste as imagens aqui</p>
-                        <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">JPG, PNG (Pode selecionar
-                            vários)</p>
-                        <input type="file" id="entregaFileInput" accept="image/png, image/jpeg, image/jpg" multiple
+                            Clique ou arraste imagens / documentos aqui</p>
+                        <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">PNG, JPG, PDF, DOCX, ZIP, PSD, AI (Pode selecionar vários)</p>
+                        <input type="file" id="entregaFileInput" accept="image/*, application/pdf, .doc, .docx, .zip, .rar, .psd, .ai" multiple
                             style="display:none;" onchange="handleEntregaFile(this)">
                     </div>
                 </div>
 
                 <div id="entregaVideoSection" style="display:none; flex-direction: column; gap: 8px;">
-                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Links de Vídeo
-                        (YouTube/Drive/Vimeo - um por linha ou separados por vírgula)</label>
+                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Links de Vídeo ou Material (YouTube, Google Drive, Canva, etc.)</label>
                     <textarea class="input-field" id="entregaLinkInput"
-                        placeholder="Ex: https://youtube.com/watch?v=...\nhttps://vimeo.com/..."
+                        placeholder="Ex: https://youtube.com/watch?v=...\nhttps://drive.google.com/..."
                         style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-color); font-size: 14px; transition: border-color 0.2s; min-height: 80px;"></textarea>
                 </div>
             </div>
