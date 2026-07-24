@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.2-FIX (23/07/2026 20:10) - Recurring tasks filter fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.3-FIX (24/07/2026 10:33) - Strict executor task permissions fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -202,7 +202,7 @@ function getUserVisibleTasks(baseDemandas) {
         });
     }
 
-    // Default executor (ex: Videomaker)
+    // Default executor (ex: Videomaker, Designer, Suporte, TI)
     return baseDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
         d.responsavelId === currentUser.id ||
@@ -210,8 +210,7 @@ function getUserVisibleTasks(baseDemandas) {
         (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) ||
         (d.pipeline && d.pipeline.some(s =>
             s.userId === currentUser.id ||
-            (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
-            depts.includes(normalizeDept(s.dept))
+            (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
         ))
     );
 }
@@ -2716,14 +2715,12 @@ function renderKanban() {
         }
     }
     if (currentUser.role === 'executor') {
-        const userDepts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [currentUser.dept];
         tasks = tasks.filter(d =>
             d.solicitanteId === currentUser.id ||
             d.responsavelId === currentUser.id ||
             (d.pipeline && d.pipeline.some(s =>
                 s.userId === currentUser.id ||
-                (!s.userId && s.userIds && s.userIds.includes(currentUser.id)) ||
-                userDepts.includes(normalizeDept(s.dept))
+                (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
             ))
         );
     }
