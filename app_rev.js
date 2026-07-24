@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.3-FIX (24/07/2026 10:33) - Strict executor task permissions fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.4-FIX (24/07/2026 10:40) - Strict board & team executor permissions fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -2373,6 +2373,17 @@ function renderEquipeView() {
         });
     });
 
+    if (currentUser && currentUser.role === 'executor') {
+        equipeTasks = equipeTasks.filter(t =>
+            t.solicitanteId === currentUser.id ||
+            t.responsavelId === currentUser.id ||
+            (t.pipeline && t.pipeline.some(stage =>
+                stage.userId === currentUser.id ||
+                (!stage.userId && stage.userIds && stage.userIds.includes(currentUser.id))
+            ))
+        );
+    }
+
     if (searchTerm) {
         equipeTasks = equipeTasks.filter(t => 
             t.nome.toLowerCase().includes(searchTerm) || 
@@ -3405,15 +3416,26 @@ function renderBoard() {
 
     const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [currentUser?.dept];
     if (!isGlobalCoordinator()) {
-        t = t.filter(d =>
-            d.solicitanteId === currentUser?.id ||
-            userDepts.includes(currentDept) ||
-            (d.pipeline && d.pipeline.some(st =>
-                st.dept === currentDept ||
-                st.userId === currentUser?.id ||
-                (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
-            ))
-        );
+        if (currentUser && currentUser.role === 'executor') {
+            t = t.filter(d =>
+                d.solicitanteId === currentUser.id ||
+                d.responsavelId === currentUser.id ||
+                (d.pipeline && d.pipeline.some(st =>
+                    st.userId === currentUser.id ||
+                    (!st.userId && st.userIds && st.userIds.includes(currentUser.id))
+                ))
+            );
+        } else {
+            t = t.filter(d =>
+                d.solicitanteId === currentUser?.id ||
+                userDepts.includes(currentDept) ||
+                (d.pipeline && d.pipeline.some(st =>
+                    st.dept === currentDept ||
+                    st.userId === currentUser?.id ||
+                    (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
+                ))
+            );
+        }
     }
 
     if (f) t = t.filter(d => (d.status || '').includes(f));
@@ -9515,6 +9537,16 @@ function renderTIKanban(kpiFilter = null) {
     }
 
     let tasks = [...allTiTasks];
+    if (currentUser && currentUser.role === 'executor') {
+        tasks = tasks.filter(t =>
+            t.solicitanteId === currentUser.id ||
+            t.responsavelId === currentUser.id ||
+            (t.pipeline && t.pipeline.some(s =>
+                s.userId === currentUser.id ||
+                (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
+            ))
+        );
+    }
     
     const search = document.getElementById('boardSearch')?.value?.toLowerCase() || '';
     const statusFilter = document.getElementById('filterBoard')?.value || '';
