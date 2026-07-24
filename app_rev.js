@@ -1,4 +1,4 @@
-console.log('%c RADAR PNSA v5.5-FIX (24/07/2026 10:50) - Delivery modal upload fix for designers and videomakers ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+console.log('%c RADAR PNSA v5.6-FIX (24/07/2026 10:58) - Demand deduplication & submission lock fix ', 'background: #10b981; color: white; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
 // =============================================
 // AVATAR RENDERER
@@ -277,6 +277,37 @@ function normalizeStatus(s) {
     return s.trim();
 }
 
+// Deduplica demandas com mesmo título, solicitante, responsável, data e tipo criadas em intervalo duplo
+function deduplicateDemandas(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return arr || [];
+
+    const seen = new Map();
+    const result = [];
+
+    arr.forEach(d => {
+        if (!d || d.deletedAt) return;
+
+        const normTitle = (d.nome || '').trim().toLowerCase();
+        const normSol = (d.solicitanteId || '').trim();
+        const normResp = (d.responsavelId || (d.pipeline && d.pipeline[0]?.userId) || '').trim();
+        const normDate = (d.dataConclusao || '').trim();
+        const normType = (d.tipoProjeto || '').trim().toLowerCase();
+
+        // Bucketing por criação para capturar submissões duplas simultâneas (janela de 5 minutos)
+        const creationTime = d.dataCriacao ? new Date(d.dataCriacao).getTime() : 0;
+        const timeBucket = creationTime ? Math.floor(creationTime / (5 * 60 * 1000)) : 0;
+
+        const key = `${normTitle}|${normSol}|${normResp}|${normDate}|${normType}|${timeBucket}`;
+
+        if (!seen.has(key)) {
+            seen.set(key, d);
+            result.push(d);
+        }
+    });
+
+    return result;
+}
+
 // Normaliza todos os status e departamentos de um array de demandas
 function normalizeDemandas(arr) {
     if (!Array.isArray(arr)) return;
@@ -508,7 +539,9 @@ function getMonthDemandas(includeFuture = true) {
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const isCurrentMonth = (selectedYear === now.getFullYear() && selectedMonth === now.getMonth());
 
-    let filtered = demandas.filter(d => {
+    const cleanDemandas = deduplicateDemandas(demandas);
+
+    let filtered = cleanDemandas.filter(d => {
         const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
         if (!dc) return true; // Sem data? Mostra por segurança
 
@@ -684,6 +717,7 @@ async function loadDataFirestore() {
                 
                 // Normaliza todos os status para o formato canônico antes de qualquer renderização
                 normalizeDemandas(demandas);
+                demandas = deduplicateDemandas(demandas);
                 
                 console.log('Radar PNSA: Demandas sincronizadas em Tempo Real do Firestore', demandas.length);
 
@@ -3839,6 +3873,8 @@ function openCreateModal() {
 }
 
 async function handleCreate(e) {
+    if (window.isSubmittingCreate) return;
+    window.isSubmittingCreate = true;
     try {
         e.preventDefault();
 
@@ -4284,6 +4320,8 @@ async function handleCreate(e) {
         console.error('Erro detalhado ao criar demanda:', err);
         console.error('Stack trace:', err.stack);
         alert(`Erro ao criar demanda: ${err.message}\n\nVerifique o console (F12) para mais detalhes.`);
+    } finally {
+        window.isSubmittingCreate = false;
     }
 }
 
