@@ -6782,7 +6782,595 @@ function renderWorkload() {
             </div>
         `;
     }).join('');
+
+    // Render relatório mensal (apenas para coordenadores)
+    renderRelatorioMensal();
 }
+
+// =============================================
+// RELATÓRIO MENSAL — Designers, Videomakers & Social Medias
+// =============================================
+
+// Mês/ano independente do relatório (começa igual ao global, mas pode ser alterado)
+let _relatorioMonth = null;
+let _relatorioYear  = null;
+
+function _getRelatorioMonth() { return _relatorioMonth !== null ? _relatorioMonth : selectedMonth; }
+function _getRelatorioYear()  { return _relatorioYear  !== null ? _relatorioYear  : selectedYear; }
+
+function _buildRelatorioData() {
+    const rMonth = _getRelatorioMonth();
+    const rYear  = _getRelatorioYear();
+    const mesNome = MONTHS[rMonth];
+    const ano = rYear;
+
+    const start = new Date(rYear, rMonth, 1);
+    const end   = new Date(rYear, rMonth + 1, 1);
+    const now   = new Date();
+    const isCurrentMonth = (rMonth === now.getMonth() && rYear === now.getFullYear());
+
+    // Deduplicar e filtrar todas as demandas ativas do sistema
+    const allDemandas = (typeof deduplicateDemandas === 'function' ? deduplicateDemandas(demandas) : demandas).filter(d => !d.deletedAt);
+
+    // Filter 1: Demandas aprovadas estritamente NESTE MÊS DO RELATÓRIO
+    const todasAprovadasNoMes = allDemandas.filter(d => {
+        if (d.status !== 'Aprovado') return false;
+        const dtStr = d.lastStatusChange || d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
+        const dt = parseTaskDate(dtStr);
+        if (!dt) return false;
+        return dt >= start && dt < end;
+    });
+
+    // Filter 2: Demandas enviadas/solicitadas estritamente NESTE MÊS DO RELATÓRIO (para Social Media)
+    const todasEnviadasNoMes = allDemandas.filter(d => {
+        const dtStr = d.dataSolicitacao || d.dataCriacao || d.dataConclusao;
+        const dt = parseTaskDate(dtStr);
+        if (!dt) return false;
+        return dt >= start && dt < end;
+    });
+
+    function _getUsersOfDept(deptNorm) {
+        return Object.values(USERS).filter(u => {
+            const depts = typeof getUserDepts === 'function' ? getUserDepts(u) : (Array.isArray(u.dept) ? u.dept : [u.dept]);
+            return depts.some(d => normalizeDept(d) === deptNorm);
+        });
+    }
+
+    function _buildExecReport(deptNorm) {
+        const activeUsers = _getUsersOfDept(deptNorm);
+        const userMap = {};
+
+        // Adiciona usuários ativos do departamento
+        activeUsers.forEach(u => { userMap[u.id] = u; });
+
+        // Adiciona também qualquer usuário (mesmo que antigo/excluído) que entregou algo neste mês
+        todasAprovadasNoMes.forEach(d => {
+            if (!d.pipeline) return;
+            d.pipeline.forEach(stage => {
+                if (normalizeDept(stage.dept) !== deptNorm) return;
+                const uids = [];
+                if (stage.userId) uids.push(stage.userId);
+                if (stage.userIds) stage.userIds.forEach(id => uids.push(id));
+
+                uids.forEach(uid => {
+                    if (uid && !userMap[uid]) {
+                        const existingUser = USERS[uid];
+                        if (existingUser) {
+                            userMap[uid] = existingUser;
+                        } else {
+                            const cleanName = stage.userName || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            userMap[uid] = {
+                                id: uid,
+                                nome: cleanName,
+                                iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                                dept: deptNorm,
+                                role: 'executor'
+                            };
+                        }
+                    }
+                });
+            });
+        });
+
+        const report = Object.values(userMap).map(u => {
+            const entregues = todasAprovadasNoMes.filter(d => {
+                if (!d.pipeline) return false;
+                return d.pipeline.some(stage => {
+                    if (normalizeDept(stage.dept) !== deptNorm) return false;
+                    if (stage.userId === u.id) return true;
+                    if (stage.userIds && stage.userIds.includes(u.id)) return true;
+                    return false;
+                });
+            });
+            return { user: u, entregues };
+        });
+
+        // No mês atual: mostra membros ativos do depto (mesmo com 0 entregas) + ex-membros com entregas
+        // Em meses passados: mostra apenas quem realmente teve entregas naquele mês
+        return report.filter(r => isCurrentMonth ? (activeUsers.some(u => u.id === r.user.id) || r.entregues.length > 0) : r.entregues.length > 0);
+    }
+
+    const designerReport = _buildExecReport('Designer');
+    const videoReport    = _buildExecReport('Videomaker');
+
+    // Social Media Report
+    const activeSmUsers = Object.values(USERS).filter(u => {
+        const depts = typeof getUserDepts === 'function' ? getUserDepts(u) : (Array.isArray(u.dept) ? u.dept : [u.dept]);
+        return depts.some(d => normalizeDept(d) === 'Social Media') || u.role === 'social_media';
+    });
+
+    const smMap = {};
+    activeSmUsers.forEach(u => { smMap[u.id] = u; });
+
+    todasEnviadasNoMes.forEach(d => {
+        if (d.solicitanteId && !smMap[d.solicitanteId]) {
+            const uid = d.solicitanteId;
+            const existingUser = USERS[uid];
+            if (existingUser) {
+                smMap[uid] = existingUser;
+            } else {
+                const cleanName = d.solicitanteNome || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                smMap[uid] = {
+                    id: uid,
+                    nome: cleanName,
+                    iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                    dept: 'Social Media',
+                    role: 'social_media'
+                };
+            }
+        }
+    });
+
+    const smReport = Object.values(smMap).map(u => {
+        const enviadas = todasAprovadasNoMes.filter(d => d.solicitanteId === u.id);
+        const totalEnviadas = todasEnviadasNoMes.filter(d => d.solicitanteId === u.id);
+        return { user: u, enviadas, totalEnviadas };
+    }).filter(r => isCurrentMonth ? (activeSmUsers.some(u => u.id === r.user.id) || r.totalEnviadas.length > 0) : r.totalEnviadas.length > 0);
+
+    return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, smReport };
+}
+
+function renderRelatorioMensal() {
+    const container = document.getElementById('relatorioMensalContainer');
+    if (!container) return;
+
+    const isCoord = currentUser && (currentUser.role === 'coordinator' || currentUser.role === 'social_media' ||
+        (typeof getUserDepts === 'function' && getUserDepts(currentUser).includes('Gestão')));
+    if (!isCoord) { container.innerHTML = ''; return; }
+
+    const { mesNome, ano, rMonth, rYear, designerReport, videoReport, smReport } = _buildRelatorioData();
+    const dColor  = DEPT_COLORS['Designer']    || '#a855f7';
+    const vmColor = DEPT_COLORS['Videomaker']  || '#3b82f6';
+    const smColor = DEPT_COLORS['Social Media'] || '#ec4899';
+
+    // ---- Seletor de mês/ano independente ----
+    const now = new Date();
+    const monthOpts = [];
+    for (let i = 0; i < 24; i++) {
+        const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = `${dt.getFullYear()}-${dt.getMonth()}`;
+        const lbl = `${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+        const sel = (dt.getMonth() === rMonth && dt.getFullYear() === rYear) ? ' selected' : '';
+        monthOpts.push(`<option value="${val}"${sel}>${lbl}</option>`);
+    }
+    const monthSelectorHtml = `
+        <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.05); border:1px solid var(--border-color); border-radius:10px; padding:6px 12px;">
+            <span style="font-size:13px;">📆</span>
+            <select id="relatorioMonthSel" onchange="window._onRelatorioMonthChange(this.value)"
+                style="background:transparent; border:none; color:var(--text-color); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; outline:none;">
+                ${monthOpts.join('')}
+            </select>
+        </div>`;
+
+    function badgeStatus(status) {
+        const cls = { 'Aprovado': '#10b981', 'Para aprovação': '#f59e0b', 'Fazendo': '#3b82f6', 'A fazer': '#94a3b8', 'Alteração': '#ef4444' };
+        return `<span style="background:${cls[status] || '#94a3b8'}20; color:${cls[status] || '#94a3b8'}; border:1px solid ${cls[status] || '#94a3b8'}40; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600;">${status}</span>`;
+    }
+
+    // Card genérico para executor (Designer ou Videomaker)
+    function renderExecCard(r, color, deptLabel, hoverRgba) {
+        const listaEntregues = r.entregues.length > 0
+            ? r.entregues.map(d => {
+                const sol = USERS[d.solicitanteId];
+                const smNome = sol ? sol.nome : '—';
+                return `
+                <div onclick="openDetail('${d.id}')" style="display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background .15s;" onmouseover="this.style.background='${hoverRgba}'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:13px; color:var(--text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.nome}">${d.nome}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:4px;">
+                            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:${smColor}; flex-shrink:0;"></span>
+                            ${smNome}${d.tipoProjeto ? ' · ' + d.tipoProjeto : ''}
+                        </div>
+                    </div>
+                    ${badgeStatus(d.status)}
+                </div>`;
+            }).join('')
+            : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:12px 0;">Nenhuma entrega aprovada neste mês</div>`;
+
+        return `
+            <div style="background:var(--surface-light); border:1px solid var(--border-color); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    ${window.renderAvatar(r.user, 'workload-avatar', 'background:' + color)}
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:14px; color:var(--text-color);">${r.user.nome}</div>
+                        <div style="font-size:12px; color:var(--text-muted);">${deptLabel}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:22px; font-weight:800; color:${color};">${r.entregues.length}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">entrega${r.entregues.length !== 1 ? 's' : ''}</div>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; padding-right:2px;">
+                    ${listaEntregues}
+                </div>
+            </div>`;
+    }
+
+    function renderSMCard(r) {
+        const aprovadas = r.enviadas.length;
+        const total = r.totalEnviadas.length;
+        const pct = total > 0 ? Math.round((aprovadas / total) * 100) : 0;
+        const listaDemandas = r.totalEnviadas.length > 0
+            ? r.totalEnviadas.slice(0, 6).map(d => `
+                <div onclick="openDetail('${d.id}')" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background .15s;" onmouseover="this.style.background='rgba(236,72,153,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    <span style="font-size:13px; flex:1; color:var(--text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.nome}">${d.nome}</span>
+                    ${badgeStatus(d.status)}
+                </div>`).join('')
+            + (r.totalEnviadas.length > 6 ? `<div style="text-align:center; color:var(--text-muted); font-size:11px; padding:4px;">+ ${r.totalEnviadas.length - 6} mais</div>` : '')
+            : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:12px 0;">Nenhuma demanda enviada neste mês</div>`;
+
+        return `
+            <div style="background:var(--surface-light); border:1px solid var(--border-color); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    ${window.renderAvatar(r.user, 'workload-avatar', 'background:' + smColor)}
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:14px; color:var(--text-color);">${r.user.nome}</div>
+                        <div style="font-size:12px; color:var(--text-muted);">Social Media</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:22px; font-weight:800; color:${smColor};">${aprovadas}<span style="font-size:13px; color:var(--text-muted);">/${total}</span></div>
+                        <div style="font-size:11px; color:var(--text-muted);">aprovadas</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin:-4px 0 0;">
+                    <div style="flex:1; height:6px; border-radius:99px; background:rgba(255,255,255,0.08);">
+                        <div style="height:100%; border-radius:99px; width:${pct}%; background:${smColor}; transition:width .4s;"></div>
+                    </div>
+                    <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${pct}% aprovadas</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; padding-right:2px;">
+                    ${listaDemandas}
+                </div>
+            </div>`;
+    }
+
+    const designerCardsHtml = designerReport.length > 0
+        ? designerReport.map(r => renderExecCard(r, dColor, 'Designer', 'rgba(168,85,247,0.08)')).join('')
+        : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum designer encontrado</div>`;
+
+    const videoCardsHtml = videoReport.length > 0
+        ? videoReport.map(r => renderExecCard(r, vmColor, 'Videomaker', 'rgba(59,130,246,0.08)')).join('')
+        : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum videomaker encontrado</div>`;
+
+    const smCardsHtml = smReport.length > 0
+        ? smReport.map(renderSMCard).join('')
+        : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum Social Media encontrado</div>`;
+
+    const btnStyle = `display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s;`;
+
+    function deptHeader(color, icon, label, count) {
+        return `<div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; padding:10px 16px; background:${color}12; border-left:4px solid ${color}; border-radius:6px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:${color}; display:inline-block; flex-shrink:0;"></span>
+            <h3 style="margin:0; font-size:15px; font-weight:700; color:var(--text-color);">${icon} ${label}</h3>
+            <span style="font-size:12px; color:var(--text-muted); margin-left:auto;">${count}</span>
+        </div>`;
+    }
+
+    container.innerHTML = `
+        <div style="margin-top:40px; border-top:1px solid var(--border-color); padding-top:32px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px; flex-wrap:wrap;">
+                <span style="font-size:20px;">📊</span>
+                <h2 style="margin:0; font-size:20px; font-weight:800; color:var(--text-color);">Relatório Mensal — ${mesNome} ${ano}</h2>
+                ${monthSelectorHtml}
+                <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="exportarRelatorio('designers')" style="${btnStyle} background:${dColor}22; color:${dColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Designers</button>
+                    <button onclick="exportarRelatorio('videomakers')" style="${btnStyle} background:${vmColor}22; color:${vmColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Videomakers</button>
+                    <button onclick="exportarRelatorio('social')" style="${btnStyle} background:${smColor}22; color:${smColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Social Medias</button>
+                    <button onclick="exportarRelatorio('geral')" style="${btnStyle} background:rgba(99,102,241,0.15); color:#818cf8;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📄 Relatório Geral</button>
+                </div>
+            </div>
+            <p style="color:var(--text-muted); font-size:13px; margin:0 0 28px 32px;">Ponto rosa em cada item = Social Media que enviou a demanda</p>
+
+            ${deptHeader(dColor, '🎨', 'Designers — Entregas Aprovadas', designerReport.reduce((s,r)=>s+r.entregues.length,0) + ' entrega(s) no mês')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${designerCardsHtml}</div>
+
+            ${deptHeader(vmColor, '🎬', 'Videomakers — Entregas Aprovadas', videoReport.reduce((s,r)=>s+r.entregues.length,0) + ' entrega(s) no mês')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${videoCardsHtml}</div>
+
+            ${deptHeader(smColor, '📱', 'Social Medias — Demandas Enviadas', smReport.reduce((s,r)=>s+r.totalEnviadas.length,0) + ' demanda(s) no mês')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">${smCardsHtml}</div>
+        </div>
+    `;
+}
+
+window._onRelatorioMonthChange = function(val) {
+    const [y, m] = val.split('-').map(Number);
+    _relatorioMonth = m;
+    _relatorioYear  = y;
+    renderRelatorioMensal();
+};
+
+// =============================================
+// EXPORTAR RELATÓRIO MENSAL (Print / PDF)
+// =============================================
+window.exportarRelatorio = function(tipo) {
+    const { mesNome, ano, designerReport, videoReport, smReport } = _buildRelatorioData();
+    const dColor = '#a855f7';
+    const vmColor = '#3b82f6';
+    const smColor = '#ec4899';
+    const indigo = '#6366f1';
+    const geradoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+
+    const statusColors = { 'Aprovado': '#10b981', 'Para aprovação': '#f59e0b', 'Fazendo': '#3b82f6', 'A fazer': '#94a3b8', 'Alteração': '#ef4444' };
+
+    function badge(status) {
+        const c = statusColors[status] || '#94a3b8';
+        return `<span style="background:${c}18; color:${c}; border:1px solid ${c}50; border-radius:5px; padding:2px 9px; font-size:11px; font-weight:700; white-space:nowrap;">${status}</span>`;
+    }
+
+    // ---- SEÇÃO EXECUTORES (Designer ou Videomaker) por cor/label ----
+    function sectionExec(report, color, borderColor, bgColor, headBg, headColor, deptLabel, emptyLabel) {
+        if (report.length === 0) return `<p style="color:#94a3b8; font-size:13px;">Nenhum ${emptyLabel} encontrado.</p>`;
+        return report.map(r => {
+            const rows = r.entregues.length > 0
+                ? r.entregues.map((d, i) => {
+                    const sol = USERS[d.solicitanteId];
+                    const smNome = sol ? sol.nome : '—';
+                    const rowBg = i % 2 === 0 ? bgColor : '#ffffff';
+                    return `<tr style="background:${rowBg};">
+                        <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid ${borderColor};">${d.nome}</td>
+                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">
+                            <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#ec4899; font-weight:600;">
+                                <span style="width:6px; height:6px; border-radius:50%; background:#ec4899; display:inline-block;"></span>
+                                ${smNome}
+                            </span>
+                        </td>
+                        <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${badge(d.status)}</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="4" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma entrega aprovada neste mês</td></tr>`;
+
+            return `
+            <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px ${color}18; border:1px solid ${borderColor};">
+                <div style="background:linear-gradient(90deg, ${color}18, ${color}08); padding:14px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid ${borderColor};">
+                    <div style="width:36px; height:36px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:14px; flex-shrink:0;">${(r.user.iniciais || r.user.nome[0]).substring(0,2)}</div>
+                    <div>
+                        <div style="font-weight:700; font-size:15px; color:#1e1b4b;">${r.user.nome}</div>
+                        <div style="font-size:11px; color:${headColor};">${deptLabel}</div>
+                    </div>
+                    <div style="margin-left:auto; text-align:right;">
+                        <div style="font-size:26px; font-weight:800; color:${color}; line-height:1;">${r.entregues.length}</div>
+                        <div style="font-size:10px; color:#9ca3af;">entrega${r.entregues.length !== 1 ? 's' : ''} aprovadas</div>
+                    </div>
+                </div>
+                <table style="width:100%; border-collapse:collapse; background:white;">
+                    <thead>
+                        <tr style="background:${headBg};">
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Demanda</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Tipo</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor}; white-space:nowrap;">📱 Enviado por</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+        }).join('');
+    }
+
+    function sectionDesigners() {
+        return sectionExec(designerReport, dColor, '#e9d5ff', '#f8f7ff', '#f3f0ff', '#6d28d9', 'Designer', 'designer');
+    }
+    function sectionVideomakers() {
+        return sectionExec(videoReport, vmColor, '#bfdbfe', '#f0f7ff', '#eff6ff', '#1e40af', 'Videomaker', 'videomaker');
+    }
+
+    // ---- SEÇÃO SOCIAL MEDIAS ----
+    function sectionSocialMedias() {
+        if (smReport.length === 0) return '<p style="color:#94a3b8; font-size:13px;">Nenhum Social Media encontrado.</p>';
+        return smReport.map(r => {
+            const aprovadas = r.enviadas.length;
+            const total = r.totalEnviadas.length;
+            const pct = total > 0 ? Math.round((aprovadas / total) * 100) : 0;
+            const rows = r.totalEnviadas.length > 0
+                ? r.totalEnviadas.map((d, i) => {
+                    const c = statusColors[d.status] || '#94a3b8';
+                    const rowBg = i % 2 === 0 ? '#fff7fb' : '#ffffff';
+                    return `<tr style="background:${rowBg};">
+                        <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid #fce7f3;">${d.nome}</td>
+                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid #fce7f3; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:9px 12px; border-bottom:1px solid #fce7f3; white-space:nowrap;">${badge(d.status)}</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="3" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma demanda enviada neste mês</td></tr>`;
+
+            const barFill = `<div style="height:8px; border-radius:99px; background:#f9d5ea; margin:6px 0 2px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${smColor}; border-radius:99px;"></div></div>`;
+
+            return `
+            <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px rgba(236,72,153,0.10); border:1px solid #fce7f3;">
+                <div style="background:linear-gradient(90deg, ${smColor}18, ${smColor}08); padding:14px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #fce7f3;">
+                    <div style="width:36px; height:36px; border-radius:50%; background:${smColor}; display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:14px; flex-shrink:0;">${(r.user.iniciais || r.user.nome[0]).substring(0,2)}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:15px; color:#1e1b4b;">${r.user.nome}</div>
+                        <div style="font-size:11px; color:#be185d;">Social Media</div>
+                        ${barFill}
+                        <div style="font-size:10px; color:#9ca3af;">${aprovadas} de ${total} aprovadas (${pct}%)</div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <div style="font-size:26px; font-weight:800; color:${smColor}; line-height:1;">${aprovadas}<span style="font-size:14px; color:#9ca3af;">/${total}</span></div>
+                        <div style="font-size:10px; color:#9ca3af;">aprovadas</div>
+                    </div>
+                </div>
+                <table style="width:100%; border-collapse:collapse; background:white;">
+                    <thead>
+                        <tr style="background:#fdf2f8;">
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Demanda</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Tipo</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+        }).join('');
+    }
+
+    // ---- RESUMO GERAL ----
+    function sectionResumo() {
+        const totalDesignerEntregas = designerReport.reduce((s, r) => s + r.entregues.length, 0);
+        const totalVideoEntregas    = videoReport.reduce((s, r) => s + r.entregues.length, 0);
+        const totalDemandas   = smReport.reduce((s, r) => s + r.totalEnviadas.length, 0);
+        const totalAprovadas  = smReport.reduce((s, r) => s + r.enviadas.length, 0);
+        const pctGeral = totalDemandas > 0 ? Math.round((totalAprovadas / totalDemandas) * 100) : 0;
+
+        const designerRows = designerReport.map(r =>
+            `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${dColor}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
+        ).join('');
+        const videoRows = videoReport.map(r =>
+            `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${vmColor}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
+        ).join('');
+        const smRows = smReport.map(r => {
+            const pct = r.totalEnviadas.length > 0 ? Math.round((r.enviadas.length / r.totalEnviadas.length) * 100) : 0;
+            return `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:13px; font-weight:700; color:${smColor}; border-bottom:1px solid #f0f0f0;">${r.enviadas.length}/${r.totalEnviadas.length}</td><td style="padding:8px 12px; text-align:center; font-size:13px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+        }).join('');
+
+        return `
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; margin-bottom:32px;">
+            <div style="background:${dColor}12; border:1px solid ${dColor}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${dColor};">${totalDesignerEntregas}</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Designers</div>
+            </div>
+            <div style="background:${vmColor}12; border:1px solid ${vmColor}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${vmColor};">${totalVideoEntregas}</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Videomakers</div>
+            </div>
+            <div style="background:${smColor}12; border:1px solid ${smColor}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${smColor};">${totalAprovadas}<span style="font-size:16px; color:#9ca3af;">/${totalDemandas}</span></div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Demandas Aprov./Total</div>
+            </div>
+            <div style="background:${indigo}12; border:1px solid ${indigo}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${indigo};">${pctGeral}%</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Taxa de Aprovação</div>
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;">
+            <div>
+                <h3 style="font-size:13px; font-weight:700; color:#6d28d9; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">🎨 Designers</h3>
+                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #e9d5ff;">
+                    <thead><tr style="background:#f3f0ff;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#6d28d9; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#6d28d9; font-weight:700;">Entregas</th></tr></thead>
+                    <tbody>${designerRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size:13px; font-weight:700; color:#1e40af; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">🎬 Videomakers</h3>
+                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #bfdbfe;">
+                    <thead><tr style="background:#eff6ff;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#1e40af; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#1e40af; font-weight:700;">Entregas</th></tr></thead>
+                    <tbody>${videoRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+                </table>
+            </div>
+            <div>
+                <h3 style="font-size:13px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">📱 Social Medias</h3>
+                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #fce7f3;">
+                    <thead><tr style="background:#fdf2f8;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#9d174d; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#9d174d; font-weight:700;">Aprov./Total</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#9d174d; font-weight:700;">Taxa</th></tr></thead>
+                    <tbody>${smRows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }
+
+    // ---- Monta o HTML conforme o tipo ----
+    let bodyContent = '';
+    let titulo = '';
+    let subtitulo = '';
+    let accentColor = indigo;
+
+    if (tipo === 'designers') {
+        titulo = '🎨 Relatório de Designers';
+        subtitulo = 'Entregas aprovadas por designer no mês — inclui quem enviou cada demanda (Social Media)';
+        accentColor = dColor;
+        bodyContent = sectionDesigners();
+    } else if (tipo === 'videomakers') {
+        titulo = '🎬 Relatório de Videomakers';
+        subtitulo = 'Entregas aprovadas por videomaker no mês — inclui quem enviou cada demanda (Social Media)';
+        accentColor = vmColor;
+        bodyContent = sectionVideomakers();
+    } else if (tipo === 'social') {
+        titulo = '📱 Relatório de Social Medias';
+        subtitulo = 'Demandas enviadas e aprovadas por cada Social Media no mês';
+        accentColor = smColor;
+        bodyContent = sectionSocialMedias();
+    } else {
+        titulo = '📊 Relatório Geral Mensal';
+        subtitulo = 'Visão completa: designers, videomakers, Social Medias e métricas do mês';
+        accentColor = indigo;
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${indigo}20;">📈 Resumo Executivo</h2>
+            ${sectionResumo()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${dColor}30;">🎨 Designers — Entregas Detalhadas</h2>
+            ${sectionDesigners()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${vmColor}30;">🎬 Videomakers — Entregas Detalhadas</h2>
+            ${sectionVideomakers()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${smColor}30;">📱 Social Medias — Demandas Detalhadas</h2>
+            ${sectionSocialMedias()}`;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>${titulo} — ${mesNome} ${ano}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f8f7ff; color: #1e1b4b; padding: 32px; min-height: 100vh; }
+  @media print {
+    body { background: white; padding: 20px; }
+    .no-print { display: none !important; }
+    @page { margin: 18mm 15mm; }
+  }
+</style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg, ${accentColor}20, ${accentColor}08); border:1px solid ${accentColor}30; border-radius:16px; padding:28px 32px; margin-bottom:32px; display:flex; align-items:flex-start; justify-content:space-between; gap:20px;">
+      <div>
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:${accentColor}; margin-bottom:6px;">RADAR PNSA · Relatório Mensal</div>
+          <h1 style="font-size:26px; font-weight:800; color:#1e1b4b; margin-bottom:4px;">${titulo}</h1>
+          <div style="font-size:13px; color:#6b7280;">${subtitulo}</div>
+      </div>
+      <div style="text-align:right; flex-shrink:0;">
+          <div style="font-size:22px; font-weight:800; color:${accentColor};">${mesNome} ${ano}</div>
+          <div style="font-size:11px; color:#9ca3af; margin-top:2px;">Gerado em ${geradoEm}</div>
+          <button class="no-print" onclick="window.print()" style="margin-top:12px; background:${accentColor}; color:white; border:none; border-radius:8px; padding:9px 18px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">🖨️ Imprimir / Salvar PDF</button>
+      </div>
+  </div>
+  <!-- Conteúdo -->
+  ${bodyContent}
+  <!-- Rodapé -->
+  <div style="margin-top:40px; padding-top:16px; border-top:1px solid #e9d5ff; display:flex; align-items:center; justify-content:space-between; font-size:11px; color:#9ca3af;">
+      <span>RADAR PNSA · Sistema de Gestão de Demandas</span>
+      <span>${mesNome} ${ano} · ${geradoEm}</span>
+  </div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { toast && toast('Permita pop-ups para exportar o relatório', 'error'); return; }
+    win.document.write(html);
+    win.document.close();
+};
+
+
 
 // =============================================
 // MURAL DE AVISOS (Announcements)
