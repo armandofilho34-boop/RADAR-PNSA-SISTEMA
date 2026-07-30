@@ -1662,11 +1662,38 @@ function setupRoleUI() {
     const navExecutor = document.getElementById('navExecutor');
     if (navExecutor) navExecutor.style.display = isCoordOrSocialMedia ? 'none' : 'block';
 
+    const isSocialMediaUser = role === 'social_media' || (Array.isArray(currentUser.dept) ? currentUser.dept.includes('Social Media') : currentUser.dept === 'Social Media');
+    const canSeeExpressBtn = !isSocialMediaUser;
+
     const headerActions = document.getElementById('headerActions');
-    if (headerActions) headerActions.style.display = isCoordOrSocialMedia ? 'flex' : 'none';
+    if (headerActions) headerActions.style.display = (isCoordOrSocialMedia || canSeeExpressBtn) ? 'flex' : 'none';
+
+    const btnCreate = document.getElementById('btnCreate');
+    if (btnCreate) btnCreate.style.display = isCoordOrSocialMedia ? 'inline-flex' : 'none';
+
+    const btnExpress = document.getElementById('btnExpress');
+    if (btnExpress) btnExpress.style.display = canSeeExpressBtn ? 'inline-flex' : 'none';
+
+    const btnExpressInfo = document.getElementById('btnExpressInfo');
+    if (btnExpressInfo) btnExpressInfo.style.display = canSeeExpressBtn ? 'inline-flex' : 'none';
 
     const btnCreateAlt = document.querySelector('.btn-create-alt');
-    if (btnCreateAlt) btnCreateAlt.style.display = isCoordOrSocialMedia ? 'flex' : 'none';
+    if (btnCreateAlt) btnCreateAlt.style.display = isCoordOrSocialMedia ? 'inline-flex' : 'none';
+
+    const btnExpressAlt = document.getElementById('btnExpressAlt');
+    if (btnExpressAlt) btnExpressAlt.style.display = canSeeExpressBtn ? 'inline-flex' : 'none';
+
+    const btnExpressAltInfo = document.getElementById('btnExpressAltInfo');
+    if (btnExpressAltInfo) btnExpressAltInfo.style.display = canSeeExpressBtn ? 'inline-flex' : 'none';
+
+    // Auto-exibir pop-up explicativo no primeiro acesso após a atualização
+    if (canSeeExpressBtn && currentUser && !localStorage.getItem('express_info_seen_v5_' + currentUser.id)) {
+        localStorage.setItem('express_info_seen_v5_' + currentUser.id, 'true');
+        setTimeout(() => {
+            if (typeof openExpressInfoModal === 'function') openExpressInfoModal();
+        }, 800);
+    }
+
     document.getElementById('welcomeDesc').textContent = isCoordOrSocialMedia ? 'Acompanhe suas demandas e crie novas' : 'Veja as tarefas atribuídas a você';
     document.getElementById('navWorkload').style.display = isCoordOrSocialMedia ? 'flex' : 'none';
     document.getElementById('navTemplates').style.display = isCoordOrSocialMedia ? 'flex' : 'none';
@@ -2847,6 +2874,9 @@ function renderKanban() {
             const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
             const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
 
+            const expressBadge = (t.tags?.includes('⚡ Express') || t.expressType) ? `<span class="express-badge" title="Demanda Express / Lançamento Rápido">⚡ Express</span>` : '';
+            const instagramLinkBtn = t.instagramUrl ? `<a href="${t.instagramUrl}" target="_blank" onclick="event.stopPropagation()" class="express-link-btn" title="Ver publicação no Instagram">📸 Ver Post</a>` : '';
+
             return `
                 <div class="kanban-card ${t.prioridade.toLowerCase()} ${lockedClass}" draggable="${dragAttr}" data-id="${t.id}" onclick="openDetail('${t.id}')">
                     <div class="kanban-card-header">
@@ -2856,6 +2886,8 @@ function renderKanban() {
                     </div>
                     <div class="kanban-card-meta">
                         <span class="kanban-card-type">${t.tipoProjeto}</span>
+                        ${expressBadge}
+                        ${instagramLinkBtn}
                         <span class="kanban-card-dept">${currentStage?.dept || '-'}</span>
                     </div>
                     
@@ -3872,6 +3904,318 @@ function openCreateModal() {
     window.updateRecurrencePreview();
 }
 
+// ===== DEMANDA EXPRESS (AUTO-APROVAÇÃO & FLUXO URGENTE) =====
+window.openExpressInfoModal = function() {
+    const modal = document.getElementById('modalExpressInfo');
+    if (!modal) return;
+    modal.classList.add('active');
+
+    // Desenhar a linha guia animada apontando do modal até o botão
+    setTimeout(() => {
+        drawExpressPointerLine();
+    }, 150);
+
+    window.addEventListener('resize', drawExpressPointerLine);
+};
+
+function drawExpressPointerLine() {
+    const modalContent = document.querySelector('#modalExpressInfo .modal');
+    const targetBtn = (document.getElementById('btnExpress') && document.getElementById('btnExpress').offsetParent !== null)
+        ? document.getElementById('btnExpress')
+        : document.getElementById('btnExpressAlt');
+
+    const svg = document.getElementById('expressPointerSvg');
+    const path = document.getElementById('expressPointerPath');
+    const spotlight = document.getElementById('btnExpressSpotlight');
+
+    if (!modalContent || !targetBtn || !svg || !path) return;
+    if (targetBtn.offsetParent === null) return;
+
+    const modalRect = modalContent.getBoundingClientRect();
+    const btnRect = targetBtn.getBoundingClientRect();
+
+    // 1. Posicionar o clone Spotlight sem blur sobre o fundo escuro (acima do z-index do modal)
+    if (spotlight) {
+        spotlight.style.top = btnRect.top + 'px';
+        spotlight.style.left = btnRect.left + 'px';
+        spotlight.style.width = btnRect.width + 'px';
+        spotlight.style.height = btnRect.height + 'px';
+        spotlight.innerHTML = targetBtn.innerHTML;
+        spotlight.className = targetBtn.className + ' express-button-spotlight';
+        spotlight.style.display = 'inline-flex';
+    }
+
+    // 2. Ponto de origem: Canto superior direito do modal
+    const startX = modalRect.right - 10;
+    const startY = modalRect.top + 25;
+
+    // 3. Ponto de destino: Borda esquerda do botão em destaque
+    const endX = btnRect.left - 12;
+    const endY = btnRect.top + (btnRect.height / 2);
+
+    // 4. Curva pontilhada animada elegante
+    const controlX = (startX + endX) / 2;
+    const controlY = Math.min(startY, endY) - 50;
+
+    const d = `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+    path.setAttribute('d', d);
+    svg.style.display = 'block';
+}
+
+function clearExpressPointerLine() {
+    const svg = document.getElementById('expressPointerSvg');
+    if (svg) svg.style.display = 'none';
+
+    const spotlight = document.getElementById('btnExpressSpotlight');
+    if (spotlight) {
+        spotlight.style.display = 'none';
+        spotlight.className = '';
+    }
+
+    document.querySelectorAll('.express-button-highlight, .express-button-spotlight').forEach(el => el.classList.remove('express-button-highlight', 'express-button-spotlight'));
+    window.removeEventListener('resize', drawExpressPointerLine);
+}
+
+window.toggleDontShowExpressInfoAgain = function(isChecked) {
+    if (!currentUser) return;
+    if (isChecked) {
+        localStorage.setItem('express_info_seen_v1_' + currentUser.id, 'true');
+    } else {
+        localStorage.removeItem('express_info_seen_v1_' + currentUser.id);
+    }
+};
+
+window.openExpressModal = function() {
+    const modal = document.getElementById('modalExpress');
+    if (!modal) return;
+    const form = document.getElementById('formExpress');
+    if (form) form.reset();
+
+    const preview = document.getElementById('expressLinkPreview');
+    if (preview) preview.style.display = 'none';
+
+    const linkInput = document.getElementById('cExpressLink');
+    if (linkInput) linkInput.value = '';
+
+    // Tentar selecionar o tipo de projeto com base no departamento do usuário
+    const userDepts = (typeof getUserDepts === 'function' && currentUser) ? getUserDepts(currentUser) : [];
+    const cTipo = document.getElementById('cExpressTipoProjeto');
+    if (cTipo) {
+        if (userDepts.includes('Videomaker')) cTipo.value = 'Videomaker';
+        else if (userDepts.includes('Designer') || userDepts.includes('Design Gráfico')) cTipo.value = 'Design Gráfico';
+    }
+
+    window.onExpressCanalChange();
+    modal.classList.add('active');
+};
+
+window.onExpressCanalChange = function() {
+    const canal = document.getElementById('cExpressCanal')?.value;
+    const linkGroup = document.getElementById('expressLinkGroup');
+    const semLinkInfo = document.getElementById('expressSemLinkInfo');
+    const linkInput = document.getElementById('cExpressLink');
+
+    if (canal === 'rede_social') {
+        if (linkGroup) linkGroup.style.display = 'block';
+        if (semLinkInfo) semLinkInfo.style.display = 'none';
+        if (linkInput) linkInput.required = true;
+    } else {
+        if (linkGroup) linkGroup.style.display = 'none';
+        if (semLinkInfo) semLinkInfo.style.display = 'block';
+        if (linkInput) {
+            linkInput.required = false;
+            linkInput.value = '';
+        }
+        const preview = document.getElementById('expressLinkPreview');
+        if (preview) preview.style.display = 'none';
+    }
+};
+
+window.onExpressLinkInput = function() {
+    const link = document.getElementById('cExpressLink')?.value?.trim();
+    const preview = document.getElementById('expressLinkPreview');
+    if (!preview) return;
+
+    if (!link) {
+        preview.style.display = 'none';
+        return;
+    }
+
+    if (link && (link.includes('instagram.com') || link.includes('youtu') || link.includes('tiktok.com') || link.startsWith('http'))) {
+        // Checar duplicidade em tempo real
+        const existingTask = (demandas || []).find(d => d.instagramUrl === link || (d.referencias && d.referencias.includes(link)));
+        
+        preview.style.display = 'flex';
+        const title = document.getElementById('expressPreviewTitle');
+        const sub = document.getElementById('expressPreviewSub');
+
+        if (existingTask) {
+            preview.style.background = 'rgba(239,68,68,0.12)';
+            preview.style.borderColor = 'rgba(239,68,68,0.4)';
+            if (title) {
+                title.style.color = '#ef4444';
+                title.textContent = '⚠️ URL Já Utilizada Anteriormente!';
+            }
+            if (sub) sub.textContent = `Este link já foi usado na demanda "${existingTask.nome}". Escolha outro link.`;
+        } else {
+            preview.style.background = 'rgba(162,93,220,0.08)';
+            preview.style.borderColor = 'rgba(162,93,220,0.2)';
+            if (title) {
+                title.style.color = '#a25ddc';
+                title.textContent = '✅ Link Válido Detectado';
+            }
+            if (sub) sub.textContent = link.includes('instagram.com') ? 'Publicação no Instagram pronta para auto-aprovação' : 'Publicação em rede social pronta para auto-aprovação';
+        }
+    } else {
+        preview.style.display = 'none';
+    }
+};
+
+window.handleCreateExpress = async function(e) {
+    e.preventDefault();
+    if (window.isSubmittingExpress) return;
+    window.isSubmittingExpress = true;
+    
+    try {
+        const nome = document.getElementById('cExpressNome')?.value?.trim();
+        const tipoProjeto = document.getElementById('cExpressTipoProjeto')?.value;
+        const solicitanteVerbal = document.getElementById('cExpressSolicitanteVerbal')?.value?.trim();
+        const canal = document.getElementById('cExpressCanal')?.value;
+        const link = document.getElementById('cExpressLink')?.value?.trim();
+        const detalhes = document.getElementById('cExpressDetalhes')?.value?.trim() || '';
+
+        if (!nome || !solicitanteVerbal) {
+            toast('Preencha os campos obrigatórios.', 'error');
+            return;
+        }
+
+        // Rota 1: Com Link (Rede Social) -> Aprovado
+        if (canal === 'rede_social') {
+            if (!link || !link.startsWith('http')) {
+                toast('Insira uma URL válida da publicação (ex: Instagram, YouTube, TikTok).', 'error');
+                return;
+            }
+
+            // Checar duplicidade de link
+            const isDuplicated = (demandas || []).some(d => d.instagramUrl === link || (d.referencias && d.referencias.includes(link)));
+            if (isDuplicated) {
+                toast('Esta URL já foi vinculada a outra demanda anterior.', 'error');
+                return;
+            }
+
+            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            const task = {
+                id: taskId,
+                nome: `⚡ ${nome}`,
+                solicitanteId: currentUser?.id || 'express',
+                responsavelId: currentUser?.id || '',
+                tipoProjeto: tipoProjeto,
+                prioridade: 'Alta',
+                briefing: `[DEMANDA EXPRESS - AUTO-APROVADA VIA LINK]\nSolicitado verbalmente por: ${solicitanteVerbal}\nLink da publicação: ${link}\n\nObservações: ${detalhes}`,
+                orientacoes: '',
+                referencias: link,
+                textos: '',
+                status: 'Aprovado',
+                dataCriacao: new Date().toISOString(),
+                dataSolicitacao: todayStr,
+                dataConclusao: todayStr,
+                feedback: [],
+                tags: ['⚡ Express', 'Auto-Aprovado', tipoProjeto],
+                formatos: [],
+                dependsOn: null,
+                pinned: false,
+                attachments: [],
+                instagramUrl: link,
+                solicitanteVerbal: solicitanteVerbal,
+                expressType: 'com_link',
+                pipeline: [{
+                    dept: tipoProjeto,
+                    userId: currentUser?.id || '',
+                    status: 'Aprovado'
+                }],
+                currentStage: 0
+            };
+
+            demandas.push(task);
+            saveData(task);
+
+            // Notificar apenas Social Medias
+            notifyExpressSocialMedias(task, `⚡ Nova demanda express auto-aprovada via link (${nome}) por ${currentUser?.nome || 'Executor'}`);
+
+            closeModal('modalExpress');
+            toast('⚡ Demanda Express criada e aprovada via link com sucesso!', 'success');
+            refresh();
+            return;
+        }
+
+        // Rota 2: Sem Link / Offline -> Envia para "Para aprovação"
+        if (canal === 'sem_link') {
+            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const task = {
+                id: taskId,
+                nome: `⚡ ${nome}`,
+                solicitanteId: currentUser?.id || 'express',
+                responsavelId: currentUser?.id || '',
+                tipoProjeto: tipoProjeto,
+                prioridade: 'Alta',
+                briefing: `[DEMANDA EXPRESS - ENVIADA PARA APROVAÇÃO]\nSolicitado verbalmente por: ${solicitanteVerbal}\n\nObservações: ${detalhes}`,
+                orientacoes: '',
+                referencias: '',
+                textos: '',
+                status: 'Para aprovação',
+                dataCriacao: new Date().toISOString(),
+                dataSolicitacao: todayStr,
+                dataConclusao: todayStr,
+                feedback: [],
+                tags: ['⚡ Express', tipoProjeto],
+                formatos: [],
+                dependsOn: null,
+                pinned: false,
+                attachments: [],
+                solicitanteVerbal: solicitanteVerbal,
+                expressType: 'sem_link',
+                pipeline: [{
+                    dept: tipoProjeto,
+                    userId: currentUser?.id || '',
+                    status: 'Para aprovação'
+                }],
+                currentStage: 0
+            };
+
+            demandas.push(task);
+            saveData(task);
+
+            // Notificar Social Medias ativamente para fazer a validação em 1 clique
+            notifyExpressSocialMedias(task, `⏳ Demanda urgente "${nome}" enviada para "Para aprovação" por ${currentUser?.nome || 'Executor'}`);
+
+            closeModal('modalExpress');
+            toast('⚡ Demanda Express enviada para "Para aprovação"! Os Social Medias foram notificados.', 'success');
+            refresh();
+            return;
+        }
+    } catch (err) {
+        console.error('Erro ao criar demanda express:', err);
+        toast('Erro ao criar demanda express.', 'error');
+    } finally {
+        window.isSubmittingExpress = false;
+    }
+};
+
+function notifyExpressSocialMedias(task, message) {
+    if (typeof USERS !== 'object' || typeof notifyUser !== 'function') return;
+    Object.values(USERS).forEach(u => {
+        // Notificar apenas usuários do perfil Social Media
+        const isSM = u.role === 'social_media' || (Array.isArray(u.dept) ? u.dept.includes('Social Media') : u.dept === 'Social Media');
+        if (isSM && u.id !== currentUser?.id) {
+            notifyUser(u.id, '⚡', message);
+        }
+    });
+}
+
 async function handleCreate(e) {
     if (window.isSubmittingCreate) return;
     window.isSubmittingCreate = true;
@@ -4425,7 +4769,17 @@ function openDetail(id) {
         `;
     } else {
         // Standard View
-        contentHtml = `
+        const expressBlock = (t.expressType || t.tags?.includes('⚡ Express')) ? `
+            <div class="detail-section" style="background: rgba(162, 93, 220, 0.08); padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(162, 93, 220, 0.3); margin-bottom: 15px;">
+                <h4 style="color: #a25ddc; margin-top:0; margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 6px;">⚡ Demanda Express</h4>
+                <div style="font-size: 13px; display: flex; flex-direction: column; gap: 6px;">
+                    <div><strong>Solicitado Verbalmente Por:</strong> <span style="color: var(--text-color); font-weight: 600;">${t.solicitanteVerbal || '-'}</span></div>
+                    ${t.instagramUrl ? `<div><strong>Publicação no Instagram:</strong> <a href="${t.instagramUrl}" target="_blank" style="color: #e1306c; font-weight: 600; text-decoration: underline;">${t.instagramUrl} 🔗</a></div>` : ''}
+                </div>
+            </div>
+        ` : '';
+
+        contentHtml = expressBlock + `
             <div class="detail-section">
                 <h4>Briefing</h4>
                 <p>${t.briefing || '-'}</p>
@@ -5106,7 +5460,13 @@ function approveTask() {
     refresh();
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('active');
+    if (id === 'modalExpressInfo') {
+        clearExpressPointerLine();
+    }
+}
 function getStatusClass(s) { const m = { 'A fazer': 'a-fazer', 'Fazendo': 'fazendo', 'Para aprovação': 'aprovacao', 'Alteração': 'alteracao', 'Aprovado': 'aprovado' }; return m[s] || 'a-fazer'; }
 
 function parseDateLocal(d) { if(!d) return new Date(); return new Date(d.length === 10 ? d + 'T12:00:00' : d); }
@@ -5141,6 +5501,20 @@ function formatDate(d) {
 function formatDateFull(d) { if (!d) return '-'; const dt = parseDateLocal(d); return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`; }
 function toast(msg, type = 'info') { const a = document.getElementById('toastArea'), icons = { success: '✓', error: '✗', info: 'ℹ' }, t = document.createElement('div'); t.className = `toast ${type}`; t.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`; a.appendChild(t); setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3500); }
 function refresh() {
+    // Normalizar status de demandas salvas anteriormente
+    if (Array.isArray(demandas)) {
+        demandas.forEach(d => {
+            if (d.status === 'Para Revisão') d.status = 'Para aprovação';
+            if (d.status === 'Concluído') d.status = 'Aprovado';
+            if (d.pipeline && Array.isArray(d.pipeline)) {
+                d.pipeline.forEach(p => {
+                    if (p.status === 'Para Revisão') p.status = 'Para aprovação';
+                    if (p.status === 'Concluído') p.status = 'Aprovado';
+                });
+            }
+        });
+    }
+
     updateMinhaArea(); // Always update dashboard stats
     updateBadges(); // Always update sidebar badges
 
@@ -10254,6 +10628,9 @@ function renderTIKanban(kpiFilter = null) {
             const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
             const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
 
+            const expressBadge = (t.tags?.includes('⚡ Express') || t.expressType) ? `<span class="express-badge" title="Demanda Express / Lançamento Rápido">⚡ Express</span>` : '';
+            const instagramLinkBtn = t.instagramUrl ? `<a href="${t.instagramUrl}" target="_blank" onclick="event.stopPropagation()" class="express-link-btn" title="Ver publicação no Instagram">📸 Ver Post</a>` : '';
+
             return `
                 <div class="kanban-card ${t.prioridade.toLowerCase()} ${extraClasses}" draggable="true" data-id="${t.id}" onclick="openDetail('${t.id}')">
                     <div class="kanban-card-header">
@@ -10261,6 +10638,8 @@ function renderTIKanban(kpiFilter = null) {
                     </div>
                     <div class="kanban-card-meta">
                         <span class="kanban-card-type">${t.tipoProjeto}</span>
+                        ${expressBadge}
+                        ${instagramLinkBtn}
                         <span class="kanban-card-dept">${currentStage?.dept || '-'}</span>
                     </div>
                     
