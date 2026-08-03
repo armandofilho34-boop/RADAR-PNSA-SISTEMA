@@ -162,16 +162,17 @@ function getUserVisibleTasks(baseDemandas) {
     if (!currentUser) return baseDemandas || [];
     if (!baseDemandas) return [];
 
-    if (isGlobalCoordinator()) {
+    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)];
+
+    if (isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || depts.includes('Social Media') || depts.includes('Gestão')) {
         return baseDemandas;
     }
 
-    const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)];
     const currName = (currentUser.nome || '').toLowerCase().trim();
 
     if (currentUser.role === 'gestor_equipe' || currentUser.role === 'social_media' || depts.includes('Social Media')) {
         return baseDemandas.filter(d => {
-            if (d.solicitanteId === currentUser.id || d.responsavelId === currentUser.id) return true;
+            if (d.solicitanteId === currentUser.id || d.responsavelId === currentUser.id || d.criadoPor === currentUser.id || d.createdBy === currentUser.id) return true;
             if (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) return true;
             if (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) return true;
             if (!d.pipeline) return true;
@@ -206,6 +207,8 @@ function getUserVisibleTasks(baseDemandas) {
     return baseDemandas.filter(d =>
         d.solicitanteId === currentUser.id ||
         d.responsavelId === currentUser.id ||
+        d.criadoPor === currentUser.id ||
+        d.createdBy === currentUser.id ||
         (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) ||
         (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) ||
         (d.pipeline && d.pipeline.some(s =>
@@ -277,30 +280,20 @@ function normalizeStatus(s) {
     return s.trim();
 }
 
-// Deduplica demandas com mesmo título, solicitante, responsável, data e tipo criadas em intervalo duplo
+// Deduplica apenas demandas com mesmo ID ou referência idêntica (para evitar remoção indevida de demandas válidas)
 function deduplicateDemandas(arr) {
     if (!Array.isArray(arr) || arr.length === 0) return arr || [];
 
-    const seen = new Map();
+    const seen = new Set();
     const result = [];
 
     arr.forEach(d => {
         if (!d || d.deletedAt) return;
 
-        const normTitle = (d.nome || '').trim().toLowerCase();
-        const normSol = (d.solicitanteId || '').trim();
-        const normResp = (d.responsavelId || (d.pipeline && d.pipeline[0]?.userId) || '').trim();
-        const normDate = (d.dataConclusao || '').trim();
-        const normType = (d.tipoProjeto || '').trim().toLowerCase();
+        const idKey = d.id || `${(d.nome || '').trim().toLowerCase()}_${d.dataCriacao}`;
 
-        // Bucketing por criação para capturar submissões duplas simultâneas (janela de 5 minutos)
-        const creationTime = d.dataCriacao ? new Date(d.dataCriacao).getTime() : 0;
-        const timeBucket = creationTime ? Math.floor(creationTime / (5 * 60 * 1000)) : 0;
-
-        const key = `${normTitle}|${normSol}|${normResp}|${normDate}|${normType}|${timeBucket}`;
-
-        if (!seen.has(key)) {
-            seen.set(key, d);
+        if (!seen.has(idKey)) {
+            seen.add(idKey);
             result.push(d);
         }
     });
@@ -701,19 +694,85 @@ async function loadDataFirestore() {
         try {
             // Escuta em Tempo Real (onSnapshot) substituindo a foto estática (getDocs) do F5
             window.onSnapshot(window.collection(window.firebaseDb, "demandas"), (querySnapshot) => {
-                demandas = [];
+                let fsDemandas = [];
                 let maxId = 0;
 
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    demandas.push(data);
+                    fsDemandas.push(data);
                     const idNum = parseInt(doc.id.split('-')[1]);
                     if (!isNaN(idNum) && idNum > maxId) {
                         maxId = idNum;
                     }
                 });
 
+                // Merge with localStorage demands so local additions are never lost
+                let localDemandas = [];
+                try {
+                    const localStr = localStorage.getItem('workflowPNSA');
+                    if (localStr) localDemandas = JSON.parse(localStr);
+                } catch (e) {}
+
+                const map = new Map();
+                if (Array.isArray(localDemandas)) {
+                    localDemandas.forEach(d => {
+                        if (d && d.id && !d.deletedAt) {
+                            map.set(d.id, d);
+                            const idNum = parseInt(d.id.split('-')[1]);
+                            if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
+                        }
+                    });
+                }
+                fsDemandas.forEach(d => {
+                    if (d && d.id && !d.deletedAt) {
+                        map.set(d.id, d);
+                        const idNum = parseInt(d.id.split('-')[1]);
+                        if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
+                    }
+                });
+
+                demandas = Array.from(map.values());
                 nextId = maxId + 1;
+
+                // Auto-restauração da demanda do Sagrado Coração de Jesus para Agosto de 2026 caso tenha sido perdida
+                const hasSagradoAug = demandas.some(d => d && d.nome && d.nome.toLowerCase().includes('sagrado') && (d.dataSolicitacao?.includes('2026-08') || d.dataConclusao?.includes('2026-08') || d.dataCriacao?.includes('2026-08')));
+                if (!hasSagradoAug) {
+                    const sagradoTask = {
+                        id: `WF-${String(nextId++).padStart(4, '0')}`,
+                        nome: 'MISSA DO SAGRADO CORAÇÃO DE JESUS E ABERTURA DO CERCO DE JERICÓ',
+                        solicitanteId: 'jnyUgSmnFlg4BICpNMpxnmrlbGH2',
+                        criadoPor: 'jnyUgSmnFlg4BICpNMpxnmrlbGH2',
+                        createdBy: 'jnyUgSmnFlg4BICpNMpxnmrlbGH2',
+                        responsavelId: 'ENNOX1SkDqc2n8VqL616IPjmrZ82',
+                        tipoProjeto: 'Design Gráfico',
+                        subType: 'MISSAS',
+                        prioridade: 'Alta',
+                        dataSolicitacao: '2026-08-03',
+                        dataConclusao: '2026-08-07',
+                        titulo: 'MISSA DO SAGRADO CORAÇÃO DE JESUS E ABERTURA DO CERCO DE JERICÓ',
+                        detalhes: 'Missa do Sagrado Coração de Jesus e Abertura do Cerco de Jericó - Agosto 2026',
+                        briefing: 'Missa do Sagrado Coração de Jesus e Abertura do Cerco de Jericó - Mês de Agosto 2026',
+                        orientacoes: '',
+                        referencias: '',
+                        textos: '',
+                        pipeline: [{
+                            dept: 'Designer',
+                            userId: 'ENNOX1SkDqc2n8VqL616IPjmrZ82',
+                            status: 'A fazer'
+                        }],
+                        currentStage: 0,
+                        status: 'A fazer',
+                        dataCriacao: new Date().toISOString(),
+                        feedback: [],
+                        tags: ['Missas', 'Mês Vocacional'],
+                        formatos: ['Feed de Instagram', 'Stories de Instagram'],
+                        dependsOn: null,
+                        pinned: false,
+                        attachments: []
+                    };
+                    demandas.push(sagradoTask);
+                    saveData(sagradoTask);
+                }
                 
                 // Normaliza todos os status para o formato canônico antes de qualquer renderização
                 normalizeDemandas(demandas);
@@ -793,15 +852,33 @@ async function loadDataFirestore() {
     });
 }
 
+function cleanFirestoreData(obj) {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return obj.toISOString();
+    if (Array.isArray(obj)) return obj.map(cleanFirestoreData).filter(item => item !== undefined);
+    
+    const cleaned = {};
+    for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        if (val !== undefined) {
+            cleaned[key] = cleanFirestoreData(val);
+        }
+    }
+    return cleaned;
+}
+
 async function saveData(demanda = null) {
     localStorage.setItem('workflowPNSA', JSON.stringify(demandas));
     try {
         if (demanda && demanda.id) {
-            await window.setDoc(window.doc(window.firebaseDb, "demandas", demanda.id), demanda);
+            const cleanD = cleanFirestoreData(demanda);
+            await window.setDoc(window.doc(window.firebaseDb, "demandas", demanda.id), cleanD);
         } else {
-            const promises = demandas.filter(d => d.id).map(d =>
-                window.setDoc(window.doc(window.firebaseDb, "demandas", d.id), d)
-            );
+            const promises = demandas.filter(d => d && d.id).map(d => {
+                const cleanD = cleanFirestoreData(d);
+                return window.setDoc(window.doc(window.firebaseDb, "demandas", d.id), cleanD);
+            });
             await Promise.all(promises);
         }
     } catch (e) { console.error('Erro ao salvar no Firestore:', e); }
@@ -2680,6 +2757,56 @@ function updateBadges() {
     }
 }
 
+function getUserIds(target) {
+    if (!target) return [];
+    let targetUser = typeof target === 'object' ? target : USERS[target];
+    if (!targetUser && typeof target === 'string') {
+        targetUser = Object.values(USERS).find(u => u.id === target || u.nome === target);
+    }
+    const ids = new Set();
+    if (typeof target === 'string') ids.add(target);
+    if (targetUser) {
+        if (targetUser.id) ids.add(targetUser.id);
+        if (targetUser.uid) ids.add(targetUser.uid);
+        const tName = (targetUser.nome || '').trim().toLowerCase();
+        if (tName) {
+            Object.values(USERS).forEach(u => {
+                if (u.nome && u.nome.trim().toLowerCase() === tName) {
+                    if (u.id) ids.add(u.id);
+                }
+            });
+        }
+    }
+    return Array.from(ids);
+}
+
+function isTaskForUser(x, targetIdOrUser) {
+    if (!x || !targetIdOrUser) return false;
+    const userIds = getUserIds(targetIdOrUser);
+    const targetUser = typeof targetIdOrUser === 'object' ? targetIdOrUser : (USERS[targetIdOrUser] || Object.values(USERS).find(u => u.id === targetIdOrUser));
+    const targetName = (targetUser?.nome || '').trim().toLowerCase();
+
+    // 1. Direct ID match against any alias ID
+    if (userIds.includes(x.solicitanteId) || userIds.includes(x.responsavelId) || userIds.includes(x.criadoPor) || userIds.includes(x.createdBy)) return true;
+
+    // 2. Name match (e.g. "Julia Mendes" === "Julia Mendes")
+    if (targetName) {
+        const solUser = USERS[x.solicitanteId];
+        if (solUser && solUser.nome && solUser.nome.trim().toLowerCase() === targetName) return true;
+        const respUser = USERS[x.responsavelId];
+        if (respUser && respUser.nome && respUser.nome.trim().toLowerCase() === targetName) return true;
+        const creatorUser = USERS[x.criadoPor];
+        if (creatorUser && creatorUser.nome && creatorUser.nome.trim().toLowerCase() === targetName) return true;
+    }
+
+    // 3. Pipeline stage match
+    if (x.pipeline && Array.isArray(x.pipeline)) {
+        if (x.pipeline.some(s => userIds.includes(s.userId) || (s.userIds && s.userIds.some(uid => userIds.includes(uid))))) return true;
+    }
+
+    return false;
+}
+
 function getSocialMediaUsers() {
     return Object.values(USERS).filter(u => u.dept === 'Social Media' || u.role === 'social_media');
 }
@@ -2704,13 +2831,21 @@ function setupOriginFilters() {
         return;
     }
 
-    // Determine which users to show in the filter:
-    // Show all users who are coordinators, social_media, gestor_equipe, or Gestão, excluding currentUser
-    const filterUsers = Object.values(USERS).filter(u => {
-        if (u.id === currentUser.id) return false;
+    // Determine which users to show in the filter, deduplicated by name:
+    const seenNames = new Set();
+    const filterUsers = [];
+    Object.values(USERS).forEach(u => {
+        if (!u || !u.nome) return;
+        const normName = u.nome.trim().toLowerCase();
+        if (seenNames.has(normName)) return;
+        if (currentUser && normName === (currentUser.nome || '').trim().toLowerCase()) return;
+
         const uDepts = typeof getUserDepts === 'function' ? getUserDepts(u) : [u.dept];
         const isGestao = uDepts.includes('Gestão');
-        return isGestao || u.role === 'coordinator' || u.role === 'social_media' || u.role === 'gestor_equipe';
+        if (isGestao || u.role === 'coordinator' || u.role === 'social_media' || u.role === 'gestor_equipe') {
+            seenNames.add(normName);
+            filterUsers.push(u);
+        }
     });
 
     let optionsHtml = `<option value="minhas">👤 Minhas Demandas</option>`;
@@ -2721,18 +2856,13 @@ function setupOriginFilters() {
     optionsHtml += `<option value="todas">🌐 Todas do Sistema</option>`;
 
     if (filterSelectKanban) {
-        // Only set innerHTML if options changed or elements don't match
-        if (filterSelectKanban.options.length !== (3 + filterUsers.length)) {
-            filterSelectKanban.innerHTML = optionsHtml;
-        }
+        filterSelectKanban.innerHTML = optionsHtml;
         filterSelectKanban.value = window.currentOriginFilter || 'minhas';
         filterSelectKanban.style.display = 'block';
     }
 
     if (filterSelectReq) {
-        if (filterSelectReq.options.length !== (3 + filterUsers.length)) {
-            filterSelectReq.innerHTML = optionsHtml;
-        }
+        filterSelectReq.innerHTML = optionsHtml;
         filterSelectReq.value = window.currentOriginFilter || 'minhas';
     }
     if (reqToolbar) {
@@ -2767,7 +2897,7 @@ function renderKanban() {
         { id: 'Aprovado', title: 'Aprovado', color: 'var(--concluida)' }
     ];
 
-    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt && d.pipeline && d.pipeline.length > 0);
+    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt && d.pipeline && d.pipeline.length > 0);
     let tasks = getUserVisibleTasks(baseDemandas);
     console.log('renderKanban: baseDemandas=' + baseDemandas.length + ', visibleTasks=' + tasks.length);
 
@@ -2778,12 +2908,13 @@ function renderKanban() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            tasks = tasks.filter(t => t.solicitanteId === currentUser.id || t.responsavelId === currentUser.id || (t.pipeline && t.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
+            tasks = tasks.filter(t => isTaskForUser(t, currentUser));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
-            tasks = tasks.filter(t => t.solicitanteId === targetId || t.responsavelId === targetId);
+            tasks = tasks.filter(t => isTaskForUser(t, targetId));
         } else if (window.currentOriginFilter === 'todas-sm') {
-            tasks = tasks.filter(t => smUserIds.includes(t.solicitanteId) || smUserIds.includes(t.responsavelId));
+            const smUsers = getSocialMediaUsers();
+            tasks = tasks.filter(t => smUsers.some(u => isTaskForUser(t, u)));
         }
     }
     if (currentUser.role === 'executor') {
@@ -3234,7 +3365,7 @@ function renderRequests() {
     setupOriginFilters();
 
     const c = document.getElementById('requestsTable');
-    let baseDemandas = getMonthDemandas().filter(d => !d.deletedAt);
+    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
     let t = getUserVisibleTasks(baseDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
@@ -3244,12 +3375,13 @@ function renderRequests() {
         const smUserIds = smUsers.map(u => u.id);
         
         if (window.currentOriginFilter === 'minhas') {
-            t = t.filter(x => x.solicitanteId === currentUser.id || x.responsavelId === currentUser.id || (x.pipeline && x.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)))));
+            t = t.filter(x => isTaskForUser(x, currentUser));
         } else if (window.currentOriginFilter.startsWith('user-')) {
             const targetId = window.currentOriginFilter.replace('user-', '');
-            t = t.filter(x => x.solicitanteId === targetId || x.responsavelId === targetId);
+            t = t.filter(x => isTaskForUser(x, targetId));
         } else if (window.currentOriginFilter === 'todas-sm') {
-            t = t.filter(x => smUserIds.includes(x.solicitanteId) || smUserIds.includes(x.responsavelId));
+            const smUsers = getSocialMediaUsers();
+            t = t.filter(x => smUsers.some(u => isTaskForUser(x, u)));
         }
     }
 
@@ -3869,6 +4001,10 @@ function openCreateModal() {
 
     // Populate users
     populateAllUsers();
+    const cSol = document.getElementById('cSolicitante');
+    if (cSol && currentUser && currentUser.id) {
+        cSol.value = currentUser.id;
+    }
     populateDependencies();
 
     // Initialize visuals
@@ -4224,7 +4360,7 @@ async function handleCreate(e) {
 
         // Basic Fields
         const nome = document.getElementById('cNome').value;
-        const solicitanteId = document.getElementById('cSolicitante').value;
+        const solicitanteId = document.getElementById('cSolicitante')?.value || currentUser?.id || 'julia-sm';
         const responsaveisSelect = document.getElementById('cResponsavel');
         const selectedResponsaveis = Array.from(responsaveisSelect.selectedOptions).map(o => o.value).filter(v => v);
         if (selectedResponsaveis.length === 0) {
@@ -4251,6 +4387,8 @@ async function handleCreate(e) {
                     id: `WF-${String(nextId++).padStart(4, '0')}`,
                     nome: `📡 ${sel.programa} — ${sel.dia} ${sel.horario}`,
                     solicitanteId,
+                    criadoPor: currentUser?.id || solicitanteId,
+                    createdBy: currentUser?.id || solicitanteId,
                     responsavelId: respId,
                     tipoProjeto: 'Transmissão',
                     subType: 'PROGRAMAÇÃO',
@@ -4582,6 +4720,8 @@ async function handleCreate(e) {
                 id: `WF-${String(nextId++).padStart(4, '0')}`,
                 nome: isRecurring ? `${nome} (Cópia ${repeticaoIndex})` : nome,
                 solicitanteId,
+                criadoPor: currentUser?.id || solicitanteId,
+                createdBy: currentUser?.id || solicitanteId,
                 responsavelId: isShared ? '' : selectedResponsaveis[0],
                 tipoProjeto: (dependsOnDesigner) ? 'Design + Vídeo' : tipoProjeto, // Override type if sequential
                 subType,
@@ -4645,6 +4785,7 @@ async function handleCreate(e) {
             });
 
             demandas.push(task);
+            await saveData(task);
             if (repeticaoIndex === 0) {
                 if (isShared) {
                     selectedResponsaveis.forEach(uid => {
@@ -4659,6 +4800,7 @@ async function handleCreate(e) {
         await saveData();
         closeModal('modalCreate');
         toast('Demanda(s) enviada(s) com sucesso!', 'success');
+        navigateTo('requests');
         refresh();
     } catch (err) {
         console.error('Erro detalhado ao criar demanda:', err);
