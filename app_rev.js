@@ -10979,7 +10979,6 @@ async function handleCreateChamadoTI(e) {
     const solicitanteNome = document.getElementById('tiSolicitante').value.trim();
     const responsavelId = document.getElementById('tiResponsavel').value;
     const desc = document.getElementById('tiDescricao').value;
-    const link = document.getElementById('tiLink').value;
     const categoria = document.getElementById('tiCategoria').value;
     const prazo = document.getElementById('tiPrazo').value;
     const fileInput = document.getElementById('tiAnexos');
@@ -11032,7 +11031,7 @@ async function handleCreateChamadoTI(e) {
         tipoProjeto: categoria || 'TI',
         prioridade: 'Média', 
         isPinned: false,
-        descricaoCartao: desc + (link ? `\n\nLink de referência: ${link}` : ''),
+        descricaoCartao: desc,
         solicitanteId: currentUser?.id || null,
         solicitanteNome: solicitanteNome,
         dataCriacao: new Date().toISOString(),
