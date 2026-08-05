@@ -5709,6 +5709,7 @@ function refresh() {
     // Intelligent refresh based on current view
     if (currentView === 'board' && currentDept) {
         if (currentDept === 'Suporte') renderSuporteDashboard(false);
+        else if (currentDept === 'Inovação/TI') { if (typeof renderTIKanban === 'function') renderTIKanban(); }
         else renderBoard();
     }
     else if (currentView === 'minha-agenda') renderAgenda();
