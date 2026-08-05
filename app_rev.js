@@ -5078,7 +5078,8 @@ function openDetail(id) {
         } else if (status === 'Alteração') {
             footer = `${editBtn}${deleteBtn}<button class="btn-cancel" onclick="closeModal('modalDetail')">Fechar</button> <button class="btn-secondary" onclick="startExecution('${id}')">Reiniciar Demanda</button> <button class="btn-success" onclick="submitCorrection('${id}')">Reenviar para Aprovação</button>`;
         } else if (status === 'Para aprovação') {
-            const canReviewHere = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || t.solicitanteId === currentUser.id;
+            const isTITask = t.pipeline && t.pipeline.some(s => s.dept === 'Inovação/TI');
+            const canReviewHere = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || t.solicitanteId === currentUser.id || (isTITask && currentDept === 'Inovação/TI');
             if (canReviewHere) {
                 footer = `${editBtn}${deleteBtn}<button class="btn-cancel" onclick="closeModal('modalDetail')">Fechar</button> <button class="btn-success" onclick="openReviewFromDetail('${id}')">Revisar Demanda</button>`;
             } else {
