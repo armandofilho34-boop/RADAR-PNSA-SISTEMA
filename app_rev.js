@@ -2216,7 +2216,7 @@ function openBoard(dept) {
                     <div onclick="renderTIKanban('concluidos')" style="flex: 1; min-width: 200px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #4ade80;"><i class="fas fa-check-circle"></i></div>
                         <div>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Concluídos (Semana)</p>
+                            <p style="margin: 0; font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Concluídos (Mês)</p>
                             <h3 id="tiKpiConcluidos" style="margin: 4px 0 0 0; font-size: 24px; color: #4ade80; font-weight: 700;">0</h3>
                         </div>
                     </div>
@@ -2227,8 +2227,14 @@ function openBoard(dept) {
                             <h3 id="tiKpiUrgentes" style="margin: 4px 0 0 0; font-size: 24px; color: #f87171; font-weight: 700;">0</h3>
                         </div>
                     </div>
-                    <div style="min-width: 200px; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
-                        <button onclick="window.toggleGlobalIncident()" id="btnIncident" style="padding: 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: #f87171; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: inset 0 0 10px rgba(239,68,68,0.1);">
+                    <div style="min-width: 220px; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+                        <button onclick="window.openChamadoTIModal()" id="btnNovoChamadoTI" style="padding: 10px 16px; background: linear-gradient(135deg, #10b981, #3b82f6); border: none; border-radius: 8px; color: #ffffff; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 14px rgba(16,185,129,0.35); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13.5px;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <i class="fas fa-plus-circle"></i> ➕ Novo Chamado TI
+                        </button>
+                        <button onclick="window.exportRelatorioTI()" id="btnExportTI" style="padding: 10px 16px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; color: #f59e0b; font-weight: 700; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;" onmouseover="this.style.background='rgba(245,158,11,0.25)'" onmouseout="this.style.background='rgba(245,158,11,0.15)'">
+                            <i class="fas fa-download"></i> 📊 Exportar Relatório
+                        </button>
+                        <button onclick="window.toggleGlobalIncident()" id="btnIncident" style="padding: 10px 16px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: #f87171; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: inset 0 0 10px rgba(239,68,68,0.1); font-size: 13px;">
                             🚨 Disparar Alerta Global
                         </button>
                     </div>
@@ -10681,7 +10687,12 @@ function renderTIKanban(kpiFilter = null) {
         const pendentes = allTiTasks.filter(t => t.status === 'A fazer' || t.status === 'Fazendo').length;
         document.getElementById('tiKpiPendentes').textContent = pendentes;
         
-        const concluidos = allTiTasks.filter(t => t.status === 'Aprovado').length;
+        const now = new Date();
+        const concluidos = allTiTasks.filter(t => {
+            if (t.status !== 'Aprovado') return false;
+            const d = new Date(t.dataConclusao || t.dataCriacao);
+            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        }).length;
         document.getElementById('tiKpiConcluidos').textContent = concluidos;
         
         const urgentes = allTiTasks.filter(t => t.status !== 'Aprovado' && (t.prioridade === 'Urgente' || Math.ceil((parseDateLocal(t.dataConclusao) - new Date()) / (1000 * 60 * 60 * 24)) < 0)).length;
@@ -10816,23 +10827,95 @@ function renderTIKanban(kpiFilter = null) {
     if(typeof initKanbanDragDrop === 'function') initKanbanDragDrop();
 }
 
-function openChamadoTIModal() {
-    const sel = document.getElementById('tiSolicitante');
-    sel.innerHTML = '<option value="">Selecione quem está solicitando...</option>';
-    Object.values(USERS).forEach(u => {
-        sel.innerHTML += `<option value="${u.id}">${u.nome} (${u.dept})</option>`;
+function exportRelatorioTI() {
+    const allTiTasks = demandas.filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.dept === 'Inovação/TI'));
+
+    if (allTiTasks.length === 0) {
+        toast('Nenhum chamado TI para exportar.', 'error');
+        return;
+    }
+
+    const now = new Date();
+    const mesNome = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+    // Cabeçalho CSV
+    const header = ['ID', 'Título', 'Categoria', 'Status', 'Solicitante', 'Responsável', 'Prioridade', 'Data Criação', 'Prazo', 'Descrição'];
+
+    const rows = allTiTasks.map(t => {
+        const solicitante = t.solicitanteNome || (t.solicitanteId && USERS[t.solicitanteId]?.nome) || t.solicitanteId || '-';
+        const responsavel = (t.pipeline?.[0]?.userId && USERS[t.pipeline[0].userId]?.nome) || '-';
+        const dataCriacao = t.dataCriacao ? new Date(t.dataCriacao).toLocaleDateString('pt-BR') : '-';
+        const prazo = t.dataConclusao ? new Date(t.dataConclusao + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+        const desc = (t.descricaoCartao || '-').replace(/\n/g, ' ').replace(/"/g, '""');
+
+        return [
+            `"${t.id}"`,
+            `"${(t.nome || '-').replace(/"/g, '""')}"`,
+            `"${t.tipoProjeto || '-'}"`,
+            `"${t.status || '-'}"`,
+            `"${solicitante}"`,
+            `"${responsavel}"`,
+            `"${t.prioridade || '-'}"`,
+            `"${dataCriacao}"`,
+            `"${prazo}"`,
+            `"${desc}"`
+        ].join(';');
     });
-    sel.value = currentUser.id;
 
-    document.getElementById('tiDescricao').value = '';
-    document.getElementById('tiAnexos').value = '';
-    document.getElementById('tiAnexosCount').textContent = '';
-    document.getElementById('tiLink').value = '';
-    document.getElementById('tiResponsavel').value = '';
-    document.getElementById('tiPrazo').value = new Date().toISOString().split('T')[0];
+    const csvContent = '\uFEFF' + [header.join(';'), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Relatorio_TI_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-    document.getElementById('modalChamadoTI').classList.add('active');
+    toast(`📊 Relatório exportado com ${allTiTasks.length} chamados!`, 'success');
 }
+window.exportRelatorioTI = exportRelatorioTI;
+
+function openChamadoTIModal() {
+    const solInput = document.getElementById('tiSolicitante');
+    if (solInput) {
+        // Campo texto livre: preenche com o nome do usuário atual como sugestão
+        solInput.value = (currentUser && USERS[currentUser.id]) ? USERS[currentUser.id].nome : '';
+    }
+
+    const respSel = document.getElementById('tiResponsavel');
+    if (respSel) {
+        respSel.innerHTML = '<option value="">Selecione...</option>';
+        const tiUsers = Object.values(USERS).filter(u => u.dept === 'Inovação/TI');
+        const listToUse = tiUsers.length > 0 ? tiUsers : Object.values(USERS);
+        listToUse.forEach(u => {
+            respSel.innerHTML += `<option value="${u.id}">${u.nome}</option>`;
+        });
+        if (currentUser && currentUser.dept === 'Inovação/TI' && currentUser.id) {
+            respSel.value = currentUser.id;
+        } else if (listToUse.length > 0) {
+            respSel.value = listToUse[0].id;
+        }
+    }
+
+    if (document.getElementById('tiDescricao')) document.getElementById('tiDescricao').value = '';
+    if (document.getElementById('tiAnexos')) document.getElementById('tiAnexos').value = '';
+    if (document.getElementById('tiAnexosCount')) document.getElementById('tiAnexosCount').textContent = '';
+    if (document.getElementById('tiLink')) document.getElementById('tiLink').value = '';
+    if (document.getElementById('tiCategoria')) document.getElementById('tiCategoria').value = '';
+    if (document.getElementById('tiPrazo')) document.getElementById('tiPrazo').value = new Date().toISOString().split('T')[0];
+
+    const modal = document.getElementById('modalChamadoTI');
+    if (modal) modal.classList.add('active');
+}
+window.openChamadoTIModal = openChamadoTIModal;
+
+function closeChamadoTIModal() {
+    const modal = document.getElementById('modalChamadoTI');
+    if (modal) modal.classList.remove('active');
+}
+window.closeChamadoTIModal = closeChamadoTIModal;
 
 async function toggleGlobalIncident() {
     const incidentDoc = demandas.find(d => d.id === 'GLOBAL_ALERT_TI');
@@ -10890,14 +10973,10 @@ async function toggleGlobalIncident() {
 }
 window.toggleGlobalIncident = toggleGlobalIncident;
 
-function closeChamadoTIModal() {
-    document.getElementById('modalChamadoTI').classList.remove('active');
-}
-
 async function handleCreateChamadoTI(e) {
     e.preventDefault();
     
-    const solicitanteId = document.getElementById('tiSolicitante').value;
+    const solicitanteNome = document.getElementById('tiSolicitante').value.trim();
     const responsavelId = document.getElementById('tiResponsavel').value;
     const desc = document.getElementById('tiDescricao').value;
     const link = document.getElementById('tiLink').value;
@@ -10905,7 +10984,7 @@ async function handleCreateChamadoTI(e) {
     const prazo = document.getElementById('tiPrazo').value;
     const fileInput = document.getElementById('tiAnexos');
     
-    if (!solicitanteId || !responsavelId || !desc || !categoria) {
+    if (!solicitanteNome || !responsavelId || !desc || !categoria) {
         toast('Preencha os campos obrigatórios.', 'error');
         return;
     }
@@ -10954,7 +11033,8 @@ async function handleCreateChamadoTI(e) {
         prioridade: 'Média', 
         isPinned: false,
         descricaoCartao: desc + (link ? `\n\nLink de referência: ${link}` : ''),
-        solicitanteId: solicitanteId,
+        solicitanteId: currentUser?.id || null,
+        solicitanteNome: solicitanteNome,
         dataCriacao: new Date().toISOString(),
         dataConclusao: prazo || new Date().toISOString(), 
         status: 'A fazer',
@@ -10971,7 +11051,7 @@ async function handleCreateChamadoTI(e) {
         attachments: attachments
     };
 
-    newTask.activityLog.push({ text: `Chamado TI criado por ${USERS[currentUser.id]?.nome || 'Usuário'}`, date: new Date().toISOString() });
+    newTask.activityLog.push({ text: `Chamado TI criado por ${USERS[currentUser.id]?.nome || 'Usuário'} em nome de ${solicitanteNome}`, date: new Date().toISOString() });
 
     try {
         demandas.push(newTask);

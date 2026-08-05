@@ -3323,74 +3323,7 @@
             observer.observe(nativeSelect, { childList: true, subtree: true });
         });
     </script>
-    <!-- Modal Novo Chamado TI -->
-    <div class="modal-overlay" id="modalChamadoTI">
-        <div class="modal" style="max-width: 500px; padding: 24px;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h2 style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px;">
-                    💻 Novo Chamado - TI
-                </h2>
-                <button class="btn-close" onclick="closeChamadoTIModal()" style="background: var(--surface-light); border: none; width: 32px; height: 32px; border-radius: 50%; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="formChamadoTI" onsubmit="handleCreateChamadoTI(event)">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    <div class="form-group">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Quem está solicitando? <span style="color: #ef4444;">*</span></label>
-                        <select id="tiSolicitante" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;"></select>
-                    </div>
-                    <div class="form-group">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Responsável (Equipe TI) <span style="color: #ef4444;">*</span></label>
-                        <select id="tiResponsavel" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;">
-                            <option value="">Selecione...</option>
-                            <option value="fernanda-ti" selected>Fernanda Tech</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    <div class="form-group">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Categoria <span style="color: #ef4444;">*</span></label>
-                        <select id="tiCategoria" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; appearance: auto;">
-                            <option value="">Selecione...</option>
-                            <option value="Hardware">💻 Equipamento / Hardware</option>
-                            <option value="Sistema">🖥️ Sistema / Software</option>
-                            <option value="Rede">🛜 Internet / Rede</option>
-                            <option value="Inovação">💡 Inovação / Projeto</option>
-                            <option value="Acesso">🔑 Reset / Acessos</option>
-                            <option value="Outro">Outro</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Prazo de Entrega <span style="color: #ef4444;">*</span></label>
-                        <input type="date" id="tiPrazo" required style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px;">
-                    </div>
-                </div>
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Descrição do Problema / Solicitação <span style="color: #ef4444;">*</span></label>
-                    <textarea id="tiDescricao" required placeholder="Explique o que precisa ou o problema que está enfrentando..." style="width: 100%; height: 100px; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
-                </div>
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Anexos (prints, fotos, documentos)</label>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="tiAnexos" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 13px; font-weight: 500; transition: all 0.2s ease;">
-                            📎 Selecionar Arquivos
-                        </label>
-                        <input type="file" id="tiAnexos" multiple style="display: none;" onchange="document.getElementById('tiAnexosCount').textContent = this.files.length > 0 ? this.files.length + ' arquivo(s) selecionado(s)' : ''">
-                        <span id="tiAnexosCount" style="font-size: 12px; color: var(--text-muted);"></span>
-                    </div>
-                </div>
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: var(--text-color);">Link de referência (opcional)</label>
-                    <input type="url" id="tiLink" placeholder="https://exemplo.com ou link do Drive, etc." style="width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-family: inherit; font-size: 14px;">
-                </div>
-                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                    <button type="button" class="btn-secondary" onclick="closeChamadoTIModal()" style="padding: 10px 20px; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-color); font-weight: 600; cursor: pointer; font-size: 14px;">Cancelar</button>
-                    <button type="submit" class="btn-primary" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #3b82f6, #8b5cf6); border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">Enviar Chamado</button>
-                </div>
-            </form>
-        </div>
-    </div>
+
     <!-- Modal de Autenticação Gestor -->
     <div class="modal-backdrop" id="managerAuth" style="z-index: 10001;">
         <div class="modal" style="max-width: 400px; text-align: center; padding: 40px 30px;">
@@ -3492,6 +3425,104 @@
 
     <!-- Spotlight Clone to bring Express button above backdrop blur -->
     <div id="btnExpressSpotlight" style="position: fixed; z-index: 1000010; display: none; pointer-events: auto; cursor: pointer;" onclick="closeModal('modalExpressInfo'); openExpressModal();"></div>
+
+    <!-- Modal Novo Chamado TI -->
+    <div class="modal-backdrop" id="modalChamadoTI" style="display:none; align-items:center; justify-content:center;">
+        <div class="modal" style="max-width:560px; width:100%; border-radius:16px; overflow:hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-bottom: 1px solid rgba(245,158,11,0.2); padding: 20px 24px; display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="width:44px; height:44px; border-radius:12px; background: linear-gradient(135deg, #f59e0b, #d97706); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">💡</div>
+                    <div>
+                        <h2 style="margin:0; font-size:17px; font-weight:700; color:#f1f5f9;">Novo Chamado — Inovação/TI</h2>
+                        <p style="margin:0; font-size:12px; color:#94a3b8;">Registre um chamado em nome de alguém</p>
+                    </div>
+                </div>
+                <button onclick="closeChamadoTIModal()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer; line-height:1; padding:4px 8px; border-radius:8px; transition:color 0.2s;" onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">×</button>
+            </div>
+            <form id="formChamadoTI" onsubmit="handleCreateChamadoTI(event)" style="background:#0f172a;">
+                <div class="modal-body" style="padding:24px; display:flex; flex-direction:column; gap:16px;">
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                                QUEM ESTÁ SOLICITANDO? <span style="color:#f87171;">*</span>
+                            </label>
+                            <input type="text" id="tiSolicitante" required placeholder="Digite o nome de quem pediu..." style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; box-sizing:border-box; font-family:inherit;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                                RESPONSÁVEL (TI) <span style="color:#f87171;">*</span>
+                            </label>
+                            <select id="tiResponsavel" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; cursor:pointer;">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                            CATEGORIA <span style="color:#f87171;">*</span>
+                        </label>
+                        <select id="tiCategoria" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; cursor:pointer;">
+                            <option value="">Selecione a categoria...</option>
+                            <option value="TI">TI Geral</option>
+                            <option value="Suporte">Suporte / Hardware</option>
+                            <option value="Sistema">Sistema / Software</option>
+                            <option value="Rede">Rede / Conectividade</option>
+                            <option value="Desenvolvimento">Desenvolvimento</option>
+                            <option value="Segurança">Segurança da Informação</option>
+                            <option value="Manutenção">Manutenção Preventiva</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                            DESCRIÇÃO DO CHAMADO <span style="color:#f87171;">*</span>
+                        </label>
+                        <textarea id="tiDescricao" required rows="4" placeholder="Descreva o problema ou solicitação com o máximo de detalhes possível..." style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+                    </div>
+
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                            PRAZO
+                        </label>
+                        <input type="date" id="tiPrazo" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; box-sizing:border-box;">
+                    </div>
+
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                            ANEXOS
+                        </label>
+                        <label for="tiAnexos" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:1px dashed rgba(245,158,11,0.3); background:rgba(245,158,11,0.05); color:#94a3b8; font-size:13px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(245,158,11,0.6)'; this.style.color='#f59e0b';" onmouseout="this.style.borderColor='rgba(245,158,11,0.3)'; this.style.color='#94a3b8';">
+                            <i class="fas fa-paperclip"></i>
+                            <span>Clique para anexar arquivos</span>
+                            <span id="tiAnexosCount" style="margin-left:auto; font-size:12px; color:#f59e0b; font-weight:600;"></span>
+                        </label>
+                        <input type="file" id="tiAnexos" multiple style="display:none;" onchange="document.getElementById('tiAnexosCount').textContent = this.files.length > 0 ? this.files.length + ' arquivo(s) selecionado(s)' : '';">
+                    </div>
+
+                </div>
+                <div class="modal-footer" style="padding:16px 24px; background:#0f172a; border-top:1px solid rgba(255,255,255,0.06); display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" onclick="closeChamadoTIModal()" style="padding:10px 20px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:#94a3b8; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                        Cancelar
+                    </button>
+                    <button type="submit" style="padding:10px 24px; border-radius:8px; border:none; background: linear-gradient(135deg, #f59e0b, #d97706); color:#000; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s; box-shadow:0 4px 14px rgba(245,158,11,0.3);" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 20px rgba(245,158,11,0.45)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 14px rgba(245,158,11,0.3)'">
+                        <i class="fas fa-paper-plane"></i> Enviar Chamado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <style>
+        #modalChamadoTI.active { display: flex !important; }
+        #modalChamadoTI { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 9999; }
+        #modalChamadoTI select:focus,
+        #modalChamadoTI input:focus,
+        #modalChamadoTI textarea:focus {
+            border-color: rgba(245,158,11,0.5) !important;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.1);
+        }
+    </style>
 
 </body>
 
