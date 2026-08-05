@@ -5560,7 +5560,7 @@ function rejectTask() {
 }
 
 
-function approveTask() {
+async function approveTask() {
     // Prevent double-click
     const btn = document.getElementById('btnApprove');
     if (btn.disabled) return;
@@ -5570,7 +5570,10 @@ function approveTask() {
     if (!t) { btn.disabled = false; return; }
 
     const fb = document.getElementById('reviewFeedback').value.trim();
-    if (fb) t.feedback.push({ data: new Date().toISOString(), texto: fb });
+    if (fb) {
+        if (!t.feedback) t.feedback = [];
+        t.feedback.push({ data: new Date().toISOString(), texto: fb });
+    }
 
     // Get current stage executor to notify them
     const currentStageUser = t.pipeline[t.currentStage].userId;
@@ -5602,7 +5605,7 @@ function approveTask() {
 
         toast('Demanda concluída!', 'success');
     }
-    saveData();
+    await saveData(t);
     closeModal('modalReview');
     document.getElementById('btnApprove').disabled = false;
     refresh();
@@ -11046,6 +11049,7 @@ async function handleCreateChamadoTI(e) {
         }],
         currentStage: 0,
         activityLog: [],
+        feedback: [],
         comments: [],
         subtasks: [],
         attachments: attachments
