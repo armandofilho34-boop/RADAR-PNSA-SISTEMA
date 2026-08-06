@@ -10919,6 +10919,8 @@ window.openChamadoTIModal = openChamadoTIModal;
 function closeChamadoTIModal() {
     const modal = document.getElementById('modalChamadoTI');
     if (modal) modal.classList.remove('active');
+    const form = document.getElementById('formChamadoTI');
+    if (form) form.reset();
 }
 window.closeChamadoTIModal = closeChamadoTIModal;
 
@@ -10983,17 +10985,16 @@ async function handleCreateChamadoTI(e) {
     
     const solicitanteNome = document.getElementById('tiSolicitante').value.trim();
     const responsavelId = document.getElementById('tiResponsavel').value;
+    const titulo = document.getElementById('tiTitulo').value.trim();
     const desc = document.getElementById('tiDescricao').value;
     const categoria = document.getElementById('tiCategoria').value;
     const prazo = document.getElementById('tiPrazo').value;
     const fileInput = document.getElementById('tiAnexos');
     
-    if (!solicitanteNome || !responsavelId || !desc || !categoria) {
+    if (!solicitanteNome || !responsavelId || !titulo || !desc || !categoria) {
         toast('Preencha os campos obrigatórios.', 'error');
         return;
     }
-
-    const titleMsg = desc.substring(0, 30) + (desc.length > 30 ? '...' : '');
 
     const btnSubmit = e.target.querySelector('button[type="submit"]');
     btnSubmit.disabled = true;
@@ -11032,7 +11033,7 @@ async function handleCreateChamadoTI(e) {
 
     const newTask = {
         id: generateId(),
-        nome: `TI: ${titleMsg}`,
+        nome: `TI: ${titulo}`,
         tipoProjeto: categoria || 'TI',
         prioridade: 'Média', 
         isPinned: false,
