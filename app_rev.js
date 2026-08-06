@@ -4145,6 +4145,7 @@ window.openExpressModal = function() {
     if (cTipo) {
         if (userDepts.includes('Videomaker')) cTipo.value = 'Videomaker';
         else if (userDepts.includes('Designer') || userDepts.includes('Design Gráfico')) cTipo.value = 'Design Gráfico';
+        else if (userDepts.includes('Suporte')) cTipo.value = 'Suporte';
     }
 
     window.onExpressCanalChange();
