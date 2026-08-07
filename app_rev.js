@@ -564,7 +564,14 @@ function getMonthDemandas(includeFuture = true) {
         // REGRA 2 (Carry-over): Se a demanda é de meses anteriores
         if (dt < start) {
             // Se estamos no mês atual E ela NÃO está "Aprovado" → aparece (pra não sumir da tela de trabalho)
-            if (isCurrentMonth && d.status !== 'Aprovado') return true;
+            if (isCurrentMonth && d.status !== 'Aprovado') {
+                // Se a demanda foi criada há mais de 45 dias e permaneceu estagnada em "A fazer", não arrasta indefinidamente
+                const ageInDays = Math.floor((now - dt) / (1000 * 60 * 60 * 24));
+                if (ageInDays > 45 && d.status === 'A fazer') {
+                    return false;
+                }
+                return true;
+            }
 
             // Se ela foi aprovada/concluída neste mês selecionado → aparece na coluna de Aprovados do mês de conclusão
             if (d.status === 'Aprovado' && d.lastStatusChange) {
@@ -3608,6 +3615,27 @@ function renderTasks() {
     const c = document.getElementById('tasksTable'), f = document.getElementById('filterTasks')?.value || '';
     let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
     let t = getUserVisibleTasks(baseDemandas);
+
+    // Se estivermos em um departamento (ex: Videomaker) ou se o usuário logado for executor do setor
+    const activeDept = currentDept || (currentUser && currentUser.role === 'executor' ? currentUser.dept : null);
+    if (activeDept && activeDept !== 'Gestão' && activeDept !== 'Social Media') {
+        const normDept = normalizeDept(activeDept);
+        t = t.filter(d => {
+            const hasStage = d.pipeline && d.pipeline.some(st => normalizeDept(st.dept) === normDept);
+            const matchType = normalizeDept(d.tipoProjeto) === normDept;
+            if (!hasStage && !matchType) return false;
+
+            // Se for Videomaker e a demanda for Design + Vídeo, só mostra se a etapa de Design já tiver sido concluída
+            if (normDept === 'Videomaker' && normalizeDept(d.tipoProjeto) === 'Design + Vídeo' && d.status !== 'Aprovado') {
+                const vmIdx = d.pipeline ? d.pipeline.findIndex(st => normalizeDept(st.dept) === 'Videomaker') : -1;
+                if (vmIdx > -1 && (d.currentStage == null || d.currentStage < vmIdx)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
     if (f) t = t.filter(d => (d.status || '').trim().toLowerCase().includes(f.trim().toLowerCase()));
     // Always show tabs, even if empty
     c.innerHTML = renderExecutionTasks(t);
