@@ -204,18 +204,28 @@ function getUserVisibleTasks(baseDemandas) {
     }
 
     // Default executor (ex: Videomaker, Designer, Suporte, TI)
-    return baseDemandas.filter(d =>
-        d.solicitanteId === currentUser.id ||
-        d.responsavelId === currentUser.id ||
-        d.criadoPor === currentUser.id ||
-        d.createdBy === currentUser.id ||
-        (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) ||
-        (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) ||
-        (d.pipeline && d.pipeline.some(s =>
-            s.userId === currentUser.id ||
-            (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
-        ))
-    );
+    return baseDemandas.filter(d => {
+        // Se o usuário for do departamento Videomaker e a demanda for Design + Vídeo mas ainda estiver na etapa de Design (estágio anterior), oculta até a liberação
+        if (depts.includes('Videomaker') && normalizeDept(d.tipoProjeto) === 'Design + Vídeo' && d.status !== 'Aprovado') {
+            const vmIdx = d.pipeline ? d.pipeline.findIndex(st => normalizeDept(st.dept) === 'Videomaker') : -1;
+            if (vmIdx > -1 && (d.currentStage == null || d.currentStage < vmIdx)) {
+                return false;
+            }
+        }
+
+        return (
+            d.solicitanteId === currentUser.id ||
+            d.responsavelId === currentUser.id ||
+            d.criadoPor === currentUser.id ||
+            d.createdBy === currentUser.id ||
+            (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) ||
+            (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) ||
+            (d.pipeline && d.pipeline.some(s =>
+                s.userId === currentUser.id ||
+                (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
+            ))
+        );
+    });
 }
 
 
@@ -312,22 +322,17 @@ function normalizeDemandas(arr) {
                 if (stage && stage.status) stage.status = normalizeStatus(stage.status);
                 if (stage && stage.dept) stage.dept = normalizeDept(stage.dept);
             });
-        }
-        // Migração Retroativa: Se a demanda foi criada para um Videomaker (ex: Guilherme, Pedro, Maria) ou possui indicativo de vídeo,
-        // ajusta a etapa do pipeline para o departamento Videomaker para que apareça no painel
-        const respId = d.responsavelId || (d.pipeline && d.pipeline[0]?.userId);
-        const respUser = (typeof USERS !== 'undefined' && USERS && respId) ? USERS[respId] : null;
-        const respDepts = respUser ? (typeof getUserDepts === 'function' ? getUserDepts(respUser) : [respUser.dept]) : [];
-        const isVideoResp = respDepts.map(normalizeDept).includes('Videomaker');
-        
-        const isVideoType = (normalizeDept(d.tipoProjeto) === 'Videomaker') || 
-                            (Array.isArray(d.formatos) && d.formatos.some(f => f && (String(f).toLowerCase().includes('vídeo') || String(f).toLowerCase().includes('video')))) ||
-                            (d.nome && (String(d.nome).toLowerCase().includes('vídeo') || String(d.nome).toLowerCase().includes('video') || String(d.nome).toLowerCase().includes('videomaker')));
-
-        if ((isVideoResp || isVideoType) && normalizeDept(d.tipoProjeto) !== 'Designer' && d.pipeline && Array.isArray(d.pipeline)) {
-            d.pipeline.forEach(stage => {
-                if (stage) stage.dept = 'Videomaker';
-            });
+            // Correção de Integridade do Pipeline:
+            // Se a demanda tem pipeline de 1 etapa e tipoProjeto definido, garante que o departamento do estágio corresponda ao tipo do projeto.
+            const normTipo = normalizeDept(d.tipoProjeto);
+            if (d.pipeline.length === 1 && normTipo && normTipo !== 'Design + Vídeo') {
+                if (d.pipeline[0] && d.pipeline[0].dept !== normTipo) {
+                    d.pipeline[0].dept = normTipo;
+                }
+            } else if (normTipo === 'Design + Vídeo' && d.pipeline.length >= 2) {
+                if (d.pipeline[0]) d.pipeline[0].dept = 'Designer';
+                if (d.pipeline[1]) d.pipeline[1].dept = 'Videomaker';
+            }
         }
     });
 }
@@ -3622,21 +3627,30 @@ function renderBoard() {
     const s = document.getElementById('boardSearch')?.value?.toLowerCase() || '';
 
     let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
-    let t = baseDemandas.filter(d =>
-        (d.pipeline && d.pipeline.some(st => st.dept === currentDept)) ||
-        (d.tipoProjeto === currentDept) ||
-        (currentDept === 'Videomaker' && (d.tipoProjeto === 'Videomaker' || d.tipoProjeto === 'Design + Vídeo'))
-    );
+    let t = baseDemandas.filter(d => {
+        const hasStage = d.pipeline && d.pipeline.some(st => normalizeDept(st.dept) === normalizeDept(currentDept));
+        const matchType = normalizeDept(d.tipoProjeto) === normalizeDept(currentDept);
+        if (!hasStage && !matchType) return false;
+
+        // Caso especial: Design + Vídeo no quadro do Videomaker
+        // Se ainda está na etapa 0 (Designer) e a demanda não está concluída, não deve aparecer no quadro do Videomaker ainda
+        if (currentDept === 'Videomaker' && normalizeDept(d.tipoProjeto) === 'Design + Vídeo') {
+            const vmStageIdx = d.pipeline ? d.pipeline.findIndex(st => normalizeDept(st.dept) === 'Videomaker') : -1;
+            if (vmStageIdx > -1 && (d.currentStage == null || d.currentStage < vmStageIdx) && d.status !== 'Aprovado') {
+                return false;
+            }
+        }
+        return true;
+    });
 
     const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [currentUser?.dept];
     if (!isGlobalCoordinator()) {
         if (currentUser && currentUser.role === 'executor') {
             t = t.filter(d =>
-                d.solicitanteId === currentUser.id ||
                 d.responsavelId === currentUser.id ||
                 (d.pipeline && d.pipeline.some(st =>
-                    st.userId === currentUser.id ||
-                    (!st.userId && st.userIds && st.userIds.includes(currentUser.id))
+                    (normalizeDept(st.dept) === currentDept || st.userId === currentUser.id) &&
+                    (st.userId === currentUser.id || (!st.userId && st.userIds && st.userIds.includes(currentUser.id)) || (!st.userId && !st.userIds))
                 ))
             );
         } else {
@@ -3644,7 +3658,7 @@ function renderBoard() {
                 d.solicitanteId === currentUser?.id ||
                 userDepts.includes(currentDept) ||
                 (d.pipeline && d.pipeline.some(st =>
-                    st.dept === currentDept ||
+                    normalizeDept(st.dept) === currentDept ||
                     st.userId === currentUser?.id ||
                     (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
                 ))

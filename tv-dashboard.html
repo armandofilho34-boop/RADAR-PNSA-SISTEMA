@@ -1923,6 +1923,16 @@
             }
         });
 
+        function parseDateLocal(d) {
+            if (!d) return new Date();
+            if (d instanceof Date) return d;
+            if (typeof d === 'string') {
+                if (d.length === 10 && d.includes('-')) return new Date(d + 'T12:00:00');
+                if (d.includes('T') && !d.endsWith('Z') && !d.includes('+')) return new Date(d);
+            }
+            return new Date(d);
+        }
+
         function getLocalDateString() {
             const d = new Date();
             const yyyy = d.getFullYear();
@@ -1932,14 +1942,14 @@
         }
 
         function getMonthDemandas() {
-            const start = new Date(selectedYear, selectedMonth, 1);
-            const end = new Date(selectedYear, selectedMonth + 1, 1);
+            const start = new Date(selectedYear, selectedMonth, 1, 0, 0, 0);
+            const end = new Date(selectedYear, selectedMonth + 1, 1, 0, 0, 0);
             
             // Filtrar pelo mês operacional da demanda (priorizando dataSolicitacao e dataConclusao)
             let filtered = demandas.filter(d => {
                 const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
                 if (!dc) return false;
-                const dt = new Date(dc);
+                const dt = parseDateLocal(dc);
                 return dt >= start && dt < end;
             });
 
@@ -1977,10 +1987,66 @@
         }
 
         /* Firebase */
-        function loadUsers() { if (!window.firebaseDb) return; try { window.onSnapshot(window.query(window.collection(window.firebaseDb, "users")), s => { const l = {}; s.forEach(d => { const da = d.data(); if (da.id) l[da.id] = da }); USERS = l; renderAll() }) } catch (e) { console.error(e) } }
-        function loadDemandas() { if (!window.firebaseDb) return; try { window.onSnapshot(window.query(window.collection(window.firebaseDb, "demandas")), s => { const l = []; s.forEach(d => { const da = d.data(); if (!da.deletedAt) l.push({ id: d.id, ...da }) }); demandas = l; renderAll() }) } catch (e) { console.error(e) } }
+        let usersLoaded = false, demandasLoaded = false;
+        function loadUsers() { 
+            if (!window.firebaseDb) return; 
+            try { 
+                window.onSnapshot(window.query(window.collection(window.firebaseDb, "users")), s => { 
+                    const l = {}; 
+                    s.forEach(d => { const da = d.data(); if (da.id) l[da.id] = da }); 
+                    USERS = l; 
+                    usersLoaded = true;
+                    hideLoaderIfReady();
+                    renderAll(); 
+                }, err => {
+                    console.error("Erro ao carregar usuários no TV Dashboard:", err);
+                });
+            } catch (e) { console.error(e) } 
+        }
 
-        function renderAll() { const md = getMonthDemandas(); updateMetrics(md); renderDonutStatus(md); renderGauge(md); renderKPIs(md); renderTimeline(md); renderBarDept(md); renderProductivity(md); renderActivity(md); renderRanking(md); renderLatestArts(md); renderStatusBoard(md); }
+        function loadDemandas() { 
+            if (!window.firebaseDb) return; 
+            try { 
+                window.onSnapshot(window.query(window.collection(window.firebaseDb, "demandas")), s => { 
+                    const l = []; 
+                    s.forEach(d => { const da = d.data(); if (!da.deletedAt) l.push({ id: d.id, ...da }) }); 
+                    demandas = l; 
+                    demandasLoaded = true;
+                    hideLoaderIfReady();
+                    renderAll(); 
+                }, err => {
+                    console.error("Erro ao carregar demandas no TV Dashboard:", err);
+                });
+            } catch (e) { console.error(e) } 
+        }
+
+        function hideLoaderIfReady() {
+            const ld = document.getElementById('ld');
+            const app = document.getElementById('app');
+            if (ld && app && (ld.style.display !== 'none')) {
+                ld.style.display = 'none';
+                app.style.display = 'grid';
+            }
+        }
+
+        function renderAll() { 
+            try {
+                const md = getMonthDemandas(); 
+                updateMetrics(md); 
+                renderDonutStatus(md); 
+                renderGauge(md); 
+                renderKPIs(md); 
+                renderTimeline(md); 
+                renderBarDept(md); 
+                renderProductivity(md); 
+                renderActivity(md); 
+                renderRanking(md); 
+                renderLatestArts(md); 
+                renderStatusBoard(md); 
+            } catch (err) {
+                console.error("Erro em renderAll TV Dashboard:", err);
+            }
+        }
 
         /* Clock */
         function updateClock() { const n = new Date(); document.getElementById('clockD').textContent = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; const ds = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'], ms = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']; document.getElementById('dateD').textContent = `${ds[n.getDay()]}, ${n.getDate()} ${ms[n.getMonth()]}` }
@@ -1988,7 +2054,8 @@
         /* Metrics - 5 cards com ícones */
         function updateMetrics(md) {
             const t = md.length, af = md.filter(d => d.status === 'A fazer').length, fz = md.filter(d => d.status === 'Fazendo').length, rv = md.filter(d => d.status === 'Para aprovação').length, dn = md.filter(d => d.status === 'Aprovado').length;
-            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
+            const now = new Date();
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && parseDateLocal(d.dataConclusao) < now).length;
             document.getElementById('metricsRow').innerHTML = `
                 <div class="metric bl glass"><span class="m-icon">📋</span><span class="m-val">${t}</span><span class="m-lbl">Total</span></div>
                 <div class="metric or glass"><span class="m-icon">🔄</span><span class="m-val">${af + fz}</span><span class="m-lbl">Em Andamento</span></div>
@@ -2019,7 +2086,8 @@
             const total = md.length, done = md.filter(d => d.status === 'Aprovado').length;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const doing = md.filter(d => d.status === 'Fazendo').length + md.filter(d => d.status === 'A fazer').length;
-            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
+            const now = new Date();
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && parseDateLocal(d.dataConclusao) < now).length;
             const avgDays = calcAvgDays(md);
             const R = 80, circ = 2 * Math.PI * R, arc = circ * .75, fill = (pct / 100) * arc;
             const color = pct >= 80 ? C.green : pct >= 50 ? C.orange : C.red;
@@ -2030,7 +2098,8 @@
             if (!completed.length) return '-';
             const now = new Date();
             const total = completed.reduce((sum, d) => {
-                const start = new Date(d.dataCriacao); const end = d.lastStatusChange ? new Date(d.lastStatusChange) : now;
+                const start = parseDateLocal(d.dataCriacao); 
+                const end = d.lastStatusChange ? parseDateLocal(d.lastStatusChange) : now;
                 return sum + Math.max(Math.ceil((end - start) / 864e5), 1)
             }, 0);
             return Math.round(total / completed.length);
@@ -2040,10 +2109,18 @@
         function renderKPIs(md) {
             const el = document.getElementById('kpiGrid'); if (!el) return;
             const avgDays = calcAvgDays(md);
-            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && new Date(d.dataConclusao) < new Date()).length;
-            const thisWeek = md.filter(d => { const dc = d.dataCriacao; if (!dc) return false; const diff = (new Date() - new Date(dc)) / 864e5; return diff <= 7; }).length;
-            const uniqueDepts = new Set(); md.forEach(d => { if (d.pipeline) d.pipeline.forEach(s => { if (s.dept) uniqueDepts.add(s.dept); }); });
-            const totalActors = Object.values(USERS).filter(u => !isGO(u) && md.some(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id)).length;
+            const now = new Date();
+            const overdue = md.filter(d => d.status !== 'Aprovado' && d.dataConclusao && parseDateLocal(d.dataConclusao) < now).length;
+            const thisWeek = md.filter(d => { const dc = d.dataCriacao; if (!dc) return false; const diff = (now - parseDateLocal(dc)) / 864e5; return diff >= 0 && diff <= 7; }).length;
+            const uniqueDepts = new Set(); 
+            md.forEach(d => { 
+                if (Array.isArray(d.pipeline)) {
+                    d.pipeline.forEach(s => { if (s && s.dept) uniqueDepts.add(s.dept); }); 
+                }
+            });
+            const totalActors = Object.values(USERS).filter(u => u && !isGO(u) && md.some(d => 
+                (Array.isArray(d.pipeline) && d.pipeline.some(s => s && (s.userId === u.id || (!s.userId && Array.isArray(s.userIds) && s.userIds.includes(u.id))))) || d.solicitanteId === u.id
+            )).length;
             el.innerHTML = `<div class="kpi-grid">
                 <div class="kpi-card" style="border-color:rgba(6,182,212,.12)"><div class="kpi-icon">⏱️</div><div class="kpi-val" style="color:var(--cyan)">${avgDays}d</div><div class="kpi-label">Tempo Médio</div><div class="kpi-sub">de conclusão</div></div>
                 <div class="kpi-card" style="border-color:rgba(239,68,68,.12)"><div class="kpi-icon">🔥</div><div class="kpi-val" style="color:var(--red)">${overdue}</div><div class="kpi-label">Atrasadas</div><div class="kpi-sub">prazo vencido</div></div>
@@ -2060,7 +2137,10 @@
             for (let day = 1; day <= daysInMonth; day++) {
                 const key = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 labels.push(day);
-                counts.push(md.filter(t => { const dc = t.dataCriacao || t.dataSolicitacao; return dc && dc.startsWith(key) }).length);
+                counts.push(md.filter(t => { 
+                    const dc = t.dataCriacao || t.dataSolicitacao; 
+                    return dc && (typeof dc === 'string' && dc.startsWith(key));
+                }).length);
             }
             const max = Math.max(...counts, 1);
             const today = new Date(); const isCurrentMonth = today.getFullYear() === selectedYear && today.getMonth() === selectedMonth;
@@ -2070,7 +2150,11 @@
         /* Dept bars */
         function renderBarDept(md) {
             const depts = ['Designer', 'Videomaker', 'Social Media', 'Suporte', 'Inovação/TI', 'Transmissão'];
-            const data = depts.map(d => ({ label: d, cls: d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\/\s]/g, ''), count: md.filter(t => t.pipeline && t.pipeline.some(s => s.dept === d)).length }));
+            const data = depts.map(d => ({ 
+                label: d, 
+                cls: d.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\/\s]/g, ''), 
+                count: md.filter(t => Array.isArray(t.pipeline) && t.pipeline.some(s => s && s.dept === d)).length 
+            }));
             renderBars('barDept', data);
         }
         function renderBars(id, data) { const el = document.getElementById(id); if (!el) return; const max = Math.max(...data.map(d => d.count), 1); el.innerHTML = `<div class="bars">${data.map(d => `<div class="bar-i"><span class="bar-l">${d.label}</span><div class="bar-t"><div class="bar-f ${d.cls}" style="width:${Math.max((d.count / max) * 100, d.count > 0 ? 12 : 0)}%">${d.count > 0 ? d.count : ''}</div></div></div>`).join('')}</div>` }
@@ -2080,16 +2164,17 @@
             const el = document.getElementById('prodList'); if (!el) return;
             const all = Object.values(USERS);
             const stats = all.map(u => {
-                const total = md.filter(d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id).length;
-                const done = md.filter(d => d.status === 'Aprovado' && ((d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id)).length;
+                if (!u) return null;
+                const total = md.filter(d => (Array.isArray(d.pipeline) && d.pipeline.some(s => s && (s.userId === u.id || (!s.userId && Array.isArray(s.userIds) && s.userIds.includes(u.id))))) || d.solicitanteId === u.id).length;
+                const done = md.filter(d => d.status === 'Aprovado' && ((Array.isArray(d.pipeline) && d.pipeline.some(s => s && (s.userId === u.id || (!s.userId && Array.isArray(s.userIds) && s.userIds.includes(u.id))))) || d.solicitanteId === u.id)).length;
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                return { user: u, total: total, done: done, pct }
-            }).filter(s => s.total > 0).sort((a, b) => b.done - a.done).slice(0, 8);
+                return { user: u, total: total, done: done, pct };
+            }).filter(s => s && s.total > 0).sort((a, b) => b.done - a.done).slice(0, 8);
+
             if (!stats.length) { el.innerHTML = '<div class="empty">Sem dados</div>'; return }
             const R = 20, circ = 2 * Math.PI * R;
             el.innerHTML = `<div class="prod-grid">${stats.map(s => {
                 const u = s.user;
-                const avInner = u.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : `${getInitials(u)}`;
                 const fill = (s.pct / 100) * circ;
                 const color = s.pct >= 80 ? C.green : s.pct >= 50 ? C.orange : C.red;
                 return `<div class="prod-card">
@@ -2110,17 +2195,18 @@
             const active = md.filter(d => d.status !== 'Aprovado').slice(0, 7);
             if (!active.length) { el.innerHTML = '<div class="empty">Nenhuma demanda ativa</div>'; return }
             el.innerHTML = active.map(t => {
-                const stage = t.pipeline?.[t.currentStage];
+                const stage = Array.isArray(t.pipeline) && typeof t.currentStage === 'number' ? t.pipeline[t.currentStage] : null;
                 let av = '';
                 if (stage) {
                     if (stage.userId) {
                         av = mkAv(USERS[stage.userId], 'act-av');
-                    } else if (stage.userIds) {
+                    } else if (Array.isArray(stage.userIds)) {
                         av = stage.userIds.map(uid => mkAv(USERS[uid], 'act-av')).join('');
                     }
                 }
+                const pCls = String(t.prioridade || 'normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const sc = t.status === 'Fazendo' ? 'st-do' : t.status === 'A fazer' ? 'st-af' : 'st-rv';
-                return `<div class="act-item"><div class="act-prio ${(t.prioridade || 'normal').toLowerCase()}"></div><div class="act-inf"><div class="act-ttl">${t.nome || '-'}</div><div class="act-mta">${stage?.dept || '-'} · ${fmtD(t.dataConclusao)}</div></div>${av}<span class="act-st ${sc}">${t.status === 'Para aprovação' ? 'Revisão' : t.status}</span></div>`;
+                return `<div class="act-item"><div class="act-prio ${pCls}"></div><div class="act-inf"><div class="act-ttl">${t.nome || '-'}</div><div class="act-mta">${stage?.dept || '-'} · ${fmtD(t.dataConclusao)}</div></div>${av}<span class="act-st ${sc}">${t.status === 'Para aprovação' ? 'Revisão' : t.status}</span></div>`;
             }).join('');
         }
 
@@ -2130,16 +2216,16 @@
             const rest = document.getElementById('rkRest');
             if (!pod || !rest) return;
 
-            const all = Object.values(USERS);
+            const all = Object.values(USERS).filter(Boolean);
             if (!all.length) { pod.innerHTML = ''; rest.innerHTML = '<div class="empty">Carregando...</div>'; return }
             const mdLocal = md || getMonthDemandas();
 
             const stats = all.map(u => {
-                const isIn = d => (d.pipeline && d.pipeline.some(s => s.userId === u.id || (!s.userId && s.userIds && s.userIds.includes(u.id)))) || d.solicitanteId === u.id;
+                const isIn = d => (Array.isArray(d.pipeline) && d.pipeline.some(s => s && (s.userId === u.id || (!s.userId && Array.isArray(s.userIds) && s.userIds.includes(u.id))))) || d.solicitanteId === u.id;
                 const total = mdLocal.filter(d => isIn(d)).length;
                 const appr = mdLocal.filter(d => d.status === 'Aprovado' && isIn(d));
                 const done = appr.length; const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                let ld = null; if (appr.length) { const ds = appr.map(d => d.lastStatusChange || d.dataCriacao).filter(Boolean).map(d => new Date(d).getTime()); if (ds.length) ld = Math.max(...ds) }
+                let ld = null; if (appr.length) { const ds = appr.map(d => d.lastStatusChange || d.dataCriacao).filter(Boolean).map(d => parseDateLocal(d).getTime()); if (ds.length) ld = Math.max(...ds) }
                 return { user: u, total, done, pct, ld }
             }).filter(s => s.total > 0)
                 .sort((a, b) => { if (b.pct !== a.pct) return b.pct - a.pct; if (b.done !== a.done) return b.done - a.done; if (a.ld && b.ld) return a.ld - b.ld; return 0 });
@@ -2198,19 +2284,21 @@
             // Filtra APENAS entregas finais enviadas pelo designer (Para aprovação ou Aprovado)
             const arts = [];
             md.forEach(d => {
-                if ((d.status === 'Para aprovação' || d.status === 'Aprovado' || d.status === 'Alteração') && d.pipeline) {
-                    const designerStage = d.pipeline.find(s => s.dept === 'Designer');
+                if ((d.status === 'Para aprovação' || d.status === 'Aprovado' || d.status === 'Alteração') && Array.isArray(d.pipeline)) {
+                    const designerStage = d.pipeline.find(s => s && s.dept === 'Designer');
                     if (!designerStage) return;
-                    // Coleta URLs de entrega do designer
-                    const urls = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+                    // Coleta URLs de entrega do designer com segurança
+                    const urls = Array.isArray(d.entregasUrl) 
+                        ? d.entregasUrl 
+                        : (typeof d.entregasUrl === 'string' && d.entregasUrl ? [d.entregasUrl] : (d.entregaUrl ? [d.entregaUrl] : []));
                     urls.forEach(url => {
-                        if (url && /\.(jpe?g|png|webp|gif|svg)(\?|$)/i.test(url)) {
+                        if (url && typeof url === 'string' && /\.(jpe?g|png|webp|gif|svg)(\?|$)/i.test(url)) {
                             arts.push({ url, nome: d.nome, date: d.lastStatusChange || d.dataCriacao, designer: USERS[designerStage.userId]?.nome || '' });
                         }
                     });
                 }
             });
-            arts.sort((a, b) => new Date(b.date) - new Date(a.date));
+            arts.sort((a, b) => parseDateLocal(b.date) - parseDateLocal(a.date));
             const display = arts.slice(0, 6);
 
             if (!display.length) { el.innerHTML = '<div class="empty">Nenhuma arte final entregue pelo designer neste mês</div>'; return }
@@ -2239,9 +2327,9 @@
             ];
             el.innerHTML = statuses.map(st => {
                 const items = md.filter(d => d.status === st.key)
-                    .sort((a, b) => new Date(b.lastStatusChange || b.dataCriacao || 0) - new Date(a.lastStatusChange || a.dataCriacao || 0));
+                    .sort((a, b) => parseDateLocal(b.lastStatusChange || b.dataCriacao || 0) - parseDateLocal(a.lastStatusChange || a.dataCriacao || 0));
                 const cardsHtml = items.slice(0, 5).map(t => {
-                    const stage = t.pipeline?.[t.currentStage];
+                    const stage = Array.isArray(t.pipeline) && typeof t.currentStage === 'number' ? t.pipeline[t.currentStage] : null;
                     let avHtml = '';
                     let uName = '-';
                     if (stage) {
@@ -2249,7 +2337,7 @@
                             const u = USERS[stage.userId];
                             avHtml = u?.avatarUrl ? `<img src="${u.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(u);
                             uName = u?.nome?.split(' ')[0] || '-';
-                        } else if (stage.userIds && stage.userIds.length > 0) {
+                        } else if (Array.isArray(stage.userIds) && stage.userIds.length > 0) {
                             const firstU = USERS[stage.userIds[0]];
                             avHtml = firstU?.avatarUrl ? `<img src="${firstU.avatarUrl}" referrerpolicy="no-referrer"/>` : getInitials(firstU);
                             if (stage.userIds.length > 1) {
@@ -2259,7 +2347,7 @@
                             }
                         }
                     }
-                    const pCls = (t.prioridade || 'normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const pCls = String(t.prioridade || 'normal').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                     return `<div class="sb-card">
                         <div class="sb-card-name">${t.nome || '-'}</div>
                         <div class="sb-card-meta">
@@ -2286,22 +2374,49 @@
             if (!u) return '?';
             if (u.iniciais && u.iniciais !== '--' && u.iniciais !== '?') return u.iniciais;
             if (u.nome) {
-                const p = u.nome.trim().split(' ').filter(Boolean);
+                const p = String(u.nome).trim().split(' ').filter(Boolean);
                 if (p.length > 0) return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
             }
             return '?';
         }
         function mkAv(u, c) { if (!u) return `<div class="${c}">?</div>`; if (u.avatarUrl) return `<img src="${u.avatarUrl}" class="${c}" style="object-fit:cover" referrerpolicy="no-referrer"/>`; return `<div class="${c}">${getInitials(u)}</div>` }
-        function isGO(u) { if (Array.isArray(u.dept)) { const f = u.dept.filter(d => d !== 'Gestão'); return u.dept.includes('Gestão') && f.length === 0 } if (typeof u.dept === 'string') { const d = u.dept.split(',').map(x => x.trim()).filter(Boolean); return d.length === 1 && d[0] === 'Gestão' } return u.dept === 'Gestão' }
-        function fmtD(d) { if (!d) return '-'; const dt = new Date(d); return isNaN(dt.getTime()) ? '-' : `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}` }
+        function isGO(u) { if (!u) return false; if (Array.isArray(u.dept)) { const f = u.dept.filter(d => d !== 'Gestão'); return u.dept.includes('Gestão') && f.length === 0 } if (typeof u.dept === 'string') { const d = u.dept.split(',').map(x => x.trim()).filter(Boolean); return d.length === 1 && d[0] === 'Gestão' } return u.dept === 'Gestão' }
+        function fmtD(d) { if (!d) return '-'; const dt = parseDateLocal(d); return isNaN(dt.getTime()) ? '-' : `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}` }
 
         function switchSlide() { curSlide = (curSlide + 1) % TOTAL_SLIDES; document.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('on', i === curSlide)); updDots() }
         function updDots() { const el = document.getElementById('dots'); if (!el) return; el.innerHTML = Array.from({ length: TOTAL_SLIDES }, (_, i) => `<span class="dot ${i === curSlide ? 'on' : ''}"></span>`).join('') }
 
-        function checkFb() { if (window.firebaseDb) { loadUsers(); loadDemandas() } else setTimeout(checkFb, 500) }
-        function init() { setTimeout(() => { document.getElementById('ld').style.display = 'none'; document.getElementById('app').style.display = 'grid'; try { document.documentElement.requestFullscreen() } catch (e) { } updateClock(); updDots(); buildMonthSelector(); setInterval(updateClock, 1000); setInterval(switchSlide, INTERVAL) }, 1500) }
+        function checkFb() { 
+            if (window.firebaseDb) { 
+                loadUsers(); 
+                loadDemandas();
+                if (window.onAuthStateChanged && window.firebaseAuth) {
+                    window.onAuthStateChanged(window.firebaseAuth, () => {
+                        loadUsers();
+                        loadDemandas();
+                    });
+                }
+            } else {
+                setTimeout(checkFb, 300);
+            }
+        }
+
+        function init() { 
+            buildMonthSelector();
+            updateClock(); 
+            updDots(); 
+            setInterval(updateClock, 1000); 
+            setInterval(switchSlide, INTERVAL);
+
+            setTimeout(() => { 
+                hideLoaderIfReady();
+                try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (e) { } 
+            }, 1200);
+        }
+
         window.addEventListener('firebaseLoaded', () => { loadUsers(); loadDemandas() });
-        checkFb(); init();
+        checkFb(); 
+        init();
     </script>
 </body>
 
