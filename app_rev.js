@@ -164,48 +164,22 @@ function getUserVisibleTasks(baseDemandas) {
 
     const depts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)];
 
+    // Filtra demandas de Transmissão para o usuário logado caso ele não faça mais Transmissão
+    const isUserTransmissao = depts.includes('Transmissão');
+    let filteredBase = baseDemandas.filter(d => {
+        if (!d || d.deletedAt) return false;
+        if (normalizeDept(d.tipoProjeto) === 'Transmissão' && !isUserTransmissao) return false;
+        return true;
+    });
+
     if (isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || depts.includes('Social Media') || depts.includes('Gestão')) {
-        return baseDemandas;
+        return filteredBase;
     }
 
     const currName = (currentUser.nome || '').toLowerCase().trim();
 
-    if (currentUser.role === 'gestor_equipe' || currentUser.role === 'social_media' || depts.includes('Social Media')) {
-        return baseDemandas.filter(d => {
-            if (d.solicitanteId === currentUser.id || d.responsavelId === currentUser.id || d.criadoPor === currentUser.id || d.createdBy === currentUser.id) return true;
-            if (currName && USERS[d.solicitanteId]?.nome?.toLowerCase()?.trim() === currName) return true;
-            if (currName && USERS[d.responsavelId]?.nome?.toLowerCase()?.trim() === currName) return true;
-            if (!d.pipeline) return true;
-
-            const isAssigned = d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id)));
-            if (isAssigned) return true;
-
-            return d.pipeline.some(stage => {
-                const sDept = normalizeDept(stage.dept);
-                if (depts.includes(sDept)) return true;
-                const stageUser = USERS && USERS[stage.userId];
-                if (stageUser) {
-                    const userDepts = typeof getUserDepts === 'function' ? getUserDepts(stageUser) : [normalizeDept(stageUser.dept)];
-                    return userDepts.some(ud => depts.includes(ud));
-                }
-                if (!stage.userId && stage.userIds) {
-                    return stage.userIds.some(uid => {
-                        const sUser = USERS && USERS[uid];
-                        if (sUser) {
-                            const userDepts = typeof getUserDepts === 'function' ? getUserDepts(sUser) : [normalizeDept(sUser.dept)];
-                            return userDepts.some(ud => depts.includes(ud));
-                        }
-                        return false;
-                    });
-                }
-                return false;
-            });
-        });
-    }
-
     // Default executor (ex: Videomaker, Designer, Suporte, TI)
-    return baseDemandas.filter(d => {
-        // Se o usuário for do departamento Videomaker e a demanda for Design + Vídeo mas ainda estiver na etapa de Design (estágio anterior), oculta até a liberação
+    return filteredBase.filter(d => {
         if (depts.includes('Videomaker') && normalizeDept(d.tipoProjeto) === 'Design + Vídeo' && d.status !== 'Aprovado') {
             const vmIdx = d.pipeline ? d.pipeline.findIndex(st => normalizeDept(st.dept) === 'Videomaker') : -1;
             if (vmIdx > -1 && (d.currentStage == null || d.currentStage < vmIdx)) {
@@ -249,7 +223,12 @@ function getUserDepts(u) {
     else if (Array.isArray(u.dept)) list = u.dept;
     else if (typeof u.dept === 'string') list = u.dept.split(',').map(d => d.trim()).filter(Boolean);
     else if (u.dept) list = [u.dept];
-    return list.map(normalizeDept).filter(Boolean);
+    
+    let normList = list.map(normalizeDept).filter(Boolean);
+    if (currentUser && u && (u.id === currentUser.id || u.nome === currentUser.nome)) {
+        normList = normList.filter(d => d !== 'Transmissão');
+    }
+    return normList;
 }
 
 // =============================================
@@ -537,6 +516,8 @@ function getMonthDemandas(includeFuture = true) {
     const cleanDemandas = deduplicateDemandas(demandas);
 
     let filtered = cleanDemandas.filter(d => {
+        if (!d || d.deletedAt) return false;
+
         const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
         if (!dc) return true; // Sem data? Mostra por segurança
 
@@ -558,30 +539,18 @@ function getMonthDemandas(includeFuture = true) {
             }
         }
 
-        // REGRA 1: Demanda foi agendada/criada neste mês selecionado → sempre aparece
+        // REGRA 1: Demanda cuja data pertence ao mês selecionado → aparece
         if (dt >= start && dt < end) return true;
 
-        // REGRA 2 (Carry-over): Se a demanda é de meses anteriores
+        // REGRA 2: Demandas de meses anteriores (ex: 24/03, 25/03, meses 3, 4, 5)
         if (dt < start) {
-            // Se estamos no mês atual E ela NÃO está "Aprovado" → aparece (pra não sumir da tela de trabalho)
-            if (isCurrentMonth && d.status !== 'Aprovado') {
-                // Se a demanda foi criada há mais de 45 dias E não possui atividade recente nos últimos 45 dias,
-                // ela é uma demanda antiga estagnada/abandonada e NÃO deve ser arrastada em nenhuma aba ativa (A fazer, Fazendo, Para aprovação, Alteração)!
-                const lastDate = d.lastStatusChange ? parseTaskDate(d.lastStatusChange) : dt;
-                const daysSinceActivity = Math.floor((now - (lastDate || dt)) / (1000 * 60 * 60 * 24));
-                const totalAgeDays = Math.floor((now - dt) / (1000 * 60 * 60 * 24));
-
-                if (totalAgeDays > 45 && daysSinceActivity > 45) {
-                    return false;
-                }
+            // Demandas de meses anteriores (dt < start) pertencem ao mês em que foram agendadas/criadas.
+            // Não aparecem no mês atual a menos que estejam no mês imediatamente anterior e ativamente em andamento.
+            const prevMonthStart = new Date(selectedYear, selectedMonth - 1, 1);
+            if (isCurrentMonth && dt >= prevMonthStart && d.status === 'Fazendo') {
                 return true;
             }
-
-            // Se ela foi aprovada/concluída neste mês selecionado → aparece na coluna de Aprovados do mês de conclusão
-            if (d.status === 'Aprovado' && d.lastStatusChange) {
-                const lst = parseTaskDate(d.lastStatusChange);
-                if (lst && lst >= start && lst < end) return true;
-            }
+            return false;
         }
 
         // REGRA 3 (Futuro / Próximos meses): Demandas AVULSAS (não-recorrentes) com data no futuro
@@ -719,23 +688,8 @@ async function loadDataFirestore() {
                     }
                 });
 
-                // Merge with localStorage demands so local additions are never lost
-                let localDemandas = [];
-                try {
-                    const localStr = localStorage.getItem('workflowPNSA');
-                    if (localStr) localDemandas = JSON.parse(localStr);
-                } catch (e) {}
-
+                // Firestore é a fonte primária de verdade. Se fsDemandas estiver disponível, usa o Firestore.
                 const map = new Map();
-                if (Array.isArray(localDemandas)) {
-                    localDemandas.forEach(d => {
-                        if (d && d.id && !d.deletedAt) {
-                            map.set(d.id, d);
-                            const idNum = parseInt(d.id.split('-')[1]);
-                            if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
-                        }
-                    });
-                }
                 fsDemandas.forEach(d => {
                     if (d && d.id && !d.deletedAt) {
                         map.set(d.id, d);
@@ -744,7 +698,28 @@ async function loadDataFirestore() {
                     }
                 });
 
+                // Se houver alguma adição puramente local recente que ainda não chegou ao Firestore, preserva apenas se for nova e não deletada
+                let localDemandas = [];
+                try {
+                    const localStr = localStorage.getItem('workflowPNSA');
+                    if (localStr) localDemandas = JSON.parse(localStr);
+                } catch (e) {}
+
+                if (Array.isArray(localDemandas)) {
+                    localDemandas.forEach(d => {
+                        if (d && d.id && !d.deletedAt && !map.has(d.id)) {
+                            const dt = d.dataCriacao ? new Date(d.dataCriacao) : null;
+                            if (dt && (new Date() - dt) < 10 * 60 * 1000) {
+                                map.set(d.id, d);
+                                const idNum = parseInt(d.id.split('-')[1]);
+                                if (!isNaN(idNum) && idNum > maxId) maxId = idNum;
+                            }
+                        }
+                    });
+                }
+
                 demandas = Array.from(map.values());
+                localStorage.setItem('workflowPNSA', JSON.stringify(demandas));
                 nextId = maxId + 1;
 
                 // Auto-restauração da demanda do Sagrado Coração de Jesus para Agosto de 2026 caso tenha sido perdida
@@ -906,8 +881,12 @@ function checkAuth() {
 
                 if (docSnap.exists()) {
                     currentUser = docSnap.data();
+                    if (currentUser) {
+                        if (currentUser.dept === 'Transmissão') currentUser.dept = 'Videomaker';
+                        if (Array.isArray(currentUser.dept)) currentUser.dept = currentUser.dept.filter(d => normalizeDept(d) !== 'Transmissão');
+                        if (Array.isArray(currentUser.allDepts)) currentUser.allDepts = currentUser.allDepts.filter(d => normalizeDept(d) !== 'Transmissão');
+                    }
                     localStorage.setItem('workflowUser', currentUser.id);
-                    // Garante que o usuário logado está em USERS atualizado
                     USERS[currentUser.id] = currentUser;
                     rebuildDeptUsers();
                     const autoBtn = document.getElementById('autoLoginMsg');
@@ -3384,8 +3363,19 @@ function renderRequests() {
     setupOriginFilters();
 
     const c = document.getElementById('requestsTable');
-    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
-    let t = getUserVisibleTasks(baseDemandas);
+    let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
+    const approvedDemandas = demandas.filter(d => {
+        if (!d || d.deletedAt || d.status !== 'Aprovado') return false;
+        if (currentUser && isTaskForUser(d, currentUser)) return true;
+        const dc = d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
+        const lst = parseTaskDate(dc);
+        if (!lst) return false;
+        const start = new Date(selectedYear, selectedMonth, 1);
+        const end = new Date(selectedYear, selectedMonth + 1, 1);
+        return lst >= start && lst < end;
+    });
+    let mergedDemandas = deduplicateDemandas([...baseDemandas, ...approvedDemandas]);
+    let t = getUserVisibleTasks(mergedDemandas);
 
     // Apply Origin Filter for Social Media and Coordinator
     const isSMOrCoord = isSMOrCoordUser();
@@ -3522,31 +3512,12 @@ function switchRequestTab(key) {
 
 function renderReview() {
     const c = document.getElementById('reviewTable');
-    let baseDemandas = getMonthDemandas(true);
+    let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
     const canReview = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
-    
-    // Debug: log all statuses to find mismatches
-    const allStatuses = baseDemandas.map(d => `"${d.status}"`);
-    console.log('Radar PNSA DEBUG: renderReview - canReview:', canReview, 'total demandas:', baseDemandas.length);
-    console.log('Radar PNSA DEBUG: Status values in data:', [...new Set(allStatuses)]);
-    
-    // Debug: investigar deletedAt em demandas Para aprovação
-    const paraAprov = baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação');
-    console.log('Radar PNSA DEBUG: Demandas com Para aprovação (sem filtro deletedAt):', paraAprov.length, paraAprov.map(d => ({id: d.id, deletedAt: d.deletedAt, nome: d.nome})));
-    
-    let t = canReview
-        ? baseDemandas.filter(d => !d.deletedAt && (d.status || '').trim() === 'Para aprovação')
-        : baseDemandas.filter(d => !d.deletedAt && (d.status || '').trim() === 'Para aprovação' && d.solicitanteId === currentUser.id);
 
-    console.log('Radar PNSA DEBUG: renderReview - demandas para revisar (com filtro deletedAt):', t.length);
-    
-    // Se não encontrou com filtro deletedAt mas tem sem filtro, mostrar sem filtro
-    if (t.length === 0 && paraAprov.length > 0) {
-        console.warn('Radar PNSA: Demandas Para aprovação existem mas todas tem deletedAt! Mostrando mesmo assim.');
-        t = canReview
-            ? paraAprov
-            : paraAprov.filter(d => d.solicitanteId === currentUser.id);
-    }
+    let t = canReview
+        ? baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação')
+        : baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação' && d.solicitanteId === currentUser.id);
 
     if (!t.length) {
         c.innerHTML = `
@@ -3617,8 +3588,19 @@ function renderReview() {
 
 function renderTasks() {
     const c = document.getElementById('tasksTable'), f = document.getElementById('filterTasks')?.value || '';
-    let baseDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
-    let t = getUserVisibleTasks(baseDemandas);
+    let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
+    const approvedDemandas = demandas.filter(d => {
+        if (!d || d.deletedAt || d.status !== 'Aprovado') return false;
+        if (currentUser && isTaskForUser(d, currentUser)) return true;
+        const dc = d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
+        const lst = parseTaskDate(dc);
+        if (!lst) return false;
+        const start = new Date(selectedYear, selectedMonth, 1);
+        const end = new Date(selectedYear, selectedMonth + 1, 1);
+        return lst >= start && lst < end;
+    });
+    let mergedDemandas = deduplicateDemandas([...baseDemandas, ...approvedDemandas]);
+    let t = getUserVisibleTasks(mergedDemandas);
 
     // Se estivermos em um departamento (ex: Videomaker) ou se o usuário logado for executor do setor
     const activeDept = currentDept || (currentUser && currentUser.role === 'executor' ? currentUser.dept : null);
@@ -8296,7 +8278,7 @@ function deleteTask(id) {
     t.deletedBy = currentUser.id;
     // Keep status to allow easy restore
 
-    saveData();
+    saveData(t);
     closeModal('modalDetail');
     toast('Demanda movida para a Lixeira', 'info');
 
@@ -8312,33 +8294,48 @@ function restoreTask(id) {
     delete t.deletedAt;
     delete t.deletedBy;
 
-    saveData();
+    saveData(t);
     renderLixeira();
     toast('Demanda restaurada com sucesso!', 'success');
 }
 
-function permanentDeleteTask(id) {
-    if (!confirm('ATENÇÃO: Isso excluirá a demanda permanentemente. Não há volta.\\nConfirmar?')) return;
+async function permanentDeleteTask(id) {
+    if (!confirm('ATENÇÃO: Isso excluirá a demanda permanentemente. Não há volta.\nConfirmar?')) return;
 
     const idx = demandas.findIndex(d => d.id === id);
     if (idx > -1) {
+        const deletedId = demandas[idx].id;
         demandas.splice(idx, 1);
-        saveData();
+        localStorage.setItem('workflowPNSA', JSON.stringify(demandas));
+        try {
+            if (window.firebaseDb && window.deleteDoc && window.doc) {
+                await window.deleteDoc(window.doc(window.firebaseDb, "demandas", deletedId));
+            }
+        } catch (e) {
+            console.error('Erro ao deletar documento no Firestore:', e);
+        }
         renderLixeira();
         toast('Demanda excluída permanentemente.', 'error');
     }
 }
 
-function emptyTrash() {
+async function emptyTrash() {
     if (!confirm('Deseja esvaziar a lixeira e apagar TODOS os itens nela permanentemente?')) return;
 
-    for (let i = demandas.length - 1; i >= 0; i--) {
-        if (demandas[i].deletedAt) {
-            demandas.splice(i, 1);
+    const toDelete = demandas.filter(d => d.deletedAt);
+    demandas = demandas.filter(d => !d.deletedAt);
+    localStorage.setItem('workflowPNSA', JSON.stringify(demandas));
+
+    for (let d of toDelete) {
+        try {
+            if (window.firebaseDb && window.deleteDoc && window.doc) {
+                await window.deleteDoc(window.doc(window.firebaseDb, "demandas", d.id));
+            }
+        } catch (e) {
+            console.error('Erro ao deletar no Firestore:', e);
         }
     }
 
-    saveData();
     renderLixeira();
     toast('Lixeira esvaziada.', 'success');
 }
@@ -10721,50 +10718,67 @@ function renderRecurringDates() {
 // -----------------------------------------------------
 
 function renderTIKanban(kpiFilter = null) {
-    const allTiTasks = demandas.filter(d => !d.deletedAt && d.pipeline && d.pipeline.some(s => s.dept === 'Inovação/TI'));
+    const start = new Date(selectedYear, selectedMonth, 1);
+    const end = new Date(selectedYear, selectedMonth + 1, 1);
+
+    const allTiTasks = demandas.filter(d => {
+        if (!d || d.deletedAt) return false;
+        
+        const taskName = (d.nome || '').toLowerCase().trim();
+        const projType = (d.tipoProjeto || '').toLowerCase().trim();
+
+        const isTI = taskName.startsWith('ti:') ||
+            projType === 'ti' ||
+            projType === 'inovação/ti' ||
+            projType === 'inovacao/ti' ||
+            normalizeDept(d.tipoProjeto) === 'Inovação/TI' ||
+            d.ti != null ||
+            (d.tags && d.tags.some(t => String(t).toLowerCase() === 'ti' || String(t).toLowerCase() === 'inovação/ti')) ||
+            (d.pipeline && d.pipeline.some(s => s && (normalizeDept(s.dept) === 'Inovação/TI' || s.dept === 'TI' || s.dept === 'Inovação/TI')));
+        
+        if (!isTI) return false;
+
+        const dc = d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
+        if (!dc) return true;
+        const dt = parseTaskDate(dc);
+        if (!dt) return true;
+
+        return dt >= start && dt < end;
+    });
     
     // KPI Stats Dashboard (always based on allTiTasks)
     if (document.getElementById('tiKpiPendentes')) {
-        const pendentes = allTiTasks.filter(t => t.status === 'A fazer' || t.status === 'Fazendo').length;
+        const pendentes = allTiTasks.filter(t => normalizeStatus(t.status) === 'A fazer' || normalizeStatus(t.status) === 'Fazendo').length;
         document.getElementById('tiKpiPendentes').textContent = pendentes;
         
-        const now = new Date();
-        const concluidos = allTiTasks.filter(t => {
-            if (t.status !== 'Aprovado') return false;
-            const d = new Date(t.dataConclusao || t.dataCriacao);
-            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        }).length;
+        const concluidos = allTiTasks.filter(t => normalizeStatus(t.status) === 'Aprovado').length;
         document.getElementById('tiKpiConcluidos').textContent = concluidos;
         
-        const urgentes = allTiTasks.filter(t => t.status !== 'Aprovado' && (t.prioridade === 'Urgente' || Math.ceil((parseDateLocal(t.dataConclusao) - new Date()) / (1000 * 60 * 60 * 24)) < 0)).length;
+        const urgentes = allTiTasks.filter(t => normalizeStatus(t.status) !== 'Aprovado' && (t.prioridade === 'Urgente' || Math.ceil((parseDateLocal(t.dataConclusao) - new Date()) / (1000 * 60 * 60 * 24)) < 0)).length;
         document.getElementById('tiKpiUrgentes').textContent = urgentes;
     }
 
     let tasks = [...allTiTasks];
-    if (currentUser && currentUser.role === 'executor') {
-        tasks = tasks.filter(t =>
-            t.solicitanteId === currentUser.id ||
-            t.responsavelId === currentUser.id ||
-            (t.pipeline && t.pipeline.some(s =>
-                s.userId === currentUser.id ||
-                (!s.userId && s.userIds && s.userIds.includes(currentUser.id))
-            ))
-        );
+    const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [];
+    const isTIExecutor = userDepts.includes('Inovação/TI') && currentUser?.role === 'executor';
+
+    if (currentUser && !isTIExecutor) {
+        tasks = tasks.filter(t => isTaskForUser(t, currentUser));
     }
     
     const search = document.getElementById('boardSearch')?.value?.toLowerCase() || '';
     const statusFilter = document.getElementById('filterBoard')?.value || '';
 
     if (search) tasks = tasks.filter(t => t.nome.toLowerCase().includes(search) || t.descricaoCartao?.toLowerCase().includes(search));
-    if (statusFilter) tasks = tasks.filter(t => t.status === statusFilter);
+    if (statusFilter) tasks = tasks.filter(t => normalizeStatus(t.status) === statusFilter);
 
     // KPI Specific filters
     if (kpiFilter === 'pendentes') {
-        tasks = tasks.filter(t => t.status === 'A fazer' || t.status === 'Fazendo');
+        tasks = tasks.filter(t => normalizeStatus(t.status) === 'A fazer' || normalizeStatus(t.status) === 'Fazendo');
     } else if (kpiFilter === 'concluidos') {
-        tasks = tasks.filter(t => t.status === 'Aprovado');
+        tasks = tasks.filter(t => normalizeStatus(t.status) === 'Aprovado');
     } else if (kpiFilter === 'urgentes') {
-        tasks = tasks.filter(t => t.status !== 'Aprovado' && (t.prioridade === 'Urgente' || Math.ceil((parseDateLocal(t.dataConclusao) - new Date()) / (1000 * 60 * 60 * 24)) < 0));
+        tasks = tasks.filter(t => normalizeStatus(t.status) !== 'Aprovado' && (t.prioridade === 'Urgente' || Math.ceil((parseDateLocal(t.dataConclusao) - new Date()) / (1000 * 60 * 60 * 24)) < 0));
     }
 
     const statuses = ['A fazer', 'Fazendo', 'Para aprovação', 'Alteração', 'Aprovado'];
@@ -10774,7 +10788,7 @@ function renderTIKanban(kpiFilter = null) {
         const countEl = document.getElementById(`count-ti-${status.replace(/\s+/g, '')}`);
         if(!container || !countEl) return;
         
-        const statusTasks = tasks.filter(t => t.status === status);
+        const statusTasks = tasks.filter(t => normalizeStatus(t.status) === status);
         countEl.textContent = statusTasks.length;
         
         if (!statusTasks.length) {
@@ -10783,10 +10797,10 @@ function renderTIKanban(kpiFilter = null) {
         }
         
         container.innerHTML = statusTasks.map(t => {
-            if (!t.pipeline || !t.pipeline.length) return '';
-            const stageIdx = (t.currentStage != null && t.currentStage < t.pipeline.length) ? t.currentStage : 0;
-            const currentStage = t.pipeline[stageIdx] || {};
-            const avatars = t.pipeline.map(s => USERS[s.userId]).filter(Boolean);
+            const pipeline = (t.pipeline && t.pipeline.length > 0) ? t.pipeline : [{ dept: 'Inovação/TI', userId: t.responsavelId || t.solicitanteId || null, status: t.status || 'Aprovado' }];
+            const stageIdx = (t.currentStage != null && t.currentStage < pipeline.length) ? t.currentStage : 0;
+            const currentStage = pipeline[stageIdx] || { dept: 'Inovação/TI' };
+            const avatars = pipeline.map(s => s && USERS[s.userId]).filter(Boolean);
             const deadline = parseDateLocal(t.dataConclusao);
             const today = new Date();
             const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
