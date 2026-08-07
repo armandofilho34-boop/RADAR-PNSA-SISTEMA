@@ -319,35 +319,16 @@ function normalizeDemandas(arr) {
         if (d.tipoProjeto) d.tipoProjeto = normalizeDept(d.tipoProjeto);
         if (d.pipeline && Array.isArray(d.pipeline)) {
             d.pipeline.forEach(stage => {
-                if (stage && stage.status) stage.status = normalizeStatus(stage.status);
-                if (stage && stage.dept) stage.dept = normalizeDept(stage.dept);
+                if (stage) {
+                    if (stage.status) stage.status = normalizeStatus(stage.status);
+                    if (stage.dept) stage.dept = normalizeDept(stage.dept);
+                }
             });
 
-            // Correção de Integridade do Pipeline:
-            // Restaura departamentos reais do pipeline que foram corrompidos por migrações antigas
-            const normTipo = normalizeDept(d.tipoProjeto);
-            if (normTipo === 'Design + Vídeo' && d.pipeline.length >= 2) {
-                if (d.pipeline[0]) d.pipeline[0].dept = 'Designer';
-                if (d.pipeline[1]) d.pipeline[1].dept = 'Videomaker';
-            } else if (normTipo && normTipo !== 'Gestão' && normTipo !== 'Social Media') {
-                // Para tipos de projeto diretos (Designer, Videomaker, Suporte, TI, Transmissão),
-                // todas as etapas do pipeline pertencem a esse departamento
-                d.pipeline.forEach(stage => {
-                    if (stage) stage.dept = normTipo;
-                });
-            }
-
-            // Sincroniza currentStage e status global se todas as etapas do pipeline estiverem concluídas/aprovadas
+            // Sincroniza status geral da demanda se todas as etapas do pipeline estiverem concluídas/aprovadas
             const allApproved = d.pipeline.length > 0 && d.pipeline.every(s => s && s.status === 'Aprovado');
             if (allApproved) {
                 d.status = 'Aprovado';
-                d.currentStage = d.pipeline.length - 1;
-            } else {
-                // Se a etapa atual já está aprovada, avança o currentStage para a primeira etapa ainda pendente
-                const firstPending = d.pipeline.findIndex(s => s && s.status !== 'Aprovado');
-                if (firstPending > -1 && firstPending > (d.currentStage || 0)) {
-                    d.currentStage = firstPending;
-                }
             }
         }
     });
@@ -3651,18 +3632,9 @@ function renderBoard() {
         if (d.pipeline && Array.isArray(d.pipeline)) {
             const deptStageIdx = d.pipeline.findIndex(st => normalizeDept(st.dept) === normalizeDept(currentDept));
             if (deptStageIdx > -1) {
-                const deptStage = d.pipeline[deptStageIdx];
-                // 1. Se ainda está em etapa anterior e a demanda não está concluída, não aparece no quadro atual ainda
+                // Se a demanda ainda está em etapa anterior (ex: Designer antes de Videomaker) e a demanda não foi concluída, não aparece no quadro atual ainda
                 if (d.currentStage != null && d.currentStage < deptStageIdx && d.status !== 'Aprovado') {
                     return false;
-                }
-                // 2. Se a etapa deste departamento já foi aprovada e a demanda é de mês anterior (carry-over), ela não fica pendente no mês atual
-                const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
-                const dt = parseTaskDate(dc);
-                const start = new Date(selectedYear, selectedMonth, 1);
-                if (dt && dt < start && deptStage.status === 'Aprovado') {
-                    const lst = d.lastStatusChange ? parseTaskDate(d.lastStatusChange) : null;
-                    if (!lst || lst < start) return false;
                 }
             }
         }
@@ -3671,25 +3643,16 @@ function renderBoard() {
 
     const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [currentUser?.dept];
     if (!isGlobalCoordinator()) {
-        if (currentUser && currentUser.role === 'executor') {
-            t = t.filter(d =>
-                d.responsavelId === currentUser.id ||
-                (d.pipeline && d.pipeline.some(st =>
-                    (normalizeDept(st.dept) === currentDept || st.userId === currentUser.id) &&
-                    (st.userId === currentUser.id || (!st.userId && st.userIds && st.userIds.includes(currentUser.id)) || (!st.userId && !st.userIds))
-                ))
-            );
-        } else {
-            t = t.filter(d =>
-                d.solicitanteId === currentUser?.id ||
-                userDepts.includes(currentDept) ||
-                (d.pipeline && d.pipeline.some(st =>
-                    normalizeDept(st.dept) === currentDept ||
-                    st.userId === currentUser?.id ||
-                    (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
-                ))
-            );
-        }
+        t = t.filter(d =>
+            d.solicitanteId === currentUser?.id ||
+            d.responsavelId === currentUser?.id ||
+            userDepts.includes(currentDept) ||
+            (d.pipeline && d.pipeline.some(st =>
+                normalizeDept(st.dept) === currentDept ||
+                st.userId === currentUser?.id ||
+                (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
+            ))
+        );
     }
 
     if (f) t = t.filter(d => (d.status || '').includes(f));
