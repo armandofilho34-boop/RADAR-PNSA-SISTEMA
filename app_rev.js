@@ -322,16 +322,32 @@ function normalizeDemandas(arr) {
                 if (stage && stage.status) stage.status = normalizeStatus(stage.status);
                 if (stage && stage.dept) stage.dept = normalizeDept(stage.dept);
             });
+
             // Correção de Integridade do Pipeline:
-            // Se a demanda tem pipeline de 1 etapa e tipoProjeto definido, garante que o departamento do estágio corresponda ao tipo do projeto.
+            // Restaura departamentos reais do pipeline que foram corrompidos por migrações antigas
             const normTipo = normalizeDept(d.tipoProjeto);
-            if (d.pipeline.length === 1 && normTipo && normTipo !== 'Design + Vídeo') {
-                if (d.pipeline[0] && d.pipeline[0].dept !== normTipo) {
-                    d.pipeline[0].dept = normTipo;
-                }
-            } else if (normTipo === 'Design + Vídeo' && d.pipeline.length >= 2) {
+            if (normTipo === 'Design + Vídeo' && d.pipeline.length >= 2) {
                 if (d.pipeline[0]) d.pipeline[0].dept = 'Designer';
                 if (d.pipeline[1]) d.pipeline[1].dept = 'Videomaker';
+            } else if (normTipo && normTipo !== 'Gestão' && normTipo !== 'Social Media') {
+                // Para tipos de projeto diretos (Designer, Videomaker, Suporte, TI, Transmissão),
+                // todas as etapas do pipeline pertencem a esse departamento
+                d.pipeline.forEach(stage => {
+                    if (stage) stage.dept = normTipo;
+                });
+            }
+
+            // Sincroniza currentStage e status global se todas as etapas do pipeline estiverem concluídas/aprovadas
+            const allApproved = d.pipeline.length > 0 && d.pipeline.every(s => s && s.status === 'Aprovado');
+            if (allApproved) {
+                d.status = 'Aprovado';
+                d.currentStage = d.pipeline.length - 1;
+            } else {
+                // Se a etapa atual já está aprovada, avança o currentStage para a primeira etapa ainda pendente
+                const firstPending = d.pipeline.findIndex(s => s && s.status !== 'Aprovado');
+                if (firstPending > -1 && firstPending > (d.currentStage || 0)) {
+                    d.currentStage = firstPending;
+                }
             }
         }
     });
@@ -3632,12 +3648,22 @@ function renderBoard() {
         const matchType = normalizeDept(d.tipoProjeto) === normalizeDept(currentDept);
         if (!hasStage && !matchType) return false;
 
-        // Caso especial: Design + Vídeo no quadro do Videomaker
-        // Se ainda está na etapa 0 (Designer) e a demanda não está concluída, não deve aparecer no quadro do Videomaker ainda
-        if (currentDept === 'Videomaker' && normalizeDept(d.tipoProjeto) === 'Design + Vídeo') {
-            const vmStageIdx = d.pipeline ? d.pipeline.findIndex(st => normalizeDept(st.dept) === 'Videomaker') : -1;
-            if (vmStageIdx > -1 && (d.currentStage == null || d.currentStage < vmStageIdx) && d.status !== 'Aprovado') {
-                return false;
+        if (d.pipeline && Array.isArray(d.pipeline)) {
+            const deptStageIdx = d.pipeline.findIndex(st => normalizeDept(st.dept) === normalizeDept(currentDept));
+            if (deptStageIdx > -1) {
+                const deptStage = d.pipeline[deptStageIdx];
+                // 1. Se ainda está em etapa anterior e a demanda não está concluída, não aparece no quadro atual ainda
+                if (d.currentStage != null && d.currentStage < deptStageIdx && d.status !== 'Aprovado') {
+                    return false;
+                }
+                // 2. Se a etapa deste departamento já foi aprovada e a demanda é de mês anterior (carry-over), ela não fica pendente no mês atual
+                const dc = d.dataSolicitacao || d.dataConclusao || d.dataCriacao;
+                const dt = parseTaskDate(dc);
+                const start = new Date(selectedYear, selectedMonth, 1);
+                if (dt && dt < start && deptStage.status === 'Aprovado') {
+                    const lst = d.lastStatusChange ? parseTaskDate(d.lastStatusChange) : null;
+                    if (!lst || lst < start) return false;
+                }
             }
         }
         return true;
