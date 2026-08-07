@@ -565,9 +565,13 @@ function getMonthDemandas(includeFuture = true) {
         if (dt < start) {
             // Se estamos no mês atual E ela NÃO está "Aprovado" → aparece (pra não sumir da tela de trabalho)
             if (isCurrentMonth && d.status !== 'Aprovado') {
-                // Se a demanda foi criada há mais de 45 dias e permaneceu estagnada em "A fazer", não arrasta indefinidamente
-                const ageInDays = Math.floor((now - dt) / (1000 * 60 * 60 * 24));
-                if (ageInDays > 45 && d.status === 'A fazer') {
+                // Se a demanda foi criada há mais de 45 dias E não possui atividade recente nos últimos 45 dias,
+                // ela é uma demanda antiga estagnada/abandonada e NÃO deve ser arrastada em nenhuma aba ativa (A fazer, Fazendo, Para aprovação, Alteração)!
+                const lastDate = d.lastStatusChange ? parseTaskDate(d.lastStatusChange) : dt;
+                const daysSinceActivity = Math.floor((now - (lastDate || dt)) / (1000 * 60 * 60 * 24));
+                const totalAgeDays = Math.floor((now - dt) / (1000 * 60 * 60 * 24));
+
+                if (totalAgeDays > 45 && daysSinceActivity > 45) {
                     return false;
                 }
                 return true;
