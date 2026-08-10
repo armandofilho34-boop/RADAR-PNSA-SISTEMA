@@ -544,6 +544,11 @@ function getMonthDemandas(includeFuture = true) {
 
         // REGRA 2: Demandas de meses anteriores (ex: 24/03, 25/03, meses 3, 4, 5)
         if (dt < start) {
+            // Se o prazo de entrega (dataConclusao) cai no mês selecionado, a demanda pertence a este
+            // mês mesmo que a data de solicitação (usada pra antecedência/lead time) seja do mês anterior.
+            const dtConclusao = parseTaskDate(d.dataConclusao);
+            if (dtConclusao && dtConclusao >= start && dtConclusao < end) return true;
+
             // Demandas de meses anteriores (dt < start) pertencem ao mês em que foram agendadas/criadas.
             // Não aparecem no mês atual a menos que estejam no mês imediatamente anterior e ativamente em andamento.
             const prevMonthStart = new Date(selectedYear, selectedMonth - 1, 1);
@@ -854,6 +859,26 @@ function cleanFirestoreData(obj) {
         }
     }
     return cleaned;
+}
+
+// Reserva um ID de demanda de forma atômica no Firestore (evita colisão quando duas pessoas
+// criam demandas quase ao mesmo tempo, o que fazia uma sobrescrever o setDoc da outra e "sumir").
+async function reserveNextDemandaId() {
+    const counterRef = window.doc(window.firebaseDb, 'config', 'demandaCounter');
+    try {
+        const reserved = await window.runTransaction(window.firebaseDb, async (transaction) => {
+            const snap = await transaction.get(counterRef);
+            const current = snap.exists() ? (snap.data().value || 0) : 0;
+            const next = Math.max(current, nextId - 1) + 1;
+            transaction.set(counterRef, { value: next }, { merge: true });
+            return next;
+        });
+        nextId = Math.max(nextId, reserved + 1);
+        return `WF-${String(reserved).padStart(4, '0')}`;
+    } catch (e) {
+        console.error('Erro ao reservar ID de demanda, usando fallback local:', e);
+        return `WF-${String(nextId++).padStart(4, '0')}`;
+    }
 }
 
 async function saveData(demanda = null) {
@@ -4263,9 +4288,9 @@ window.handleCreateExpress = async function(e) {
                 return;
             }
 
-            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
+            const taskId = await reserveNextDemandaId();
             const todayStr = new Date().toISOString().split('T')[0];
-            
+
             const task = {
                 id: taskId,
                 nome: `⚡ ${nome}`,
@@ -4312,7 +4337,7 @@ window.handleCreateExpress = async function(e) {
 
         // Rota 2: Sem Link / Offline -> Envia para "Para aprovação"
         if (canal === 'sem_link') {
-            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
+            const taskId = await reserveNextDemandaId();
             const todayStr = new Date().toISOString().split('T')[0];
 
             const task = {
@@ -4408,7 +4433,7 @@ async function handleCreate(e) {
 
             for (const sel of selections) {
                 const task = {
-                    id: `WF-${String(nextId++).padStart(4, '0')}`,
+                    id: await reserveNextDemandaId(),
                     nome: `📡 ${sel.programa} — ${sel.dia} ${sel.horario}`,
                     solicitanteId,
                     criadoPor: currentUser?.id || solicitanteId,
@@ -4741,7 +4766,7 @@ async function handleCreate(e) {
             }
 
             const task = {
-                id: `WF-${String(nextId++).padStart(4, '0')}`,
+                id: await reserveNextDemandaId(),
                 nome: isRecurring ? `${nome} (Cópia ${repeticaoIndex})` : nome,
                 solicitanteId,
                 criadoPor: currentUser?.id || solicitanteId,
@@ -9100,7 +9125,7 @@ async function submitITSupport() {
         }
 
         const nomeAbreviado = problema.length > 40 ? problema.substring(0, 40) + '...' : problema;
-        const taskId = `WF-${String(typeof nextId !== 'undefined' ? nextId++ : Date.now()).padStart(4, '0')}`;
+        const taskId = await reserveNextDemandaId();
 
         // Upload anexos via Firebase Storage
         const attachments = [];
