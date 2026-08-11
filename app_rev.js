@@ -861,26 +861,6 @@ function cleanFirestoreData(obj) {
     return cleaned;
 }
 
-// Reserva um ID de demanda de forma atômica no Firestore (evita colisão quando duas pessoas
-// criam demandas quase ao mesmo tempo, o que fazia uma sobrescrever o setDoc da outra e "sumir").
-async function reserveNextDemandaId() {
-    const counterRef = window.doc(window.firebaseDb, 'config', 'demandaCounter');
-    try {
-        const reserved = await window.runTransaction(window.firebaseDb, async (transaction) => {
-            const snap = await transaction.get(counterRef);
-            const current = snap.exists() ? (snap.data().value || 0) : 0;
-            const next = Math.max(current, nextId - 1) + 1;
-            transaction.set(counterRef, { value: next }, { merge: true });
-            return next;
-        });
-        nextId = Math.max(nextId, reserved + 1);
-        return `WF-${String(reserved).padStart(4, '0')}`;
-    } catch (e) {
-        console.error('Erro ao reservar ID de demanda, usando fallback local:', e);
-        return `WF-${String(nextId++).padStart(4, '0')}`;
-    }
-}
-
 async function saveData(demanda = null) {
     localStorage.setItem('workflowPNSA', JSON.stringify(demandas));
     try {
@@ -4288,7 +4268,7 @@ window.handleCreateExpress = async function(e) {
                 return;
             }
 
-            const taskId = await reserveNextDemandaId();
+            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
             const todayStr = new Date().toISOString().split('T')[0];
 
             const task = {
@@ -4337,7 +4317,7 @@ window.handleCreateExpress = async function(e) {
 
         // Rota 2: Sem Link / Offline -> Envia para "Para aprovação"
         if (canal === 'sem_link') {
-            const taskId = await reserveNextDemandaId();
+            const taskId = `WF-${String(nextId++).padStart(4, '0')}`;
             const todayStr = new Date().toISOString().split('T')[0];
 
             const task = {
@@ -4433,7 +4413,7 @@ async function handleCreate(e) {
 
             for (const sel of selections) {
                 const task = {
-                    id: await reserveNextDemandaId(),
+                    id: `WF-${String(nextId++).padStart(4, '0')}`,
                     nome: `📡 ${sel.programa} — ${sel.dia} ${sel.horario}`,
                     solicitanteId,
                     criadoPor: currentUser?.id || solicitanteId,
@@ -4766,7 +4746,7 @@ async function handleCreate(e) {
             }
 
             const task = {
-                id: await reserveNextDemandaId(),
+                id: `WF-${String(nextId++).padStart(4, '0')}`,
                 nome: isRecurring ? `${nome} (Cópia ${repeticaoIndex})` : nome,
                 solicitanteId,
                 criadoPor: currentUser?.id || solicitanteId,
@@ -4846,11 +4826,12 @@ async function handleCreate(e) {
             }
         } // FIM DO LOOP REPETICAO
 
-        await saveData();
         closeModal('modalCreate');
         toast('Demanda(s) enviada(s) com sucesso!', 'success');
-        navigateTo('requests');
-        refresh();
+        setTimeout(() => {
+            navigateTo('requests');
+            refresh();
+        }, 300);
     } catch (err) {
         console.error('Erro detalhado ao criar demanda:', err);
         console.error('Stack trace:', err.stack);
@@ -5370,18 +5351,6 @@ async function confirmDelivery(taskId, mode) {
     addHistory(taskId, mode === 'correction' ? 'action' : 'timer',
         mode === 'correction' ? `Correção reenviada: ${historyMsg}` : historyMsg
     );
-
-    // Salva no Firebase
-    try {
-        await window.db.collection('demandas').doc(taskId).update({
-            deliveryLink: link || null,
-            deliveryNote: note || null,
-            deliveryDate: link ? new Date().toISOString() : null,
-            status: 'Para aprovação'
-        });
-    } catch (e) {
-        console.error('Erro ao salvar entrega:', e);
-    }
 
     closeModal('modalDelivery');
     closeModal('modalDetail');
@@ -9125,7 +9094,7 @@ async function submitITSupport() {
         }
 
         const nomeAbreviado = problema.length > 40 ? problema.substring(0, 40) + '...' : problema;
-        const taskId = await reserveNextDemandaId();
+        const taskId = `WF-${String(typeof nextId !== 'undefined' ? nextId++ : Date.now()).padStart(4, '0')}`;
 
         // Upload anexos via Firebase Storage
         const attachments = [];
