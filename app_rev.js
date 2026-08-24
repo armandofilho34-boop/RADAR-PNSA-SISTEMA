@@ -3662,12 +3662,15 @@ function renderBoard() {
 
     const userDepts = typeof getUserDepts === 'function' && currentUser ? getUserDepts(currentUser) : [currentUser?.dept];
     if (!isGlobalCoordinator()) {
+        // Gestor de Equipe enxerga todo o departamento; executor comum só vê o que é dele
+        // ou candidaturas de demanda compartilhada ainda não reivindicadas por ninguém.
+        const isDeptManager = currentUser?.role === 'gestor_equipe';
         t = t.filter(d =>
             d.solicitanteId === currentUser?.id ||
             d.responsavelId === currentUser?.id ||
-            userDepts.includes(currentDept) ||
+            (isDeptManager && userDepts.includes(currentDept)) ||
             (d.pipeline && d.pipeline.some(st =>
-                normalizeDept(st.dept) === currentDept ||
+                (isDeptManager && normalizeDept(st.dept) === currentDept) ||
                 st.userId === currentUser?.id ||
                 (!st.userId && st.userIds && st.userIds.includes(currentUser?.id))
             ))
