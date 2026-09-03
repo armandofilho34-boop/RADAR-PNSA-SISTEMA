@@ -7378,7 +7378,21 @@ function _buildRelatorioData() {
         });
     }
 
-    function _buildExecReport(deptNorm) {
+    // tagDepts: quais deptos de pipeline contam como "candidatos" para este relatório.
+    // Por padrão só o próprio deptNorm — mas Suporte/TI compartilham tarefas, então quando
+    // as duas tags são passadas juntas, a entrega é atribuída ao departamento REAL do
+    // executor (cadastro do usuário), não à tag que a demanda recebeu na criação.
+    function _buildExecReport(deptNorm, tagDepts) {
+        tagDepts = tagDepts || [deptNorm];
+
+        function resolveRealDept(uid, stageDept) {
+            const existingUser = USERS[uid];
+            if (!existingUser) return normalizeDept(stageDept);
+            const depts = (typeof getUserDepts === 'function' ? getUserDepts(existingUser) : (Array.isArray(existingUser.dept) ? existingUser.dept : [existingUser.dept]))
+                .map(normalizeDept).filter(Boolean);
+            return depts.find(dp => tagDepts.includes(dp)) || normalizeDept(stageDept);
+        }
+
         const activeUsers = _getUsersOfDept(deptNorm);
         const userMap = {};
 
@@ -7389,26 +7403,26 @@ function _buildRelatorioData() {
         todasAprovadasNoMes.forEach(d => {
             if (!d.pipeline) return;
             d.pipeline.forEach(stage => {
-                if (normalizeDept(stage.dept) !== deptNorm) return;
+                if (!tagDepts.includes(normalizeDept(stage.dept))) return;
                 const uids = [];
                 if (stage.userId) uids.push(stage.userId);
                 if (stage.userIds) stage.userIds.forEach(id => uids.push(id));
 
                 uids.forEach(uid => {
-                    if (uid && !userMap[uid]) {
-                        const existingUser = USERS[uid];
-                        if (existingUser) {
-                            userMap[uid] = existingUser;
-                        } else {
-                            const cleanName = stage.userName || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                            userMap[uid] = {
-                                id: uid,
-                                nome: cleanName,
-                                iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-                                dept: deptNorm,
-                                role: 'executor'
-                            };
-                        }
+                    if (!uid || userMap[uid]) return;
+                    if (resolveRealDept(uid, stage.dept) !== deptNorm) return;
+                    const existingUser = USERS[uid];
+                    if (existingUser) {
+                        userMap[uid] = existingUser;
+                    } else {
+                        const cleanName = stage.userName || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        userMap[uid] = {
+                            id: uid,
+                            nome: cleanName,
+                            iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                            dept: deptNorm,
+                            role: 'executor'
+                        };
                     }
                 });
             });
@@ -7418,10 +7432,10 @@ function _buildRelatorioData() {
             const entregues = todasAprovadasNoMes.filter(d => {
                 if (!d.pipeline) return false;
                 return d.pipeline.some(stage => {
-                    if (normalizeDept(stage.dept) !== deptNorm) return false;
-                    if (stage.userId === u.id) return true;
-                    if (stage.userIds && stage.userIds.includes(u.id)) return true;
-                    return false;
+                    if (!tagDepts.includes(normalizeDept(stage.dept))) return false;
+                    const matchesUser = stage.userId === u.id || (stage.userIds && stage.userIds.includes(u.id));
+                    if (!matchesUser) return false;
+                    return resolveRealDept(u.id, stage.dept) === deptNorm;
                 });
             });
             return { user: u, entregues };
@@ -7434,8 +7448,15 @@ function _buildRelatorioData() {
 
     const designerReport = _buildExecReport('Designer');
     const videoReport    = _buildExecReport('Videomaker');
+    // Suporte e TI compartilham tarefas na criação — conta pelo departamento real do executor
+    const suporteReport  = _buildExecReport('Suporte', ['Suporte', 'Inovação/TI']);
+    const tiReport       = _buildExecReport('Inovação/TI', ['Suporte', 'Inovação/TI']);
 
-    // Social Media Report
+    // Departamentos já cobertos como "executores" acima — solicitantes desses deptos
+    // não devem ser duplicados nas seções de "quem enviou demanda"
+    const EXEC_DEPTS = ['Designer', 'Videomaker', 'Suporte', 'Inovação/TI'];
+
+    // Social Media Report (comportamento original mantido)
     const activeSmUsers = Object.values(USERS).filter(u => {
         const depts = typeof getUserDepts === 'function' ? getUserDepts(u) : (Array.isArray(u.dept) ? u.dept : [u.dept]);
         return depts.some(d => normalizeDept(d) === 'Social Media') || u.role === 'social_media';
@@ -7444,22 +7465,42 @@ function _buildRelatorioData() {
     const smMap = {};
     activeSmUsers.forEach(u => { smMap[u.id] = u; });
 
+    // Demais solicitantes (Gestão, Transmissão, etc.) agrupados pelo departamento REAL de cada um
+    const outrosReqMap = {}; // deptKey -> { uid: user }
+
     todasEnviadasNoMes.forEach(d => {
-        if (d.solicitanteId && !smMap[d.solicitanteId]) {
-            const uid = d.solicitanteId;
-            const existingUser = USERS[uid];
-            if (existingUser) {
-                smMap[uid] = existingUser;
-            } else {
-                const cleanName = d.solicitanteNome || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                smMap[uid] = {
-                    id: uid,
-                    nome: cleanName,
-                    iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-                    dept: 'Social Media',
-                    role: 'social_media'
-                };
+        if (!d.solicitanteId) return;
+        const uid = d.solicitanteId;
+        if (smMap[uid]) return;
+
+        const existingUser = USERS[uid];
+        if (existingUser) {
+            const depts = (typeof getUserDepts === 'function' ? getUserDepts(existingUser) : (Array.isArray(existingUser.dept) ? existingUser.dept : [existingUser.dept]))
+                .map(normalizeDept).filter(Boolean);
+            if (depts.includes('Social Media')) { smMap[uid] = existingUser; return; }
+            const nonExecDept = depts.find(dp => !EXEC_DEPTS.includes(dp));
+            if (nonExecDept === 'Gestão') return; // Gestão não entra no relatório mensal
+            if (nonExecDept) {
+                if (!outrosReqMap[nonExecDept]) outrosReqMap[nonExecDept] = {};
+                outrosReqMap[nonExecDept][uid] = existingUser;
+            } else if (depts.length === 0) {
+                // Sem departamento cadastrado — mantém em Outros
+                if (!outrosReqMap['Outros']) outrosReqMap['Outros'] = {};
+                outrosReqMap['Outros'][uid] = existingUser;
             }
+            // Se todos os deptos dele são de execução (Designer/Videomaker/Suporte/TI),
+            // a demanda já aparece como entrega dele na seção do próprio departamento —
+            // não duplica como "solicitante" aqui (comum em Demandas Express).
+        } else {
+            const cleanName = d.solicitanteNome || uid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            if (!outrosReqMap['Outros']) outrosReqMap['Outros'] = {};
+            outrosReqMap['Outros'][uid] = {
+                id: uid,
+                nome: cleanName,
+                iniciais: cleanName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                dept: 'Outros',
+                role: 'solicitante'
+            };
         }
     });
 
@@ -7469,7 +7510,18 @@ function _buildRelatorioData() {
         return { user: u, enviadas, totalEnviadas };
     }).filter(r => isCurrentMonth ? (activeSmUsers.some(u => u.id === r.user.id) || r.totalEnviadas.length > 0) : r.totalEnviadas.length > 0);
 
-    return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, smReport };
+    // Um relatório por departamento real (só aparece quem de fato enviou algo no mês)
+    const outrosReports = {};
+    Object.keys(outrosReqMap).forEach(deptKey => {
+        const report = Object.values(outrosReqMap[deptKey]).map(u => {
+            const enviadas = todasAprovadasNoMes.filter(d => d.solicitanteId === u.id);
+            const totalEnviadas = todasEnviadasNoMes.filter(d => d.solicitanteId === u.id);
+            return { user: u, enviadas, totalEnviadas };
+        }).filter(r => r.totalEnviadas.length > 0);
+        if (report.length > 0) outrosReports[deptKey] = report;
+    });
+
+    return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports };
 }
 
 function renderRelatorioMensal() {
@@ -7480,10 +7532,13 @@ function renderRelatorioMensal() {
         (typeof getUserDepts === 'function' && getUserDepts(currentUser).includes('Gestão')));
     if (!isCoord) { container.innerHTML = ''; return; }
 
-    const { mesNome, ano, rMonth, rYear, designerReport, videoReport, smReport } = _buildRelatorioData();
+    const { mesNome, ano, rMonth, rYear, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports } = _buildRelatorioData();
     const dColor  = DEPT_COLORS['Designer']    || '#a855f7';
     const vmColor = DEPT_COLORS['Videomaker']  || '#3b82f6';
+    const supColor = DEPT_COLORS['Suporte']    || '#22c55e';
+    const tiColor  = DEPT_COLORS['Inovação/TI'] || '#f59e0b';
     const smColor = DEPT_COLORS['Social Media'] || '#ec4899';
+    const outrosColorFallback = '#64748b';
 
     // ---- Seletor de mês/ano independente ----
     const now = new Date();
@@ -7548,13 +7603,13 @@ function renderRelatorioMensal() {
             </div>`;
     }
 
-    function renderSMCard(r) {
+    function renderRequesterCard(r, color, deptLabel) {
         const aprovadas = r.enviadas.length;
         const total = r.totalEnviadas.length;
         const pct = total > 0 ? Math.round((aprovadas / total) * 100) : 0;
         const listaDemandas = r.totalEnviadas.length > 0
             ? r.totalEnviadas.slice(0, 6).map(d => `
-                <div onclick="openDetail('${d.id}')" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background .15s;" onmouseover="this.style.background='rgba(236,72,153,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <div onclick="openDetail('${d.id}')" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background .15s;" onmouseover="this.style.background='${color}14'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
                     <span style="font-size:13px; flex:1; color:var(--text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.nome}">${d.nome}</span>
                     ${badgeStatus(d.status)}
                 </div>`).join('')
@@ -7564,19 +7619,19 @@ function renderRelatorioMensal() {
         return `
             <div style="background:var(--surface-light); border:1px solid var(--border-color); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; align-items:center; gap:12px;">
-                    ${window.renderAvatar(r.user, 'workload-avatar', 'background:' + smColor)}
+                    ${window.renderAvatar(r.user, 'workload-avatar', 'background:' + color)}
                     <div style="flex:1;">
                         <div style="font-weight:700; font-size:14px; color:var(--text-color);">${r.user.nome}</div>
-                        <div style="font-size:12px; color:var(--text-muted);">Social Media</div>
+                        <div style="font-size:12px; color:var(--text-muted);">${deptLabel}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:22px; font-weight:800; color:${smColor};">${aprovadas}<span style="font-size:13px; color:var(--text-muted);">/${total}</span></div>
+                        <div style="font-size:22px; font-weight:800; color:${color};">${aprovadas}<span style="font-size:13px; color:var(--text-muted);">/${total}</span></div>
                         <div style="font-size:11px; color:var(--text-muted);">aprovadas</div>
                     </div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin:-4px 0 0;">
                     <div style="flex:1; height:6px; border-radius:99px; background:rgba(255,255,255,0.08);">
-                        <div style="height:100%; border-radius:99px; width:${pct}%; background:${smColor}; transition:width .4s;"></div>
+                        <div style="height:100%; border-radius:99px; width:${pct}%; background:${color}; transition:width .4s;"></div>
                     </div>
                     <span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${pct}% aprovadas</span>
                 </div>
@@ -7594,9 +7649,26 @@ function renderRelatorioMensal() {
         ? videoReport.map(r => renderExecCard(r, vmColor, 'Videomaker', 'rgba(59,130,246,0.08)')).join('')
         : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum videomaker encontrado</div>`;
 
+    const suporteCardsHtml = suporteReport.length > 0
+        ? suporteReport.map(r => renderExecCard(r, supColor, 'Suporte', 'rgba(34,197,94,0.08)')).join('')
+        : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum membro de Suporte encontrado</div>`;
+
+    const tiCardsHtml = tiReport.length > 0
+        ? tiReport.map(r => renderExecCard(r, tiColor, 'Inovação/TI', 'rgba(245,158,11,0.08)')).join('')
+        : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum membro de Inovação/TI encontrado</div>`;
+
     const smCardsHtml = smReport.length > 0
-        ? smReport.map(renderSMCard).join('')
+        ? smReport.map(r => renderRequesterCard(r, smColor, 'Social Media')).join('')
         : `<div style="text-align:center; color:var(--text-dim); font-size:13px; padding:20px;">Nenhum Social Media encontrado</div>`;
+
+    const outrosDeptKeys = Object.keys(outrosReports);
+    const outrosSectionsHtml = outrosDeptKeys.map(deptKey => {
+        const color = DEPT_COLORS[deptKey] || outrosColorFallback;
+        const icon = { 'Gestão': '◆', 'Transmissão': '🎥' }[deptKey] || '🏷️';
+        const cardsHtml = outrosReports[deptKey].map(r => renderRequesterCard(r, color, deptKey)).join('');
+        return deptHeader(color, icon, `${deptKey} — Demandas Enviadas`, outrosReports[deptKey].reduce((s, r) => s + r.totalEnviadas.length, 0) + ' demanda(s) no mês')
+            + `<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${cardsHtml}</div>`;
+    }).join('');
 
     const btnStyle = `display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s;`;
 
@@ -7617,6 +7689,8 @@ function renderRelatorioMensal() {
                 <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
                     <button onclick="exportarRelatorio('designers')" style="${btnStyle} background:${dColor}22; color:${dColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Designers</button>
                     <button onclick="exportarRelatorio('videomakers')" style="${btnStyle} background:${vmColor}22; color:${vmColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Videomakers</button>
+                    <button onclick="exportarRelatorio('suporte')" style="${btnStyle} background:${supColor}22; color:${supColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Suporte</button>
+                    <button onclick="exportarRelatorio('ti')" style="${btnStyle} background:${tiColor}22; color:${tiColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Inovação/TI</button>
                     <button onclick="exportarRelatorio('social')" style="${btnStyle} background:${smColor}22; color:${smColor};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📥 Social Medias</button>
                     <button onclick="exportarRelatorio('geral')" style="${btnStyle} background:rgba(99,102,241,0.15); color:#818cf8;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">📄 Relatório Geral</button>
                 </div>
@@ -7629,8 +7703,16 @@ function renderRelatorioMensal() {
             ${deptHeader(vmColor, '🎬', 'Videomakers — Entregas Aprovadas', videoReport.reduce((s,r)=>s+r.entregues.length,0) + ' entrega(s) no mês')}
             <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${videoCardsHtml}</div>
 
+            ${deptHeader(supColor, '🛠️', 'Suporte — Entregas Aprovadas', suporteReport.reduce((s,r)=>s+r.entregues.length,0) + ' entrega(s) no mês')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${suporteCardsHtml}</div>
+
+            ${deptHeader(tiColor, '💡', 'Inovação/TI — Entregas Aprovadas', tiReport.reduce((s,r)=>s+r.entregues.length,0) + ' entrega(s) no mês')}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${tiCardsHtml}</div>
+
             ${deptHeader(smColor, '📱', 'Social Medias — Demandas Enviadas', smReport.reduce((s,r)=>s+r.totalEnviadas.length,0) + ' demanda(s) no mês')}
-            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">${smCardsHtml}</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; margin-bottom:32px;">${smCardsHtml}</div>
+
+            ${outrosSectionsHtml}
         </div>
     `;
 }
@@ -7646,10 +7728,13 @@ window._onRelatorioMonthChange = function(val) {
 // EXPORTAR RELATÓRIO MENSAL (Print / PDF)
 // =============================================
 window.exportarRelatorio = function(tipo) {
-    const { mesNome, ano, designerReport, videoReport, smReport } = _buildRelatorioData();
+    const { mesNome, ano, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports } = _buildRelatorioData();
     const dColor = '#a855f7';
     const vmColor = '#3b82f6';
+    const supColor = DEPT_COLORS['Suporte'] || '#22c55e';
+    const tiColor = DEPT_COLORS['Inovação/TI'] || '#f59e0b';
     const smColor = '#ec4899';
+    const outrosColorFallback = '#64748b';
     const indigo = '#6366f1';
     const geradoEm = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
 
@@ -7717,49 +7802,54 @@ window.exportarRelatorio = function(tipo) {
     function sectionVideomakers() {
         return sectionExec(videoReport, vmColor, '#bfdbfe', '#f0f7ff', '#eff6ff', '#1e40af', 'Videomaker', 'videomaker');
     }
+    function sectionSuporte() {
+        return sectionExec(suporteReport, supColor, '#bbf7d0', '#f2fdf6', '#ecfdf5', '#15803d', 'Suporte', 'membro de Suporte');
+    }
+    function sectionTI() {
+        return sectionExec(tiReport, tiColor, '#fde68a', '#fffbf0', '#fffbeb', '#b45309', 'Inovação/TI', 'membro de Inovação/TI');
+    }
 
-    // ---- SEÇÃO SOCIAL MEDIAS ----
-    function sectionSocialMedias() {
-        if (smReport.length === 0) return '<p style="color:#94a3b8; font-size:13px;">Nenhum Social Media encontrado.</p>';
-        return smReport.map(r => {
+    // ---- SEÇÃO GENÉRICA DE SOLICITANTES (Social Media ou qualquer outro departamento) ----
+    function sectionRequesterDept(report, color, deptLabel, emptyLabel) {
+        if (report.length === 0) return `<p style="color:#94a3b8; font-size:13px;">Nenhum ${emptyLabel} encontrado.</p>`;
+        return report.map(r => {
             const aprovadas = r.enviadas.length;
             const total = r.totalEnviadas.length;
             const pct = total > 0 ? Math.round((aprovadas / total) * 100) : 0;
             const rows = r.totalEnviadas.length > 0
                 ? r.totalEnviadas.map((d, i) => {
-                    const c = statusColors[d.status] || '#94a3b8';
-                    const rowBg = i % 2 === 0 ? '#fff7fb' : '#ffffff';
+                    const rowBg = i % 2 === 0 ? `${color}0c` : '#ffffff';
                     return `<tr style="background:${rowBg};">
-                        <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid #fce7f3;">${d.nome}</td>
-                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid #fce7f3; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
-                        <td style="padding:9px 12px; border-bottom:1px solid #fce7f3; white-space:nowrap;">${badge(d.status)}</td>
+                        <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid ${color}30;">${d.nome}</td>
+                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${color}30; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:9px 12px; border-bottom:1px solid ${color}30; white-space:nowrap;">${badge(d.status)}</td>
                     </tr>`;
                 }).join('')
                 : `<tr><td colspan="3" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma demanda enviada neste mês</td></tr>`;
 
-            const barFill = `<div style="height:8px; border-radius:99px; background:#f9d5ea; margin:6px 0 2px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${smColor}; border-radius:99px;"></div></div>`;
+            const barFill = `<div style="height:8px; border-radius:99px; background:${color}20; margin:6px 0 2px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${color}; border-radius:99px;"></div></div>`;
 
             return `
-            <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px rgba(236,72,153,0.10); border:1px solid #fce7f3;">
-                <div style="background:linear-gradient(90deg, ${smColor}18, ${smColor}08); padding:14px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #fce7f3;">
-                    <div style="width:36px; height:36px; border-radius:50%; background:${smColor}; display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:14px; flex-shrink:0;">${(r.user.iniciais || r.user.nome[0]).substring(0,2)}</div>
+            <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px ${color}18; border:1px solid ${color}30;">
+                <div style="background:linear-gradient(90deg, ${color}18, ${color}08); padding:14px 18px; display:flex; align-items:center; gap:12px; border-bottom:1px solid ${color}30;">
+                    <div style="width:36px; height:36px; border-radius:50%; background:${color}; display:flex; align-items:center; justify-content:center; color:white; font-weight:800; font-size:14px; flex-shrink:0;">${(r.user.iniciais || r.user.nome[0]).substring(0,2)}</div>
                     <div style="flex:1;">
                         <div style="font-weight:700; font-size:15px; color:#1e1b4b;">${r.user.nome}</div>
-                        <div style="font-size:11px; color:#be185d;">Social Media</div>
+                        <div style="font-size:11px; color:${color};">${deptLabel}</div>
                         ${barFill}
                         <div style="font-size:10px; color:#9ca3af;">${aprovadas} de ${total} aprovadas (${pct}%)</div>
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
-                        <div style="font-size:26px; font-weight:800; color:${smColor}; line-height:1;">${aprovadas}<span style="font-size:14px; color:#9ca3af;">/${total}</span></div>
+                        <div style="font-size:26px; font-weight:800; color:${color}; line-height:1;">${aprovadas}<span style="font-size:14px; color:#9ca3af;">/${total}</span></div>
                         <div style="font-size:10px; color:#9ca3af;">aprovadas</div>
                     </div>
                 </div>
                 <table style="width:100%; border-collapse:collapse; background:white;">
                     <thead>
-                        <tr style="background:#fdf2f8;">
-                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Demanda</th>
-                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Tipo</th>
-                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid #fce7f3;">Status</th>
+                        <tr style="background:${color}10;">
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Demanda</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Tipo</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Status</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -7767,28 +7857,68 @@ window.exportarRelatorio = function(tipo) {
             </div>`;
         }).join('');
     }
+    function sectionSocialMedias() {
+        return sectionRequesterDept(smReport, smColor, 'Social Media', 'Social Media');
+    }
+    function sectionOutrosDepts() {
+        const keys = Object.keys(outrosReports);
+        if (keys.length === 0) return '';
+        return keys.map(deptKey => {
+            const color = DEPT_COLORS[deptKey] || outrosColorFallback;
+            return `<h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${color}30;">🏷️ ${deptKey} — Demandas Detalhadas</h2>
+            ${sectionRequesterDept(outrosReports[deptKey], color, deptKey, deptKey)}`;
+        }).join('');
+    }
 
     // ---- RESUMO GERAL ----
     function sectionResumo() {
         const totalDesignerEntregas = designerReport.reduce((s, r) => s + r.entregues.length, 0);
         const totalVideoEntregas    = videoReport.reduce((s, r) => s + r.entregues.length, 0);
+        const totalSuporteEntregas  = suporteReport.reduce((s, r) => s + r.entregues.length, 0);
+        const totalTiEntregas       = tiReport.reduce((s, r) => s + r.entregues.length, 0);
         const totalDemandas   = smReport.reduce((s, r) => s + r.totalEnviadas.length, 0);
         const totalAprovadas  = smReport.reduce((s, r) => s + r.enviadas.length, 0);
         const pctGeral = totalDemandas > 0 ? Math.round((totalAprovadas / totalDemandas) * 100) : 0;
 
-        const designerRows = designerReport.map(r =>
-            `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${dColor}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
-        ).join('');
-        const videoRows = videoReport.map(r =>
-            `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${vmColor}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
-        ).join('');
-        const smRows = smReport.map(r => {
-            const pct = r.totalEnviadas.length > 0 ? Math.round((r.enviadas.length / r.totalEnviadas.length) * 100) : 0;
-            return `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:13px; font-weight:700; color:${smColor}; border-bottom:1px solid #f0f0f0;">${r.enviadas.length}/${r.totalEnviadas.length}</td><td style="padding:8px 12px; text-align:center; font-size:13px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+        function execRows(report, color) {
+            return report.map(r =>
+                `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${color}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
+            ).join('');
+        }
+        function execTable(title, icon, report, color, borderColor, headBg) {
+            const rows = execRows(report, color);
+            return `<div>
+                <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
+                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${borderColor};">
+                    <thead><tr style="background:${headBg};"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Entregas</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+                </table>
+            </div>`;
+        }
+        function reqRows(report, color) {
+            return report.map(r => {
+                const pct = r.totalEnviadas.length > 0 ? Math.round((r.enviadas.length / r.totalEnviadas.length) * 100) : 0;
+                return `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:13px; font-weight:700; color:${color}; border-bottom:1px solid #f0f0f0;">${r.enviadas.length}/${r.totalEnviadas.length}</td><td style="padding:8px 12px; text-align:center; font-size:13px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+            }).join('');
+        }
+        function reqTable(title, icon, report, color) {
+            const rows = reqRows(report, color);
+            return `<div>
+                <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
+                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${color}30;">
+                    <thead><tr style="background:${color}10;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Aprov./Total</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Taxa</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+                </table>
+            </div>`;
+        }
+
+        const outrosTablesHtml = Object.keys(outrosReports).map(deptKey => {
+            const color = DEPT_COLORS[deptKey] || outrosColorFallback;
+            return reqTable(deptKey, '🏷️', outrosReports[deptKey], color);
         }).join('');
 
         return `
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; margin-bottom:32px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:14px; margin-bottom:32px;">
             <div style="background:${dColor}12; border:1px solid ${dColor}30; border-radius:12px; padding:18px; text-align:center;">
                 <div style="font-size:32px; font-weight:800; color:${dColor};">${totalDesignerEntregas}</div>
                 <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Designers</div>
@@ -7796,6 +7926,14 @@ window.exportarRelatorio = function(tipo) {
             <div style="background:${vmColor}12; border:1px solid ${vmColor}30; border-radius:12px; padding:18px; text-align:center;">
                 <div style="font-size:32px; font-weight:800; color:${vmColor};">${totalVideoEntregas}</div>
                 <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Videomakers</div>
+            </div>
+            <div style="background:${supColor}12; border:1px solid ${supColor}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${supColor};">${totalSuporteEntregas}</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Suporte</div>
+            </div>
+            <div style="background:${tiColor}12; border:1px solid ${tiColor}30; border-radius:12px; padding:18px; text-align:center;">
+                <div style="font-size:32px; font-weight:800; color:${tiColor};">${totalTiEntregas}</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Inovação/TI</div>
             </div>
             <div style="background:${smColor}12; border:1px solid ${smColor}30; border-radius:12px; padding:18px; text-align:center;">
                 <div style="font-size:32px; font-weight:800; color:${smColor};">${totalAprovadas}<span style="font-size:16px; color:#9ca3af;">/${totalDemandas}</span></div>
@@ -7806,28 +7944,15 @@ window.exportarRelatorio = function(tipo) {
                 <div style="font-size:11px; color:#6b7280; margin-top:4px;">Taxa de Aprovação</div>
             </div>
         </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:20px;">
+            ${execTable('Designers', '🎨', designerReport, dColor, '#e9d5ff', '#f3f0ff')}
+            ${execTable('Videomakers', '🎬', videoReport, vmColor, '#bfdbfe', '#eff6ff')}
+            ${execTable('Suporte', '🛠️', suporteReport, supColor, '#bbf7d0', '#ecfdf5')}
+        </div>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;">
-            <div>
-                <h3 style="font-size:13px; font-weight:700; color:#6d28d9; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">🎨 Designers</h3>
-                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #e9d5ff;">
-                    <thead><tr style="background:#f3f0ff;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#6d28d9; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#6d28d9; font-weight:700;">Entregas</th></tr></thead>
-                    <tbody>${designerRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
-                </table>
-            </div>
-            <div>
-                <h3 style="font-size:13px; font-weight:700; color:#1e40af; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">🎬 Videomakers</h3>
-                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #bfdbfe;">
-                    <thead><tr style="background:#eff6ff;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#1e40af; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#1e40af; font-weight:700;">Entregas</th></tr></thead>
-                    <tbody>${videoRows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
-                </table>
-            </div>
-            <div>
-                <h3 style="font-size:13px; font-weight:700; color:#9d174d; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">📱 Social Medias</h3>
-                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #fce7f3;">
-                    <thead><tr style="background:#fdf2f8;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#9d174d; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#9d174d; font-weight:700;">Aprov./Total</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#9d174d; font-weight:700;">Taxa</th></tr></thead>
-                    <tbody>${smRows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
-                </table>
-            </div>
+            ${execTable('Inovação/TI', '💡', tiReport, tiColor, '#fde68a', '#fffbeb')}
+            ${reqTable('Social Medias', '📱', smReport, smColor)}
+            ${outrosTablesHtml}
         </div>`;
     }
 
@@ -7847,6 +7972,16 @@ window.exportarRelatorio = function(tipo) {
         subtitulo = 'Entregas aprovadas por videomaker no mês — inclui quem enviou cada demanda (Social Media)';
         accentColor = vmColor;
         bodyContent = sectionVideomakers();
+    } else if (tipo === 'suporte') {
+        titulo = '🛠️ Relatório de Suporte';
+        subtitulo = 'Entregas aprovadas por membro de Suporte no mês — inclui quem enviou cada demanda';
+        accentColor = supColor;
+        bodyContent = sectionSuporte();
+    } else if (tipo === 'ti') {
+        titulo = '💡 Relatório de Inovação/TI';
+        subtitulo = 'Entregas aprovadas por membro de Inovação/TI no mês — inclui quem enviou cada demanda';
+        accentColor = tiColor;
+        bodyContent = sectionTI();
     } else if (tipo === 'social') {
         titulo = '📱 Relatório de Social Medias';
         subtitulo = 'Demandas enviadas e aprovadas por cada Social Media no mês';
@@ -7854,7 +7989,7 @@ window.exportarRelatorio = function(tipo) {
         bodyContent = sectionSocialMedias();
     } else {
         titulo = '📊 Relatório Geral Mensal';
-        subtitulo = 'Visão completa: designers, videomakers, Social Medias e métricas do mês';
+        subtitulo = 'Visão completa: todos os departamentos e métricas do mês';
         accentColor = indigo;
         bodyContent = `
             <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${indigo}20;">📈 Resumo Executivo</h2>
@@ -7863,8 +7998,13 @@ window.exportarRelatorio = function(tipo) {
             ${sectionDesigners()}
             <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${vmColor}30;">🎬 Videomakers — Entregas Detalhadas</h2>
             ${sectionVideomakers()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${supColor}30;">🛠️ Suporte — Entregas Detalhadas</h2>
+            ${sectionSuporte()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${tiColor}30;">💡 Inovação/TI — Entregas Detalhadas</h2>
+            ${sectionTI()}
             <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${smColor}30;">📱 Social Medias — Demandas Detalhadas</h2>
-            ${sectionSocialMedias()}`;
+            ${sectionSocialMedias()}
+            ${sectionOutrosDepts()}`;
     }
 
     const html = `<!DOCTYPE html>
