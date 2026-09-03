@@ -537,9 +537,11 @@ function getMonthDemandas(includeFuture = true, overrideYear = null, overrideMon
 
         // REGRA DE CÓPIAS RECORRENTES:
         if (isRec) {
-            // 1. Se estivermos no mês atual e a data de início (dataSolicitacao/dataConclusao) for no futuro (depois de hoje), NÃO MOSTRA ainda no "A fazer"
-            const solDt = parseTaskDate(d.dataSolicitacao || d.dataConclusao);
-            if (isCurrentMonth && solDt && solDt > endOfToday && d.status === 'A fazer') {
+            // 1. Se estivermos no mês atual e o dia da cópia (dataConclusao, o dia real da tarefa) ainda não chegou,
+            // NÃO MOSTRA no "A fazer". Usa dataConclusao (não dataSolicitacao) porque a antecedência calculada
+            // pode empurrar a "data de solicitação" pra trás do dia de hoje mesmo quando o dia da cópia é futuro.
+            const dueDt = parseTaskDate(d.dataConclusao || d.dataSolicitacao);
+            if (isCurrentMonth && dueDt && dueDt > endOfToday && d.status === 'A fazer') {
                 return false;
             }
             // 2. Se a cópia recorrente for de um mês futuro (dt >= end) e estivermos no mês atual, NÃO MOSTRA no mês atual
