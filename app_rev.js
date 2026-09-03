@@ -3361,7 +3361,6 @@ function renderRequests() {
     let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
     const approvedDemandas = demandas.filter(d => {
         if (!d || d.deletedAt || d.status !== 'Aprovado') return false;
-        if (currentUser && isTaskForUser(d, currentUser)) return true;
         const dc = d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
         const lst = parseTaskDate(dc);
         if (!lst) return false;
@@ -3589,7 +3588,6 @@ function renderTasks() {
     let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
     const approvedDemandas = demandas.filter(d => {
         if (!d || d.deletedAt || d.status !== 'Aprovado') return false;
-        if (currentUser && isTaskForUser(d, currentUser)) return true;
         const dc = d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
         const lst = parseTaskDate(dc);
         if (!lst) return false;
