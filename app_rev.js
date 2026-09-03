@@ -2759,10 +2759,10 @@ function updateBadges() {
 
     // For ordinary executors, we also show badgeTasks
     if (currentUser.role === 'executor') {
-        const executorTasks = visibleTasks.filter(d => 
-            (d.pipeline[d.currentStage]?.userId === currentUser.id || 
-             (!d.pipeline[d.currentStage]?.userId && d.pipeline[d.currentStage]?.userIds && d.pipeline[d.currentStage].userIds.includes(currentUser.id))) 
-            && d.status !== 'Aprovado'
+        const executorTasks = visibleTasks.filter(d =>
+            (d.pipeline[d.currentStage]?.userId === currentUser.id ||
+             (!d.pipeline[d.currentStage]?.userId && d.pipeline[d.currentStage]?.userIds && d.pipeline[d.currentStage].userIds.includes(currentUser.id)))
+            && d.status === 'A fazer'
         );
         const badgeTasks = document.getElementById('badgeTasks');
         if (badgeTasks) badgeTasks.textContent = executorTasks.length;
