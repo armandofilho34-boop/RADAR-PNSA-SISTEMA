@@ -3508,11 +3508,14 @@ function switchRequestTab(key) {
 function renderReview() {
     const c = document.getElementById('reviewTable');
     let baseDemandas = getMonthDemandas(true).filter(d => d && !d.deletedAt);
-    const canReview = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
+    const canReview = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media';
+    const reviewDepts = currentUser.role === 'gestor_equipe' ? (typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)]) : null;
 
-    let t = canReview
-        ? baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação')
-        : baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação' && d.solicitanteId === currentUser.id);
+    let t = baseDemandas.filter(d => (d.status || '').trim() === 'Para aprovação').filter(d => {
+        if (canReview) return true;
+        if (reviewDepts) return reviewDepts.includes(normalizeDept(d.tipoProjeto)) || (d.pipeline && d.pipeline.some(s => reviewDepts.includes(normalizeDept(s.dept))));
+        return d.solicitanteId === currentUser.id;
+    });
 
     if (!t.length) {
         c.innerHTML = `
