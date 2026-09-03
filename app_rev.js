@@ -172,8 +172,15 @@ function getUserVisibleTasks(baseDemandas) {
         return true;
     });
 
-    if (isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || depts.includes('Social Media') || depts.includes('Gestão')) {
+    if (isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || depts.includes('Social Media') || depts.includes('Gestão')) {
         return filteredBase;
+    }
+
+    if (currentUser.role === 'gestor_equipe') {
+        return filteredBase.filter(d =>
+            depts.includes(normalizeDept(d.tipoProjeto)) ||
+            (d.pipeline && d.pipeline.some(s => depts.includes(normalizeDept(s.dept))))
+        );
     }
 
     const currName = (currentUser.nome || '').toLowerCase().trim();
@@ -506,12 +513,14 @@ function isRecurringTask(d) {
     return false;
 }
 
-function getMonthDemandas(includeFuture = true) {
-    const start = new Date(selectedYear, selectedMonth, 1);
-    const end = new Date(selectedYear, selectedMonth + 1, 1);
+function getMonthDemandas(includeFuture = true, overrideYear = null, overrideMonth = null) {
+    const yr = overrideYear !== null ? overrideYear : selectedYear;
+    const mo = overrideMonth !== null ? overrideMonth : selectedMonth;
+    const start = new Date(yr, mo, 1);
+    const end = new Date(yr, mo + 1, 1);
     const now = new Date();
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    const isCurrentMonth = (selectedYear === now.getFullYear() && selectedMonth === now.getMonth());
+    const isCurrentMonth = (yr === now.getFullYear() && mo === now.getMonth());
 
     const cleanDemandas = deduplicateDemandas(demandas);
 
@@ -551,7 +560,7 @@ function getMonthDemandas(includeFuture = true) {
 
             // Demandas de meses anteriores (dt < start) pertencem ao mês em que foram agendadas/criadas.
             // Não aparecem no mês atual a menos que estejam no mês imediatamente anterior e ativamente em andamento.
-            const prevMonthStart = new Date(selectedYear, selectedMonth - 1, 1);
+            const prevMonthStart = new Date(yr, mo - 1, 1);
             if (isCurrentMonth && dt >= prevMonthStart && d.status === 'Fazendo') {
                 return true;
             }
@@ -2314,14 +2323,14 @@ function renderAgenda() {
     document.getElementById('agendaUserName').textContent = `Agenda de ${currentUser.nome.split(' ')[0]}`;
     document.getElementById('agendaUserDept').textContent = `${currentUser.dept} • ${isGlobalCoordinator() ? 'Todas as demandas' : (currentUser.role === 'gestor_equipe' ? 'Demandas do departamento' : 'Minhas demandas do mês')}`;
 
-    const activeDemandas = getMonthDemandas(true).filter(d => !d.deletedAt);
+    // Conta todas as demandas do mês que a Agenda está exibindo (mesmo critério da Minha Área),
+    // usando o mês navegado na própria Agenda (yr/mo), não o seletor de mês global.
+    const activeDemandas = getMonthDemandas(true, yr, mo).filter(d => !d.deletedAt);
     const tasks = getUserVisibleTasks(activeDemandas);
 
-    const monthTasks = tasks.filter(t => { const parts = (t.dataConclusao || '').split('-'); return parseInt(parts[0]) === yr && parseInt(parts[1]) - 1 === mo; });
-
-    document.getElementById('agendaTotal').textContent = monthTasks.length;
-    document.getElementById('agendaPending').textContent = monthTasks.filter(t => t.status === 'Fazendo').length;
-    document.getElementById('agendaDone').textContent = monthTasks.filter(t => t.status === 'Aprovado').length;
+    document.getElementById('agendaTotal').textContent = tasks.length;
+    document.getElementById('agendaPending').textContent = tasks.filter(t => t.status === 'Fazendo').length;
+    document.getElementById('agendaDone').textContent = tasks.filter(t => t.status === 'Aprovado').length;
 
     const firstDay = new Date(yr, mo, 1), lastDay = new Date(yr, mo + 1, 0);
     const startDay = firstDay.getDay(), totalDays = lastDay.getDate();
@@ -2745,7 +2754,7 @@ function renderMeuProgresso(tasks) {
 
 function updateBadges() {
     const visibleTasks = getUserVisibleTasks(getMonthDemandas().filter(d => !d.deletedAt));
-    document.getElementById('badgeRequests').textContent = visibleTasks.filter(d => d.status !== 'Aprovado').length;
+    document.getElementById('badgeRequests').textContent = visibleTasks.filter(d => d.status === 'A fazer').length;
     document.getElementById('badgeReview').textContent = visibleTasks.filter(d => d.status === 'Para aprovação').length;
 
     // For ordinary executors, we also show badgeTasks
@@ -3249,18 +3258,8 @@ function renderQuadroGeral() {
     let baseDemandas = getMonthDemandas();
     const activeDemandas = baseDemandas.filter(d => !d.deletedAt);
 
-    // Get all demands for coordinator OR where user is participant
-    let tasks = [];
-    if (isGlobalCoordinator()) {
-        tasks = activeDemandas;
-    } else {
-        // User sees tasks they requested OR where they are active OR were part of the pipeline (for history)
-        tasks = activeDemandas.filter(d =>
-            d.solicitanteId === currentUser.id ||
-            d.responsavelId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        );
-    }
+    // Quadro Geral é uma visão única e igual para todo mundo: mostra todas as demandas do mês, de todos.
+    let tasks = activeDemandas;
 
     // Apply filters
     if (fStatus) tasks = tasks.filter(t => t.status === fStatus);
@@ -3268,17 +3267,8 @@ function renderQuadroGeral() {
     if (fPrio) tasks = tasks.filter(t => t.prioridade === fPrio);
     if (searchTerm) tasks = tasks.filter(t => (t.nome || '').toLowerCase().includes(searchTerm) || (t.id || '').toLowerCase().includes(searchTerm));
 
-    // Render stats
-    let allTasks = [];
-    if (isGlobalCoordinator()) {
-        allTasks = activeDemandas;
-    } else {
-        allTasks = activeDemandas.filter(d =>
-            d.solicitanteId === currentUser.id ||
-            d.responsavelId === currentUser.id ||
-            (d.pipeline && d.pipeline.some(s => s.userId === currentUser.id || (!s.userId && s.userIds && s.userIds.includes(currentUser.id))))
-        );
-    }
+    // Render stats (sempre sobre o total do mês, sem filtro de usuário)
+    let allTasks = activeDemandas;
     const stats = {
         total: allTasks.length,
         afazer: allTasks.filter(t => t.status === 'A fazer').length,
@@ -4849,6 +4839,18 @@ function openDetail(id) {
     event?.stopPropagation();
     const t = demandas.find(d => d.id === id); if (!t) return;
     currentTaskId = id;
+
+    // Permissão de agir sobre a demanda (mudar status, comentar, anexar, marcar subtarefa).
+    // Quem não está no pipeline nem é gestor do departamento da demanda só pode visualizar (ex: abrindo pelo Quadro Geral).
+    const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : {};
+    const isExecutorOnTask = (currentStage?.userId === currentUser.id) || (!currentStage?.userId && currentStage?.userIds && currentStage.userIds.includes(currentUser.id));
+    const gestorDepts = typeof getUserDepts === 'function' ? getUserDepts(currentUser) : [normalizeDept(currentUser.dept)];
+    const isGestorDoDept = currentUser.role === 'gestor_equipe' && (
+        gestorDepts.includes(normalizeDept(t.tipoProjeto)) ||
+        (t.pipeline && t.pipeline.some(s => gestorDepts.includes(normalizeDept(s.dept))))
+    );
+    const canChangeStatus = isExecutorOnTask || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || isGestorDoDept || isGlobalCoordinator();
+
     document.getElementById('detailId').innerHTML = '📋 ' + t.nome;
     const sol = USERS[t.solicitanteId], cls = getStatusClass(t.status);
     const pipeHtml = t.pipeline.map((s, i) => {
@@ -4909,9 +4911,9 @@ function openDetail(id) {
         }
         return `
         <div class="subtask-item">
-            <input type="checkbox" id="sub-${s.id}" ${s.completed ? 'checked' : ''} onchange="toggleSubtask('${t.id}', ${s.id})">
+            <input type="checkbox" id="sub-${s.id}" ${s.completed ? 'checked' : ''} ${canChangeStatus ? `onchange="toggleSubtask('${t.id}', ${s.id})"` : 'disabled'}>
             <label for="sub-${s.id}" class="${s.completed ? 'completed' : ''}">${s.text}</label>
-            <button class="btn-icon-small" onclick="deleteSubtask('${t.id}', ${s.id})">🗑️</button>
+            ${canChangeStatus ? `<button class="btn-icon-small" onclick="deleteSubtask('${t.id}', ${s.id})">🗑️</button>` : ''}
         </div>`;
     }).join('');
 
@@ -5052,39 +5054,41 @@ function openDetail(id) {
         <div class="detail-tab-content active" id="tabSubtasks">
             ${subtaskProgress ? `<div class="subtask-progress-bar"><div class="subtask-progress-fill" style="width:${subtaskProgress.percent}%"></div><span>${subtaskProgress.percent}% (${subtaskProgress.completed}/${subtaskProgress.total})</span></div>` : ''}
             <div class="subtask-list">${subtasksHtml}</div>
+            ${canChangeStatus ? `
             <div class="subtask-form">
                 <input type="text" class="subtask-input" id="newSubtaskText" placeholder="Nova subtarefa..." onkeypress="if(event.key==='Enter')addSubtaskUI('${id}')">
                 <button class="btn-subtask" onclick="addSubtaskUI('${id}')">+ Adicionar</button>
             </div>
+            ` : ''}
         </div>
-        
+
         <div class="detail-tab-content" id="tabComments">
             <div class="comment-list">${commentsHtml}</div>
+            ${canChangeStatus ? `
             <div class="comment-form">
                 <textarea class="comment-input" id="newCommentText" placeholder="Escreva um comentário..." rows="2"></textarea>
                 <button class="btn-comment" onclick="addComment('${id}')">Enviar</button>
             </div>
+            ` : ''}
         </div>
-        
+
         <div class="detail-tab-content" id="tabAttachments">
             <div class="attachment-list">${attachmentsHtml}</div>
+            ${canChangeStatus ? `
             <div class="attachment-upload-area">
                 <input type="file" id="fileUpload-${id}" style="display:none" onchange="handleFileUpload('${id}', this)" multiple>
                 <button class="btn-upload" onclick="document.getElementById('fileUpload-${id}').click()">
                     📂 Selecionar Arquivos
                 </button>
             </div>
+            ` : ''}
         </div>
 `;
 
     let footer = '';
     const status = t.status;
-    const canDelete = currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe';
+    const canDelete = currentUser.role === 'coordinator' || currentUser.role === 'social_media' || isGestorDoDept;
     const canEdit = canDelete; // coordinator e social_media podem editar
-    const currentStage = (t.pipeline && t.pipeline[t.currentStage]) ? t.pipeline[t.currentStage] : {};
-    const isExecutorOnTask = (currentStage?.userId === currentUser.id) || (!currentStage?.userId && currentStage?.userIds && currentStage.userIds.includes(currentUser.id));
-    // Qualquer participante do pipeline, coordinator ou social_media pode mudar status
-    const canChangeStatus = isExecutorOnTask || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || isGlobalCoordinator();
 
     if (canChangeStatus) {
         const deleteBtn = canDelete ? `<button class="btn-delete" onclick="deleteTask('${id}')">Excluir</button>` : '';
@@ -5106,7 +5110,7 @@ function openDetail(id) {
             footer = `${editBtn}${deleteBtn}<button class="btn-cancel" onclick="closeModal('modalDetail')">Fechar</button> <button class="btn-secondary" onclick="startExecution('${id}')">Reiniciar Demanda</button> <button class="btn-success" onclick="submitCorrection('${id}')">Reenviar para Aprovação</button>`;
         } else if (status === 'Para aprovação') {
             const isTITask = t.pipeline && t.pipeline.some(s => s.dept === 'Inovação/TI');
-            const canReviewHere = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || currentUser.role === 'gestor_equipe' || t.solicitanteId === currentUser.id || (isTITask && currentDept === 'Inovação/TI');
+            const canReviewHere = isGlobalCoordinator() || currentUser.role === 'coordinator' || currentUser.role === 'social_media' || isGestorDoDept || t.solicitanteId === currentUser.id || (isTITask && currentDept === 'Inovação/TI');
             if (canReviewHere) {
                 footer = `${editBtn}${deleteBtn}<button class="btn-cancel" onclick="closeModal('modalDetail')">Fechar</button> <button class="btn-success" onclick="openReviewFromDetail('${id}')">Revisar Demanda</button>`;
             } else {
