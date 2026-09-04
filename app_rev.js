@@ -4960,7 +4960,7 @@ function openDetail(id) {
         contentHtml = expressBlock + `
             <div class="detail-section">
                 <h4>Briefing</h4>
-                <p>${t.briefing || '-'}</p>
+                <p>${t.briefing || t.descricaoCartao || '-'}</p>
             </div>
             <div class="detail-section">
                 <h4>Referências</h4>
@@ -11230,6 +11230,13 @@ async function handleCreateChamadoTI(e) {
         prioridade: 'Média', 
         isPinned: false,
         descricaoCartao: desc,
+        briefing: desc,
+        ti: {
+            category: categoria || '-',
+            description: desc,
+            location: '',
+            presence: ''
+        },
         solicitanteId: currentUser?.id || null,
         solicitanteNome: solicitanteNome,
         dataCriacao: new Date().toISOString(),
