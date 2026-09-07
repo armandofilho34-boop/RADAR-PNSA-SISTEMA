@@ -4393,6 +4393,7 @@ async function handleCreate(e) {
 
         const tipoProjeto = document.getElementById('cTipoProjeto').value;
         const prioridade = document.getElementById('cPrioridade').value;
+        const dificuldade = document.getElementById('cDificuldade').value;
 
         // ===== TRANSMISSÃO: Fluxo especial — gera uma demanda por programa selecionado =====
         if (tipoProjeto === 'Transmissão') {
@@ -4416,6 +4417,7 @@ async function handleCreate(e) {
                     tipoProjeto: 'Transmissão',
                     subType: 'PROGRAMAÇÃO',
                     prioridade: prioridade || 'Normal',
+                    dificuldade,
                     dataSolicitacao: sel.date,
                     dataConclusao: sel.date,
                     titulo: `${sel.programa} — ${sel.dia}`,
@@ -4749,6 +4751,7 @@ async function handleCreate(e) {
                 tipoProjeto: (dependsOnDesigner) ? 'Design + Vídeo' : tipoProjeto, // Override type if sequential
                 subType,
                 prioridade,
+                dificuldade,
                 dataSolicitacao: solDate,
                 dataConclusao: targetDate,
                 titulo: titulo || nome,
@@ -5022,6 +5025,7 @@ function openDetail(id) {
             <div class="detail-item"><label>Status</label><span class="status-tag ${cls}">${t.status}</span></div>
             <div class="detail-item"><label>Prioridade</label><span>${t.prioridade}</span></div>
             <div class="detail-item"><label>Tipo</label><span>${t.tipoProjeto} ${t.subType ? `(${t.subType})` : ''}</span></div>
+            <div class="detail-item"><label>Dificuldade</label><span>${t.dificuldade || '-'}</span></div>
             <div class="detail-item"><label>Prazo</label><span>${formatDateFull(t.dataConclusao)}</span></div>
             <div class="detail-item full"><label>Solicitante</label><span>${sol?.nome || '?'}</span></div>
         </div>
@@ -5434,6 +5438,7 @@ function openEditModal(id) {
     document.getElementById('editNome').value = t.nome;
     document.getElementById('editPrioridade').value = t.prioridade;
     document.getElementById('editDataConclusao').value = t.dataConclusao;
+    document.getElementById('editDificuldade').value = t.dificuldade || 'Simples';
     document.getElementById('editBriefing').value = t.briefing || '';
     document.getElementById('editOrientacoes').value = t.orientacoes || '';
 
@@ -5502,6 +5507,7 @@ function saveEditTask() {
     t.nome = document.getElementById('editNome').value.trim();
     t.prioridade = document.getElementById('editPrioridade').value;
     t.dataConclusao = document.getElementById('editDataConclusao').value;
+    t.dificuldade = document.getElementById('editDificuldade').value;
     t.briefing = document.getElementById('editBriefing').value.trim();
     t.orientacoes = document.getElementById('editOrientacoes').value.trim();
 
@@ -7762,6 +7768,7 @@ window.exportarRelatorio = function(tipo) {
                     return `<tr style="background:${rowBg};">
                         <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid ${borderColor};">${d.nome}</td>
                         <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.dificuldade || '—'}</td>
                         <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">
                             <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#ec4899; font-weight:600;">
                                 <span style="width:6px; height:6px; border-radius:50%; background:#ec4899; display:inline-block;"></span>
@@ -7771,7 +7778,7 @@ window.exportarRelatorio = function(tipo) {
                         <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${badge(d.status)}</td>
                     </tr>`;
                 }).join('')
-                : `<tr><td colspan="4" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma entrega aprovada neste mês</td></tr>`;
+                : `<tr><td colspan="5" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma entrega aprovada neste mês</td></tr>`;
 
             return `
             <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px ${color}18; border:1px solid ${borderColor};">
@@ -7791,6 +7798,7 @@ window.exportarRelatorio = function(tipo) {
                         <tr style="background:${headBg};">
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Demanda</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Tipo</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Dificuldade</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor}; white-space:nowrap;">📱 Enviado por</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Status</th>
                         </tr>
@@ -7827,10 +7835,11 @@ window.exportarRelatorio = function(tipo) {
                     return `<tr style="background:${rowBg};">
                         <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid ${color}30;">${d.nome}</td>
                         <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${color}30; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${color}30; white-space:nowrap;">${d.dificuldade || '—'}</td>
                         <td style="padding:9px 12px; border-bottom:1px solid ${color}30; white-space:nowrap;">${badge(d.status)}</td>
                     </tr>`;
                 }).join('')
-                : `<tr><td colspan="3" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma demanda enviada neste mês</td></tr>`;
+                : `<tr><td colspan="4" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma demanda enviada neste mês</td></tr>`;
 
             const barFill = `<div style="height:8px; border-radius:99px; background:${color}20; margin:6px 0 2px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${color}; border-radius:99px;"></div></div>`;
 
@@ -7854,6 +7863,7 @@ window.exportarRelatorio = function(tipo) {
                         <tr style="background:${color}10;">
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Demanda</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Tipo</th>
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Dificuldade</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${color}30;">Status</th>
                         </tr>
                     </thead>
