@@ -980,8 +980,11 @@ function showApp() {
         // Novidades do Sistema (exibe apenas uma vez)
         const showedUpdates = showSystemUpdates();
 
+        // Aviso de alteração importante (Dificuldade da Demanda) — só dispara se o de novidades não apareceu, para não empilhar dois pop-ups
+        const showedDificuldadeAlert = !showedUpdates && showDificuldadeAlert();
+
         // Lembrete diário (1x por dia, se não exibiu novidades)
-        if (!showedUpdates) {
+        if (!showedUpdates && !showedDificuldadeAlert) {
             showDailyReminder();
             // Onboarding Tour (Radar Tour)
             setTimeout(() => {
@@ -1162,6 +1165,100 @@ function showSystemUpdates() {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) dismiss();
     });
+
+    return true;
+}
+
+// Aviso de alteração importante: campo de Dificuldade da Demanda (exibe apenas uma vez por pessoa)
+function showDificuldadeAlert() {
+    const key = 'radar_alert_dificuldade_2026-09_seen';
+    if (localStorage.getItem(key)) {
+        return false;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:99999;opacity:0;transition:opacity 0.3s;padding:20px;box-sizing:border-box;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);';
+
+    const box = document.createElement('div');
+    box.style.cssText = [
+        'background:linear-gradient(135deg, #2a1414 0%, #1a0f0f 100%)',
+        'border-radius:24px',
+        'padding:36px',
+        'width:100%',
+        'max-width:560px',
+        'box-shadow:0 25px 50px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(239, 68, 68, 0.35)',
+        'transform:scale(0.9)',
+        'transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+        'color:#ffffff',
+        "font-family:'Inter', sans-serif",
+        'position:relative',
+        'overflow:hidden'
+    ].join(';');
+
+    const glow1 = document.createElement('div');
+    glow1.style.cssText = 'position:absolute;top:-50px;right:-50px;width:220px;height:220px;border-radius:50%;background:rgba(239, 68, 68, 0.2);filter:blur(55px);pointer-events:none;';
+    box.appendChild(glow1);
+
+    const content = document.createElement('div');
+    content.style.cssText = 'position:relative;z-index:2;';
+    content.innerHTML = `
+        <div style="font-size:46px;margin-bottom:12px;text-align:center;">🚨</div>
+        <h2 style="margin:0 0 10px;font-size:23px;font-weight:900;text-align:center;letter-spacing:0.5px;color:#f87171;text-transform:uppercase;">Alteração no Radar!!!</h2>
+        <p style="margin:0 0 22px;font-size:14px;color:#e4e4e7;text-align:center;font-weight:500;">Antes de continuar, leia com atenção — isso muda a forma como as demandas são criadas.</p>
+
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:18px 20px;text-align:left;">
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+                <span style="font-size:22px;">🎯</span>
+                <div>
+                    <h4 style="margin:0 0 6px;font-size:15px;font-weight:700;color:#f4f4f5;">Novo campo obrigatório: Dificuldade da Demanda</h4>
+                    <p style="margin:0;font-size:13px;line-height:1.6;color:#cbd5e1;">
+                        Ao criar uma demanda, agora é <strong>obrigatório</strong> escolher a dificuldade: <strong>Simples, Moderada ou Complexa</strong>.<br><br>
+                        Errou a classificação? Sem problema: peça a alteração para o Social Media que ele consegue editar a demanda para você, alterando a dificuldade — ao invés de fazer outra do zero.<br><br>
+                        A dificuldade também passa a aparecer no <strong>Relatório Mensal</strong>, junto com Tipo e Status.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:26px;">
+            <button id="btnDismissDificuldadeAlert" disabled style="padding:14px 44px;border-radius:12px;border:none;background:#52525b;color:#d4d4d8;font-weight:700;font-size:14.5px;cursor:not-allowed;box-shadow:none;letter-spacing:0.3px;transition:background 0.3s, box-shadow 0.3s, color 0.3s;">
+                Aguarde (15s)
+            </button>
+        </div>
+    `;
+
+    box.appendChild(content);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+        overlay.style.opacity = '1';
+        box.style.transform = 'scale(1)';
+    });
+
+    const dismiss = () => {
+        localStorage.setItem(key, 'true');
+        overlay.style.opacity = '0';
+        box.style.transform = 'scale(0.9)';
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    const btn = box.querySelector('#btnDismissDificuldadeAlert');
+    let secondsLeft = 15;
+    const countdownInt = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+            btn.textContent = `Aguarde (${secondsLeft}s)`;
+        } else {
+            clearInterval(countdownInt);
+            btn.disabled = false;
+            btn.textContent = 'Entendi!';
+            btn.style.cssText = 'padding:14px 44px;border-radius:12px;border:none;background:linear-gradient(135deg, #ef4444, #dc2626);color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 4px 20px rgba(239, 68, 68, 0.4);letter-spacing:0.3px;';
+        }
+    }, 1000);
+
+    btn.addEventListener('click', dismiss);
+    // Sem dismiss ao clicar fora de propósito: obriga a pessoa a esperar e clicar em "Entendi!" para fechar o aviso.
 
     return true;
 }
