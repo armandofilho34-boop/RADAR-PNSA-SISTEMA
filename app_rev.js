@@ -7632,6 +7632,87 @@ function _buildRelatorioData() {
     return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports };
 }
 
+// Grupos de entregas registrados a cada render do Relatório Mensal, pra o lightbox
+// conseguir navegar entre todas as artes/vídeos de uma mesma demanda.
+window._reportEntregaGroups = [];
+
+window._entregasLightboxIdx = 0;
+window._entregasLightboxItems = null;
+
+window._entregasLightboxRender = function () {
+    const overlay = document.getElementById('entregasLightboxOverlay');
+    const items = window._entregasLightboxItems;
+    if (!overlay || !items) return;
+    const idx = window._entregasLightboxIdx;
+    const item = items[idx];
+    let content;
+    if (item.tipo === 'imagem') {
+        content = `<img src="${item.url}" style="max-width:88vw; max-height:82vh; object-fit:contain; border-radius:10px;">`;
+    } else if (item.tipo === 'video' && item.ytId) {
+        content = `<iframe src="https://www.youtube.com/embed/${item.ytId}" style="width:80vw; height:45vw; max-width:960px; max-height:540px; border:0; border-radius:10px;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    } else {
+        const icon = item.tipo === 'video' ? '🎥' : '📄';
+        const label = item.tipo === 'video' ? 'Abrir vídeo em nova aba' : 'Abrir arquivo em nova aba';
+        content = `<div style="display:flex; flex-direction:column; align-items:center; gap:18px; color:#fff;">
+            <div style="font-size:64px;">${icon}</div>
+            <a href="${item.url}" target="_blank" onclick="event.stopPropagation();" style="color:#fff; background:#6366f1; padding:10px 22px; border-radius:8px; text-decoration:none; font-weight:700; font-size:14px;">${label}</a>
+        </div>`;
+    }
+    const nav = items.length > 1 ? `
+        <button onclick="event.stopPropagation(); window._entregasLightboxNav(-1)" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:20px; cursor:pointer;">‹</button>
+        <button onclick="event.stopPropagation(); window._entregasLightboxNav(1)" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:20px; cursor:pointer;">›</button>
+        <div style="position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#fff; font-size:13px; background:rgba(0,0,0,0.45); padding:4px 12px; border-radius:20px;">${idx + 1} / ${items.length}</div>
+    ` : '';
+    overlay.innerHTML = `
+        <div onclick="event.stopPropagation()" style="position:relative; display:flex; align-items:center; justify-content:center; max-width:95vw; max-height:90vh;">
+            ${content}
+            ${nav}
+        </div>
+        <button onclick="window.closeEntregasLightbox()" style="position:absolute; top:20px; right:24px; background:rgba(255,255,255,0.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:18px; cursor:pointer;">✕</button>
+    `;
+};
+
+window._entregasLightboxNav = function (dir) {
+    const items = window._entregasLightboxItems;
+    if (!items) return;
+    window._entregasLightboxIdx = (window._entregasLightboxIdx + dir + items.length) % items.length;
+    window._entregasLightboxRender();
+};
+
+window._entregasLightboxKeyHandler = function (e) {
+    if (e.key === 'Escape') window.closeEntregasLightbox();
+    if (e.key === 'ArrowLeft') window._entregasLightboxNav(-1);
+    if (e.key === 'ArrowRight') window._entregasLightboxNav(1);
+};
+
+window.closeEntregasLightbox = function () {
+    const overlay = document.getElementById('entregasLightboxOverlay');
+    if (overlay) overlay.style.display = 'none';
+    document.removeEventListener('keydown', window._entregasLightboxKeyHandler);
+};
+
+window.showEntregasLightbox = function (groupIdx, startIndex) {
+    const items = window._reportEntregaGroups[groupIdx];
+    if (!items || items.length === 0) return;
+    window._entregasLightboxItems = items;
+    window._entregasLightboxIdx = startIndex || 0;
+
+    let overlay = document.getElementById('entregasLightboxOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'entregasLightboxOverlay';
+        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        overlay.onclick = () => window.closeEntregasLightbox();
+        document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+
+    document.removeEventListener('keydown', window._entregasLightboxKeyHandler);
+    document.addEventListener('keydown', window._entregasLightboxKeyHandler);
+
+    window._entregasLightboxRender();
+};
+
 function renderRelatorioMensal() {
     const container = document.getElementById('relatorioMensalContainer');
     if (!container) return;
@@ -7639,6 +7720,8 @@ function renderRelatorioMensal() {
     const isCoord = currentUser && (currentUser.role === 'coordinator' || currentUser.role === 'social_media' ||
         (typeof getUserDepts === 'function' && getUserDepts(currentUser).includes('Gestão')));
     if (!isCoord) { container.innerHTML = ''; return; }
+
+    window._reportEntregaGroups = [];
 
     const { mesNome, ano, rMonth, rYear, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports } = _buildRelatorioData();
     const dColor  = DEPT_COLORS['Designer']    || '#a855f7';
@@ -7672,6 +7755,48 @@ function renderRelatorioMensal() {
         return `<span style="background:${cls[status] || '#94a3b8'}20; color:${cls[status] || '#94a3b8'}; border:1px solid ${cls[status] || '#94a3b8'}40; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600;">${status}</span>`;
     }
 
+    // Miniatura da entrega (mesma lógica visual da Galeria de Mídias): imagem real
+    // para artes, ícone de câmera para vídeos, ícone de arquivo para documentos.
+    function miniEntregaPreview(d) {
+        const entregas = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+        const url = entregas[0];
+        const extra = entregas.length - 1;
+        const extraBadge = extra > 0 ? `<span style="position:absolute; bottom:-4px; right:-4px; background:#6366f1; color:#fff; font-size:9px; font-weight:800; border-radius:8px; padding:1px 5px; line-height:1.4; box-shadow:0 0 0 2px var(--surface-light, #1a1a2e);">+${extra}</span>` : '';
+
+        let inner;
+        if (!url) {
+            inner = `<div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:rgba(245,158,11,0.08); border-radius:8px; color:#f59e0b; font-size:18px;">⚡</div>`;
+        } else {
+            const fileType = resolveEntregaFileType(d, url);
+            const ytId = fileType === 'video' ? extractYouTubeId(url) : null;
+            if (fileType === 'imagem') {
+                inner = `<img src="${url}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:8px; display:block;">`;
+            } else if (fileType === 'video' && ytId) {
+                inner = `<div style="width:40px; height:40px; border-radius:8px; overflow:hidden; position:relative;">
+                    <img src="${youtubeThumbUrl(ytId)}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2);"><span style="color:#fff; font-size:12px;">▶</span></div>
+                </div>`;
+            } else if (fileType === 'video') {
+                inner = `<div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:rgba(239,68,68,0.08); border-radius:8px; color:#ef4444; font-size:18px;">🎥</div>`;
+            } else {
+                const ext = (url.split('.').pop() || '').split('?')[0].toUpperCase();
+                const icon = ext === 'PDF' ? '📄' : (ext === 'ZIP' || ext === 'RAR') ? '📦' : '📎';
+                inner = `<div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); border-radius:8px; color:var(--text-muted); font-size:16px;">${icon}</div>`;
+            }
+        }
+
+        let clickAttr = `style="position:relative; width:40px; height:40px; flex-shrink:0;"`;
+        if (url) {
+            const groupIdx = window._reportEntregaGroups.length;
+            window._reportEntregaGroups.push(entregas.map(u => {
+                const tipo = resolveEntregaFileType(d, u);
+                return { url: u, tipo, ytId: tipo === 'video' ? extractYouTubeId(u) : null };
+            }));
+            clickAttr = `onclick="event.stopPropagation(); window.showEntregasLightbox(${groupIdx}, 0)" style="position:relative; width:40px; height:40px; flex-shrink:0; cursor:pointer;"`;
+        }
+        return `<div ${clickAttr}>${inner}${extraBadge}</div>`;
+    }
+
     // Card genérico para executor (Designer ou Videomaker)
     function renderExecCard(r, color, deptLabel, hoverRgba) {
         const listaEntregues = r.entregues.length > 0
@@ -7680,6 +7805,7 @@ function renderRelatorioMensal() {
                 const smNome = sol ? sol.nome : '—';
                 return `
                 <div onclick="openDetail('${d.id}')" style="display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:background .15s;" onmouseover="this.style.background='${hoverRgba}'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                    ${miniEntregaPreview(d)}
                     <div style="flex:1; min-width:0;">
                         <div style="font-size:13px; color:var(--text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.nome}">${d.nome}</div>
                         <div style="font-size:11px; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:4px;">
@@ -7853,6 +7979,51 @@ window.exportarRelatorio = function(tipo) {
         return `<span style="background:${c}18; color:${c}; border:1px solid ${c}50; border-radius:5px; padding:2px 9px; font-size:11px; font-weight:700; white-space:nowrap;">${status}</span>`;
     }
 
+    // Grupos de entregas de cada demanda, embutidos no HTML exportado pra o
+    // lightbox (self-contained, roda numa janela separada) navegar entre eles.
+    const previewGroups = [];
+
+    // Miniatura da entrega para o relatório impresso: imagem real para artes,
+    // ícone de câmera para vídeos — mesma lógica visual da Galeria de Mídias.
+    function miniPreviewCell(d, borderColor) {
+        const entregas = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+        const url = entregas[0];
+        let inner = '';
+        if (!url) {
+            inner = `<div style="width:140px; height:140px; display:flex; align-items:center; justify-content:center; background:#fef3c7; border-radius:12px; font-size:56px;">⚡</div>`;
+        } else {
+            const fileType = resolveEntregaFileType(d, url);
+            const ytId = fileType === 'video' ? extractYouTubeId(url) : null;
+            if (fileType === 'imagem') {
+                inner = `<img src="${url}" alt="" style="width:140px; height:140px; object-fit:cover; border-radius:12px; display:block;">`;
+            } else if (fileType === 'video' && ytId) {
+                inner = `<div style="width:140px; height:140px; border-radius:12px; overflow:hidden; position:relative;">
+                    <img src="${youtubeThumbUrl(ytId)}" alt="" style="width:100%; height:100%; object-fit:cover; display:block;">
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2);"><span style="color:#fff; font-size:36px;">▶</span></div>
+                </div>`;
+            } else if (fileType === 'video') {
+                inner = `<div style="width:140px; height:140px; display:flex; align-items:center; justify-content:center; background:#fee2e2; border-radius:12px; font-size:56px;">🎥</div>`;
+            } else {
+                const ext = (url.split('.').pop() || '').split('?')[0].toUpperCase();
+                const icon = ext === 'PDF' ? '📄' : (ext === 'ZIP' || ext === 'RAR') ? '📦' : '📎';
+                inner = `<div style="width:140px; height:140px; display:flex; align-items:center; justify-content:center; background:#f3f4f6; border-radius:12px; font-size:46px;">${icon}</div>`;
+            }
+        }
+        const extra = entregas.length - 1;
+        const extraBadge = extra > 0 ? `<span style="position:absolute; bottom:2px; right:2px; background:#6366f1; color:#fff; font-size:13px; font-weight:800; border-radius:10px; padding:2px 8px; line-height:1.4; box-shadow:0 0 0 2px #fff;">+${extra}</span>` : '';
+
+        let clickAttr = `style="position:relative; width:140px; height:140px;"`;
+        if (url) {
+            const groupIdx = previewGroups.length;
+            previewGroups.push(entregas.map(u => {
+                const tipo = resolveEntregaFileType(d, u);
+                return { url: u, tipo, ytId: tipo === 'video' ? extractYouTubeId(u) : null };
+            }));
+            clickAttr = `onclick="showEntregasLightbox(${groupIdx}, 0)" style="position:relative; width:140px; height:140px; cursor:pointer;"`;
+        }
+        return `<td style="padding:9px 12px; border-bottom:1px solid ${borderColor};"><div ${clickAttr}>${inner}${extraBadge}</div></td>`;
+    }
+
     // ---- SEÇÃO EXECUTORES (Designer ou Videomaker) por cor/label ----
     function sectionExec(report, color, borderColor, bgColor, headBg, headColor, deptLabel, emptyLabel) {
         if (report.length === 0) return `<p style="color:#94a3b8; font-size:13px;">Nenhum ${emptyLabel} encontrado.</p>`;
@@ -7862,20 +8033,23 @@ window.exportarRelatorio = function(tipo) {
                     const sol = USERS[d.solicitanteId];
                     const smNome = sol ? sol.nome : '—';
                     const rowBg = i % 2 === 0 ? bgColor : '#ffffff';
+                    const statusC = statusColors[d.status] || '#94a3b8';
+                    const bigBadge = `<span style="background:${statusC}18; color:${statusC}; border:1px solid ${statusC}50; border-radius:6px; padding:5px 14px; font-size:14px; font-weight:700; white-space:nowrap;">${d.status}</span>`;
                     return `<tr style="background:${rowBg};">
-                        <td style="padding:9px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid ${borderColor};">${d.nome}</td>
-                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
-                        <td style="padding:9px 12px; font-size:12px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.dificuldade || '—'}</td>
-                        <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">
-                            <span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:#ec4899; font-weight:600;">
-                                <span style="width:6px; height:6px; border-radius:50%; background:#ec4899; display:inline-block;"></span>
+                        ${miniPreviewCell(d, borderColor)}
+                        <td style="padding:12px; font-size:16px; color:#1e1b4b; border-bottom:1px solid ${borderColor};">${d.nome}</td>
+                        <td style="padding:12px; font-size:15px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.tipoProjeto || '—'}</td>
+                        <td style="padding:12px; font-size:15px; color:#6b7280; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${d.dificuldade || '—'}</td>
+                        <td style="padding:12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">
+                            <span style="display:inline-flex; align-items:center; gap:6px; font-size:15px; color:#ec4899; font-weight:600;">
+                                <span style="width:7px; height:7px; border-radius:50%; background:#ec4899; display:inline-block;"></span>
                                 ${smNome}
                             </span>
                         </td>
-                        <td style="padding:9px 12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${badge(d.status)}</td>
+                        <td style="padding:12px; border-bottom:1px solid ${borderColor}; white-space:nowrap;">${bigBadge}</td>
                     </tr>`;
                 }).join('')
-                : `<tr><td colspan="5" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma entrega aprovada neste mês</td></tr>`;
+                : `<tr><td colspan="6" style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; font-style:italic;">Nenhuma entrega aprovada neste mês</td></tr>`;
 
             return `
             <div style="margin-bottom:28px; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px ${color}18; border:1px solid ${borderColor};">
@@ -7893,6 +8067,7 @@ window.exportarRelatorio = function(tipo) {
                 <table style="width:100%; border-collapse:collapse; background:white;">
                     <thead>
                         <tr style="background:${headBg};">
+                            <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor}; width:140px;"></th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Demanda</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Tipo</th>
                             <th style="padding:8px 12px; text-align:left; font-size:11px; font-weight:700; color:${headColor}; text-transform:uppercase; letter-spacing:.5px; border-bottom:2px solid ${borderColor};">Dificuldade</th>
@@ -8155,6 +8330,64 @@ window.exportarRelatorio = function(tipo) {
       <span>RADAR PNSA · Sistema de Gestão de Demandas</span>
       <span>${mesNome} ${ano} · ${geradoEm}</span>
   </div>
+  <script>
+    var _entregasGroups = ${JSON.stringify(previewGroups).replace(/</g, '\\u003c')};
+    var _lbIdx = 0, _lbGroup = null;
+    function showEntregasLightbox(groupIdx, startIndex) {
+      _lbGroup = _entregasGroups[groupIdx];
+      if (!_lbGroup || !_lbGroup.length) return;
+      _lbIdx = startIndex || 0;
+      var overlay = document.getElementById('entregasLightboxOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'entregasLightboxOverlay';
+        overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        overlay.onclick = closeEntregasLightbox;
+        document.body.appendChild(overlay);
+      }
+      overlay.style.display = 'flex';
+      document.addEventListener('keydown', _lbKeyHandler);
+      renderLightbox(overlay);
+    }
+    function navEntregasLightbox(dir) {
+      _lbIdx = (_lbIdx + dir + _lbGroup.length) % _lbGroup.length;
+      renderLightbox(document.getElementById('entregasLightboxOverlay'));
+    }
+    function closeEntregasLightbox() {
+      var overlay = document.getElementById('entregasLightboxOverlay');
+      if (overlay) overlay.style.display = 'none';
+      document.removeEventListener('keydown', _lbKeyHandler);
+    }
+    function _lbKeyHandler(e) {
+      if (e.key === 'Escape') closeEntregasLightbox();
+      if (e.key === 'ArrowLeft') navEntregasLightbox(-1);
+      if (e.key === 'ArrowRight') navEntregasLightbox(1);
+    }
+    function renderLightbox(overlay) {
+      var item = _lbGroup[_lbIdx];
+      var content;
+      if (item.tipo === 'imagem') {
+        content = '<img src="' + item.url + '" style="max-width:88vw; max-height:82vh; object-fit:contain; border-radius:10px;">';
+      } else if (item.tipo === 'video' && item.ytId) {
+        content = '<iframe src="https://www.youtube.com/embed/' + item.ytId + '" style="width:80vw; height:45vw; max-width:960px; max-height:540px; border:0; border-radius:10px;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+      } else {
+        var icon = item.tipo === 'video' ? '🎥' : '📄';
+        var label = item.tipo === 'video' ? 'Abrir vídeo em nova aba' : 'Abrir arquivo em nova aba';
+        content = '<div style="display:flex; flex-direction:column; align-items:center; gap:18px; color:#fff;">' +
+          '<div style="font-size:64px;">' + icon + '</div>' +
+          '<a href="' + item.url + '" target="_blank" onclick="event.stopPropagation();" style="color:#fff; background:#6366f1; padding:10px 22px; border-radius:8px; text-decoration:none; font-weight:700; font-size:14px;">' + label + '</a>' +
+          '</div>';
+      }
+      var nav = _lbGroup.length > 1 ?
+        '<button onclick="event.stopPropagation(); navEntregasLightbox(-1)" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:20px; cursor:pointer;">‹</button>' +
+        '<button onclick="event.stopPropagation(); navEntregasLightbox(1)" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.15); border:none; color:#fff; width:44px; height:44px; border-radius:50%; font-size:20px; cursor:pointer;">›</button>' +
+        '<div style="position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#fff; font-size:13px; background:rgba(0,0,0,0.45); padding:4px 12px; border-radius:20px;">' + (_lbIdx + 1) + ' / ' + _lbGroup.length + '</div>'
+        : '';
+      overlay.innerHTML =
+        '<div onclick="event.stopPropagation()" style="position:relative; display:flex; align-items:center; justify-content:center; max-width:95vw; max-height:90vh;">' + content + nav + '</div>' +
+        '<button onclick="closeEntregasLightbox()" style="position:absolute; top:20px; right:24px; background:rgba(255,255,255,0.15); border:none; color:#fff; width:36px; height:36px; border-radius:50%; font-size:18px; cursor:pointer;">✕</button>';
+    }
+  </script>
 </body>
 </html>`;
 
@@ -11511,6 +11744,28 @@ function identifyFileType(name, type) {
         return 'video';
     }
     return 'documento';
+}
+
+// Resolve o tipo de uma entrega individual (usado nas miniaturas do Relatório Mensal).
+function resolveEntregaFileType(d, url) {
+    if (d.entregaTipo === 'video') {
+        return 'video';
+    }
+    const detected = identifyFileType(url, '');
+    if (detected === 'documento') return 'documento';
+    if (detected === 'video') return url.includes('drive.google.com') ? 'documento' : 'video';
+    return 'imagem';
+}
+
+// Extrai o ID de um link do YouTube (watch, youtu.be, embed, shorts) para
+// buscar a capa/miniatura oficial do vídeo, sem precisar de API key.
+function extractYouTubeId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+}
+function youtubeThumbUrl(id) {
+    return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
 
 function filterGallery() {
