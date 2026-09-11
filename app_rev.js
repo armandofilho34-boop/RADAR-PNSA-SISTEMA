@@ -3224,10 +3224,19 @@ function changeTaskStatus(taskId, newStatus, skipUpload = false) {
             window.currentEntregaTaskId = taskId;
             window.currentEntregaTipo = (checkVideo && !checkDesign) ? 'video' : 'arte';
 
+            const isPureVideo = window.currentEntregaTipo === 'video';
+
             const arteSection = document.getElementById('entregaArteSection');
-            if (arteSection) arteSection.style.display = 'flex';
+            if (arteSection) arteSection.style.display = isPureVideo ? 'none' : 'flex';
             const videoSection = document.getElementById('entregaVideoSection');
             if (videoSection) videoSection.style.display = 'flex';
+
+            const videoLabelEl = document.getElementById('entregaVideoLabel');
+            if (videoLabelEl) {
+                videoLabelEl.textContent = window.currentEntregaTipo === 'video'
+                    ? 'Link do YouTube (obrigatório) — pode incluir também outros materiais'
+                    : 'Links de Vídeo ou Material (YouTube, Google Drive, Canva, etc.)';
+            }
 
             // reset file
             window.currentEntregaFile = null;
@@ -3236,6 +3245,8 @@ function changeTaskStatus(taskId, newStatus, skipUpload = false) {
             if (fileNameEl) fileNameEl.textContent = 'Clique ou arraste as imagens / documentos aqui';
             const linkInputEl = document.getElementById('entregaLinkInput');
             if (linkInputEl) linkInputEl.value = '';
+            window.updateEntregaYoutubePreview();
+            window.hideEntregaError();
 
             openModal('modalEntrega');
             return;
@@ -9187,6 +9198,41 @@ window.handleEntregaFile = function (input) {
     }
 };
 
+window.showEntregaError = function (msg) {
+    const banner = document.getElementById('entregaErrorBanner');
+    const text = document.getElementById('entregaErrorBannerText');
+    if (banner && text) {
+        text.textContent = msg;
+        banner.style.display = 'flex';
+    } else {
+        toast(msg, 'error');
+    }
+};
+
+window.hideEntregaError = function () {
+    const banner = document.getElementById('entregaErrorBanner');
+    if (banner) banner.style.display = 'none';
+};
+
+window.updateEntregaYoutubePreview = function () {
+    window.hideEntregaError();
+
+    const preview = document.getElementById('entregaYoutubePreview');
+    const previewImg = document.getElementById('entregaYoutubePreviewImg');
+    if (!preview || !previewImg) return;
+
+    const linksText = document.getElementById('entregaLinkInput')?.value || '';
+    const links = linksText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+    const ytId = links.map(l => extractYouTubeId(l)).find(id => id);
+
+    if (ytId) {
+        previewImg.src = youtubeThumbUrl(ytId);
+        preview.style.display = 'flex';
+    } else {
+        preview.style.display = 'none';
+    }
+};
+
 window.submitEntrega = async function () {
     const taskId = window.currentEntregaTaskId;
     const task = demandas.find(d => d.id === taskId);
@@ -9196,9 +9242,56 @@ window.submitEntrega = async function () {
     const linksText = document.getElementById('entregaLinkInput')?.value || '';
     const links = linksText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
 
+    window.hideEntregaError();
+
     if (files.length === 0 && links.length === 0) {
-        toast('Por favor, selecione ao menos um arquivo ou informe um link para entrega.', 'error');
+        window.showEntregaError('Por favor, selecione ao menos um arquivo ou informe um link para entrega.');
         return;
+    }
+
+    if (window.currentEntregaTipo === 'video') {
+        const ytIds = links.map(l => extractYouTubeId(l)).filter(Boolean);
+        if (ytIds.length === 0) {
+            window.showEntregaError('Para encerrar demandas de vídeo é obrigatório informar um link do YouTube.');
+            return;
+        }
+
+        const usedYtIds = new Set();
+        demandas.forEach(d => {
+            if (d.id === taskId) return;
+            const entregas = d.entregasUrl || (d.entregaUrl ? [d.entregaUrl] : []);
+            entregas.forEach(u => {
+                const id = extractYouTubeId(u);
+                if (id) usedYtIds.add(id);
+            });
+        });
+        if (ytIds.some(id => usedYtIds.has(id))) {
+            window.showEntregaError('Esse link do YouTube já foi usado em outra demanda. Cada vídeo precisa ter um link único.');
+            return;
+        }
+
+        const btnCheck = document.getElementById('btnSubmitEntrega');
+        const originalCheckText = btnCheck ? btnCheck.innerHTML : 'Enviar';
+        if (btnCheck) {
+            btnCheck.innerHTML = 'Verificando canal...';
+            btnCheck.disabled = true;
+        }
+        try {
+            for (const id of ytIds) {
+                const { isAllowed, authorName } = await checkYoutubeChannel(id);
+                if (!isAllowed) {
+                    window.showEntregaError(`O vídeo precisa ser do canal oficial (${ALLOWED_YOUTUBE_CHANNEL_HANDLE}). O link enviado é do canal "${authorName}".`);
+                    if (btnCheck) { btnCheck.innerHTML = originalCheckText; btnCheck.disabled = false; }
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao verificar canal do YouTube:', err);
+            window.showEntregaError('Não foi possível verificar o canal do vídeo no YouTube. Verifique sua conexão e tente novamente.');
+            if (btnCheck) { btnCheck.innerHTML = originalCheckText; btnCheck.disabled = false; }
+            return;
+        }
+        if (btnCheck) { btnCheck.innerHTML = originalCheckText; btnCheck.disabled = false; }
     }
 
     let entregasUrl = [];
@@ -9228,7 +9321,7 @@ window.submitEntrega = async function () {
         }
     } catch (error) {
         console.error('Erro no upload das entregas:', error);
-        toast('Erro ao fazer upload dos arquivos de entrega. O Storage do Firebase está ativo?', 'error');
+        window.showEntregaError('Erro ao fazer upload dos arquivos de entrega. O Storage do Firebase está ativo?');
         if (btn) {
             btn.innerHTML = originalText;
             btn.disabled = false;
@@ -11768,6 +11861,27 @@ function youtubeThumbUrl(id) {
     return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 }
 
+// Canal oficial do YouTube autorizado para entregas de vídeo.
+const ALLOWED_YOUTUBE_CHANNEL_HANDLE = '@VídeosAssunção-p6t';
+
+function normalizeYoutubeHandle(str) {
+    if (!str) return '';
+    try { str = decodeURIComponent(str); } catch (e) { /* já decodificado */ }
+    return str.trim().toLowerCase();
+}
+
+// Consulta o oEmbed público do YouTube (sem API key) para descobrir o canal
+// dono do vídeo, e confere se bate com o canal oficial autorizado.
+async function checkYoutubeChannel(videoId) {
+    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}&format=json`);
+    if (!res.ok) throw new Error('Não foi possível consultar o vídeo no YouTube.');
+    const data = await res.json();
+    const allowedHandle = normalizeYoutubeHandle(ALLOWED_YOUTUBE_CHANNEL_HANDLE);
+    const handleFromUrl = data.author_url ? normalizeYoutubeHandle(data.author_url.split('/').pop()) : '';
+    const isAllowed = handleFromUrl === allowedHandle;
+    return { isAllowed, authorName: data.author_name || 'desconhecido' };
+}
+
 function filterGallery() {
     const searchVal = document.getElementById('gallerySearch')?.value?.toLowerCase() || '';
     const typeVal = document.getElementById('galleryFilterType')?.value || '';
@@ -11798,11 +11912,23 @@ function filterGallery() {
         if (item.tipo === 'imagem') {
             previewHtml = `<img src="${item.url}" alt="${item.nome}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px;">`;
         } else if (item.tipo === 'video') {
-            previewHtml = `
-                <div style="width: 100%; height: 140px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.08); border-radius: 8px; color: #ef4444; font-size: 38px;">
-                    🎥
-                </div>
-            `;
+            const ytId = extractYouTubeId(item.url);
+            if (ytId) {
+                previewHtml = `
+                    <div style="width: 100%; height: 140px; position: relative; border-radius: 8px; overflow: hidden;">
+                        <img src="${youtubeThumbUrl(ytId)}" alt="${item.nome}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                        <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25);">
+                            <span style="color: #fff; font-size: 32px;">▶</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                previewHtml = `
+                    <div style="width: 100%; height: 140px; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.08); border-radius: 8px; color: #ef4444; font-size: 38px;">
+                        🎥
+                    </div>
+                `;
+            }
         } else {
             // Documento / Outros
             const ext = item.nome.split('.').pop().toUpperCase();

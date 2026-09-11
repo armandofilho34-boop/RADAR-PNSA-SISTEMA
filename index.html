@@ -2811,7 +2811,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="login-fix.js"></script>
-    <script src="app_rev.js?v=5.27"></script>
+    <script src="app_rev.js?v=5.33"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
     <div class="modal-overlay" id="modalUserAnalytics">
         <div class="modal modal-xl" style="max-width: 800px;">
@@ -3004,6 +3004,11 @@
                     entrega final da sua demanda para avaliação do criador original. O status da demanda só será
                     alterado após o envio.</p>
 
+                <div id="entregaErrorBanner" style="display:none; align-items:flex-start; gap:8px; padding:12px 14px; margin-bottom:16px; border-radius:10px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); color:#ef4444; font-size:13px; line-height:1.4;">
+                    <span style="font-size:15px; flex-shrink:0;">⚠️</span>
+                    <span id="entregaErrorBannerText"></span>
+                </div>
+
                 <div id="entregaArteSection" style="display:none; flex-direction: column; gap: 8px;">
                     <label style="font-weight:600; font-size:13px; color:var(--text-color);">Upload de Arte ou Documentos (PNG, JPG, PDF, DOCX, etc.)</label>
                     <div class="upload-dropzone" id="entregaDropzone"
@@ -3025,10 +3030,14 @@
                 </div>
 
                 <div id="entregaVideoSection" style="display:none; flex-direction: column; gap: 8px;">
-                    <label style="font-weight:600; font-size:13px; color:var(--text-color);">Links de Vídeo ou Material (YouTube, Google Drive, Canva, etc.)</label>
-                    <textarea class="input-field" id="entregaLinkInput"
+                    <label id="entregaVideoLabel" style="font-weight:600; font-size:13px; color:var(--text-color);">Links de Vídeo ou Material (YouTube, Google Drive, Canva, etc.)</label>
+                    <textarea class="input-field" id="entregaLinkInput" oninput="window.updateEntregaYoutubePreview()"
                         placeholder="Ex: https://youtube.com/watch?v=...\nhttps://drive.google.com/..."
                         style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-color); font-size: 14px; transition: border-color 0.2s; min-height: 80px;"></textarea>
+                    <div id="entregaYoutubePreview" style="display:none; align-items:center; gap:10px; padding:8px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border-color);">
+                        <img id="entregaYoutubePreviewImg" src="" alt="Capa do vídeo" style="width:80px; height:45px; object-fit:cover; border-radius:6px; flex-shrink:0;">
+                        <span style="font-size:12px; color:var(--text-muted);">✅ Capa do YouTube reconhecida — é assim que o vídeo vai aparecer na Galeria de Mídias</span>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer"
