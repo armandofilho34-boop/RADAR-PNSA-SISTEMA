@@ -2308,56 +2308,52 @@ function openBoard(dept) {
                         border: 1px solid rgba(239,68,68,0.8) !important;
                     }
                 </style>
-                <div style="display: flex; gap: 16px; padding: 20px 20px 0 20px; flex-wrap: wrap;">
-                    <div onclick="renderTIKanban('pendentes')" style="flex: 1; min-width: 200px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #818cf8;"><i class="fas fa-clock"></i></div>
+                <div class="ti-topbar">
+                    <div class="ti-kpi-card kpi-indigo" onclick="renderTIKanban('pendentes')">
+                        <div class="ti-kpi-icon"><i class="fas fa-clock"></i></div>
                         <div>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Pendentes Hoje</p>
-                            <h3 id="tiKpiPendentes" style="margin: 4px 0 0 0; font-size: 24px; color: #818cf8; font-weight: 700;">0</h3>
+                            <p class="ti-kpi-label">Pendentes Hoje</p>
+                            <h3 id="tiKpiPendentes" class="ti-kpi-value">0</h3>
                         </div>
                     </div>
-                    <div onclick="renderTIKanban('concluidos')" style="flex: 1; min-width: 200px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(34,197,94,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #4ade80;"><i class="fas fa-check-circle"></i></div>
+                    <div class="ti-kpi-card kpi-green" onclick="renderTIKanban('concluidos')">
+                        <div class="ti-kpi-icon"><i class="fas fa-check-circle"></i></div>
                         <div>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Concluídos (Mês)</p>
-                            <h3 id="tiKpiConcluidos" style="margin: 4px 0 0 0; font-size: 24px; color: #4ade80; font-weight: 700;">0</h3>
+                            <p class="ti-kpi-label">Concluídos (Mês)</p>
+                            <h3 id="tiKpiConcluidos" class="ti-kpi-value">0</h3>
                         </div>
                     </div>
-                    <div onclick="renderTIKanban('urgentes')" style="flex: 1; min-width: 200px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #f87171;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="ti-kpi-card kpi-red" onclick="renderTIKanban('urgentes')">
+                        <div class="ti-kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
                         <div>
-                            <p style="margin: 0; font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Urgentes / Atrasados</p>
-                            <h3 id="tiKpiUrgentes" style="margin: 4px 0 0 0; font-size: 24px; color: #f87171; font-weight: 700;">0</h3>
+                            <p class="ti-kpi-label">Urgentes / Atrasados</p>
+                            <h3 id="tiKpiUrgentes" class="ti-kpi-value">0</h3>
                         </div>
                     </div>
-                    <div style="min-width: 220px; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
-                        <button onclick="window.openChamadoTIModal()" id="btnNovoChamadoTI" style="padding: 10px 16px; background: linear-gradient(135deg, #10b981, #3b82f6); border: none; border-radius: 8px; color: #ffffff; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 14px rgba(16,185,129,0.35); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13.5px;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
-                            <i class="fas fa-plus-circle"></i> ➕ Novo Chamado TI
+                    <div class="ti-actions">
+                        <button onclick="window.openChamadoTIModal()" id="btnNovoChamadoTI" class="ti-btn ti-btn-primary">
+                            <i class="fas fa-plus-circle"></i> Novo Chamado TI
                         </button>
-                        <button onclick="window.exportRelatorioTI()" id="btnExportTI" style="padding: 10px 16px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; color: #f59e0b; font-weight: 700; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;" onmouseover="this.style.background='rgba(245,158,11,0.25)'" onmouseout="this.style.background='rgba(245,158,11,0.15)'">
-                            <i class="fas fa-download"></i> 📊 Exportar Relatório
+                        <button onclick="window.exportRelatorioTI()" id="btnExportTI" class="ti-btn ti-btn-outline-amber">
+                            <i class="fas fa-download"></i> Exportar Relatório
                         </button>
-                        <button onclick="window.toggleGlobalIncident()" id="btnIncident" style="padding: 10px 16px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: #f87171; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: inset 0 0 10px rgba(239,68,68,0.1); font-size: 13px;">
+                        <button onclick="window.toggleGlobalIncident()" id="btnIncident" class="ti-btn ti-btn-outline-red">
                             🚨 Disparar Alerta Global
                         </button>
                     </div>
                 </div>
-                <div class="kanban-board" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:16px; padding:20px; align-items:flex-start; height: 100%; min-height: 55vh;">
+                <div class="kanban-board" style="padding:20px; height:auto; min-height:55vh; overflow:visible;">
                     ${['A fazer', 'Fazendo', 'Para aprovação', 'Alteração', 'Aprovado'].map(status => {
-                        let borderColor = '#3b82f6';
-                        if(status === 'A fazer') borderColor = '#a855f7';
-                        if(status === 'Fazendo') borderColor = '#f59e0b';
-                        if(status === 'Para aprovação') borderColor = '#eab308';
-                        if(status === 'Alteração') borderColor = '#ef4444';
-                        if(status === 'Aprovado') borderColor = '#22c55e';
-                        
+                        const headerCls = { 'A fazer': 'a-fazer', 'Fazendo': 'fazendo', 'Para aprovação': 'aprovacao', 'Alteração': 'alteracao', 'Aprovado': 'aprovado' }[status];
+                        const icon = { 'A fazer': '📋', 'Fazendo': '🔄', 'Para aprovação': '👁️', 'Alteração': '🔁', 'Aprovado': '✅' }[status];
+
                         return `
-                        <div class="kanban-column" data-status="${status}" style="width:100%; min-width:0; background:var(--surface-light); border-top: 3px solid ${borderColor}; border-radius:12px; display:flex; flex-direction:column; padding:16px; overflow:hidden;">
-                            <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom:16px;">
-                                <h3 style="font-size:14.5px; font-weight:700; color:var(--text-color); margin:0;">${status}</h3>
-                                <span id="count-ti-${status.replace(/\s+/g, '')}" style="background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600;">0</span>
+                        <div class="kanban-column" data-status="${status}">
+                            <div class="kanban-column-header ${headerCls}">
+                                <span class="kanban-column-title">${icon} ${status}</span>
+                                <span class="kanban-column-count" id="count-ti-${status.replace(/\s+/g, '')}">0</span>
                             </div>
-                            <div class="kanban-cards custom-ti-cards" data-status="${status}" id="cards-ti-${status.replace(/\s+/g, '')}" style="display:flex; flex-direction:column; gap:12px; min-height:150px;">
+                            <div class="kanban-cards" data-status="${status}" id="cards-ti-${status.replace(/\s+/g, '')}">
                             </div>
                         </div>
                     `}).join('')}
@@ -3731,10 +3727,12 @@ function renderTasks() {
     c.innerHTML = renderExecutionTasks(t);
 }
 
-function renderBoard() {
+function renderBoard(kpiFilter = null) {
     if (!currentDept) return;
     // Skip if Suporte — it has its own dashboard
     if (currentDept === 'Suporte') { renderSuporteDashboard(false); return; }
+    // Skip if Inovação/TI — it has its own kanban dashboard (não deve cair na tabela agrupada)
+    if (currentDept === 'Inovação/TI') { if (typeof renderTIKanban === 'function') renderTIKanban(); return; }
 
     const c = document.getElementById('boardTable');
     if (!c) return;
@@ -3779,9 +3777,180 @@ function renderBoard() {
     if (f) t = t.filter(d => (d.status || '').includes(f));
     if (s) t = t.filter(d => (d.nome || '').toLowerCase().includes(s));
 
+    // Kanban estilo Inovação/TI apenas para Designer e Videomaker; demais deptos mantêm a tabela agrupada
+    if (currentDept === 'Designer' || currentDept === 'Videomaker') {
+        let tKanban = t;
+        if (kpiFilter === 'pendentes') tKanban = t.filter(d => d.status === 'A fazer' || d.status === 'Fazendo');
+        else if (kpiFilter === 'concluidos') tKanban = t.filter(d => d.status === 'Aprovado');
+        else if (kpiFilter === 'urgentes') tKanban = t.filter(d => {
+            if (d.status === 'Aprovado') return false;
+            if (d.prioridade === 'Crítico' || d.prioridade === 'Urgente') return true;
+            const deadline = parseDateLocal(d.dataConclusao);
+            if (!deadline) return false;
+            return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) < 0;
+        });
+
+        c.innerHTML = renderDeptKPI(t) + renderKanbanColumns(tKanban);
+        initKanbanDragDrop();
+        return;
+    }
+
     if (!t.length) { c.innerHTML = '<div class="empty-message">Nenhuma demanda encontrada neste departamento</div>'; return; }
     c.innerHTML = renderGroupedTable(t);
     initCollapse();
+}
+
+function renderDeptKPI(tasks) {
+    const pendentes = tasks.filter(t => t.status === 'A fazer' || t.status === 'Fazendo').length;
+    const concluidos = tasks.filter(t => t.status === 'Aprovado').length;
+    const urgentes = tasks.filter(t => {
+        if (t.status === 'Aprovado') return false;
+        if (t.prioridade === 'Crítico' || t.prioridade === 'Urgente') return true;
+        const deadline = parseDateLocal(t.dataConclusao);
+        if (!deadline) return false;
+        return Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) < 0;
+    }).length;
+
+    return `<div class="ti-topbar">
+        <div class="ti-kpi-card kpi-indigo" onclick="renderBoard('pendentes')">
+            <div class="ti-kpi-icon"><i class="fas fa-clock"></i></div>
+            <div>
+                <p class="ti-kpi-label">Pendentes Hoje</p>
+                <h3 class="ti-kpi-value">${pendentes}</h3>
+            </div>
+        </div>
+        <div class="ti-kpi-card kpi-green" onclick="renderBoard('concluidos')">
+            <div class="ti-kpi-icon"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <p class="ti-kpi-label">Concluídos (Mês)</p>
+                <h3 class="ti-kpi-value">${concluidos}</h3>
+            </div>
+        </div>
+        <div class="ti-kpi-card kpi-red" onclick="renderBoard('urgentes')">
+            <div class="ti-kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <p class="ti-kpi-label">Urgentes / Atrasados</p>
+                <h3 class="ti-kpi-value">${urgentes}</h3>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderKanbanColumns(tasks) {
+    sortTasksByDateAndPriority(tasks);
+    const groups = {};
+    tasks.forEach(t => { if (!groups[t.status]) groups[t.status] = []; groups[t.status].push(t); });
+
+    const statusOrder = [
+        { key: 'A fazer', label: 'A fazer', cls: 'a-fazer', icon: '📋' },
+        { key: 'Fazendo', label: 'Fazendo', cls: 'fazendo', icon: '🔄' },
+        { key: 'Para aprovação', label: 'Para aprovação', cls: 'aprovacao', icon: '👁️' },
+        { key: 'Alteração', label: 'Alteração', cls: 'alteracao', icon: '🔁' },
+        { key: 'Aprovado', label: 'Aprovado', cls: 'aprovado', icon: '✅' }
+    ];
+
+    return `<div class="kanban-board" style="padding:20px; height:auto; min-height:55vh; overflow:visible;">
+        ${statusOrder.map(status => {
+        const items = groups[status.key] || [];
+        return `
+            <div class="kanban-column" data-status="${status.key}">
+                <div class="kanban-column-header ${status.cls}">
+                    <span class="kanban-column-title">${status.icon} ${status.label}</span>
+                    <span class="kanban-column-count">${items.length}</span>
+                </div>
+                <div class="kanban-cards" data-status="${status.key}">
+                    ${items.length ? items.map(t => renderDeptKanbanCard(t)).join('') : '<div class="kanban-empty">Nenhuma demanda</div>'}
+                </div>
+            </div>`;
+    }).join('')}
+    </div>`;
+}
+
+function renderDeptKanbanCard(t) {
+    const pipeline = (t.pipeline && t.pipeline.length > 0) ? t.pipeline : [];
+    const stageIdx = (t.currentStage != null && t.currentStage < pipeline.length) ? t.currentStage : 0;
+    const currentStage = pipeline[stageIdx] || {};
+    const avatars = pipeline.map(s => s && USERS[s.userId]).filter(Boolean);
+    const deadline = parseDateLocal(t.dataConclusao);
+    const today = new Date();
+    const daysUntil = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+    let dateClass = '';
+    if (daysUntil < 0) dateClass = 'overdue';
+    else if (daysUntil <= 3) dateClass = 'soon';
+
+    const timerState = currentStage.timerState || { running: false, accumulated: 0, lastStart: null };
+    let currentSession = 0;
+    if (timerState.running && timerState.lastStart) {
+        const start = new Date(timerState.lastStart);
+        if (!isNaN(start.getTime())) currentSession = new Date() - start;
+    }
+    const safeAccumulated = (timerState.accumulated && !isNaN(timerState.accumulated)) ? parseInt(timerState.accumulated) : 0;
+    const totalMs = safeAccumulated + currentSession;
+    const formattedTime = formatTimer(totalMs);
+    const isOwner = currentUser.id === currentStage.userId;
+
+    const sp = getSubtaskProgress(t);
+    let progressHtml = '';
+    if (sp && sp.total > 0) {
+        progressHtml = `<div class="kanban-card-progress" style="margin-top:8px; margin-bottom:4px; font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+            <div style="flex:1; height:4px; background:rgba(0,0,0,0.1); border-radius:2px; overflow:hidden;">
+                <div style="height:100%; width:${sp.percent}%; background:var(--brand-primary); border-radius:2px; transition:width 0.3s ease;"></div>
+            </div>
+            <span style="font-weight:600;">${sp.percent}%</span>
+        </div>`;
+    }
+
+    const totalAttachments = (t.attachments?.length || 0) + (t.entregasUrl?.length || (t.entregaUrl ? 1 : 0));
+    const attachmentBadge = totalAttachments > 0 ? `<span class="card-attachment-badge" title="Possui ${totalAttachments} anexo(s)">📎 ${totalAttachments}</span>` : '';
+    const expressBadge = (t.tags?.includes('⚡ Express') || t.expressType) ? `<span class="express-badge" title="Demanda Express / Lançamento Rápido">⚡ Express</span>` : '';
+    const instagramLinkBtn = t.instagramUrl ? `<a href="${t.instagramUrl}" target="_blank" onclick="event.stopPropagation()" class="express-link-btn" title="Ver publicação no Instagram">📸 Ver Post</a>` : '';
+    const dificuldadeIcons = { 'Simples': '🟢', 'Moderada': '🟡', 'Complexa': '🔴' };
+    const dificuldadeBadge = t.dificuldade ? `<span class="kanban-card-difficulty dif-${t.dificuldade.toLowerCase()}" title="Dificuldade: ${t.dificuldade}">${dificuldadeIcons[t.dificuldade] || ''} ${t.dificuldade}</span>` : '';
+
+    let isLocked = false;
+    if (currentUser.role === 'executor' && (t.status === 'Para aprovação' || t.status === 'Aprovado')) isLocked = true;
+    const dragAttr = isLocked ? 'false' : 'true';
+    const lockedClass = isLocked ? 'locked-card' : '';
+
+    return `
+        <div class="kanban-card ${(t.prioridade || 'normal').toLowerCase()} ${lockedClass}" draggable="${dragAttr}" data-id="${t.id}" onclick="openDetail('${t.id}')">
+            <div class="kanban-card-header">
+                 <span class="kanban-card-title">${t.nome} ${attachmentBadge}</span>
+                 ${isLocked ? '<span class="lock-icon" title="Bloqueado para edição" style="font-size: 12px; margin-left: auto;">🔒</span>' : ''}
+            </div>
+            <div class="kanban-card-meta">
+                <span class="kanban-card-type">${t.tipoProjeto || '-'}</span>
+                ${dificuldadeBadge}
+                ${expressBadge}
+                ${instagramLinkBtn}
+                <span class="kanban-card-dept">${currentStage?.dept || '-'}</span>
+            </div>
+
+            ${progressHtml}
+
+            ${isOwner ? `
+            <div class="timer-controls" onclick="event.stopPropagation()">
+                    <button class="btn-timer" onclick="toggleTimer('${t.id}')" title="${timerState.running ? 'Pausar' : 'Iniciar'}">
+                        ${timerState.running ? '⏸️' : '▶️'}
+                    </button>
+                    <span class="timer-display ${timerState.running ? 'running' : ''}" id="timer-${t.id}">
+                        ${timerState.running ? '<span class="timer-badge-active"></span>' : ''}${formattedTime}
+                    </span>
+            </div>` : `
+            <div class="timer-controls" style="background:none; padding-left:0;">
+                    <span class="timer-display ${timerState.running ? 'running' : ''}" id="timer-${t.id}" style="font-size:0.8rem; ${timerState.running ? '' : 'color:var(--text-dim)'}">
+                        ${timerState.running ? '<span class="timer-badge-active"></span>' : '⏱️ '}${formattedTime}
+                    </span>
+            </div>`}
+
+            <div class="kanban-card-footer">
+                <span class="kanban-card-date ${dateClass}">📅 ${formatDate(t.dataConclusao)}</span>
+                <div class="kanban-card-avatars">
+                    ${avatars.slice(0, 3).map(u => `${window.renderAvatar(u, 'kanban-card-avatar')}`).join('')}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function renderGroupedTable(tasks) {
@@ -11414,6 +11583,9 @@ function renderTIKanban(kpiFilter = null) {
             const expressBadge = (t.tags?.includes('⚡ Express') || t.expressType) ? `<span class="express-badge" title="Demanda Express / Lançamento Rápido">⚡ Express</span>` : '';
             const instagramLinkBtn = t.instagramUrl ? `<a href="${t.instagramUrl}" target="_blank" onclick="event.stopPropagation()" class="express-link-btn" title="Ver publicação no Instagram">📸 Ver Post</a>` : '';
 
+            const dificuldadeIcons = { 'Simples': '🟢', 'Moderada': '🟡', 'Complexa': '🔴' };
+            const dificuldadeBadge = t.dificuldade ? `<span class="kanban-card-difficulty dif-${t.dificuldade.toLowerCase()}" title="Dificuldade: ${t.dificuldade}">${dificuldadeIcons[t.dificuldade] || ''} ${t.dificuldade}</span>` : '';
+
             return `
                 <div class="kanban-card ${t.prioridade.toLowerCase()} ${extraClasses}" draggable="true" data-id="${t.id}" onclick="openDetail('${t.id}')">
                     <div class="kanban-card-header">
@@ -11421,6 +11593,7 @@ function renderTIKanban(kpiFilter = null) {
                     </div>
                     <div class="kanban-card-meta">
                         <span class="kanban-card-type">${t.tipoProjeto}</span>
+                        ${dificuldadeBadge}
                         ${expressBadge}
                         ${instagramLinkBtn}
                         <span class="kanban-card-dept">${currentStage?.dept || '-'}</span>
@@ -11534,6 +11707,8 @@ function openChamadoTIModal() {
     if (document.getElementById('tiAnexosCount')) document.getElementById('tiAnexosCount').textContent = '';
     if (document.getElementById('tiLink')) document.getElementById('tiLink').value = '';
     if (document.getElementById('tiCategoria')) document.getElementById('tiCategoria').value = '';
+    if (document.getElementById('tiPrioridade')) document.getElementById('tiPrioridade').value = '';
+    if (document.getElementById('tiDificuldade')) document.getElementById('tiDificuldade').value = '';
     if (document.getElementById('tiPrazo')) document.getElementById('tiPrazo').value = new Date().toISOString().split('T')[0];
 
     const modal = document.getElementById('modalChamadoTI');
@@ -11613,10 +11788,12 @@ async function handleCreateChamadoTI(e) {
     const titulo = document.getElementById('tiTitulo').value.trim();
     const desc = document.getElementById('tiDescricao').value;
     const categoria = document.getElementById('tiCategoria').value;
+    const prioridade = document.getElementById('tiPrioridade').value;
+    const dificuldade = document.getElementById('tiDificuldade').value;
     const prazo = document.getElementById('tiPrazo').value;
     const fileInput = document.getElementById('tiAnexos');
-    
-    if (!solicitanteNome || !responsavelId || !titulo || !desc || !categoria) {
+
+    if (!solicitanteNome || !responsavelId || !titulo || !desc || !categoria || !prioridade || !dificuldade) {
         toast('Preencha os campos obrigatórios.', 'error');
         return;
     }
@@ -11660,7 +11837,8 @@ async function handleCreateChamadoTI(e) {
         id: generateId(),
         nome: `TI: ${titulo}`,
         tipoProjeto: categoria || 'TI',
-        prioridade: 'Média', 
+        prioridade: prioridade,
+        dificuldade: dificuldade,
         isPinned: false,
         descricaoCartao: desc,
         briefing: desc,

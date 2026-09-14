@@ -2811,7 +2811,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="login-fix.js"></script>
-    <script src="app_rev.js?v=5.33"></script>
+    <script src="app_rev.js?v=5.44"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
     <div class="modal-overlay" id="modalUserAnalytics">
         <div class="modal modal-xl" style="max-width: 800px;">
@@ -3504,6 +3504,32 @@
                             <option value="Segurança">Segurança da Informação</option>
                             <option value="Manutenção">Manutenção Preventiva</option>
                         </select>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                                PRIORIDADE <span style="color:#f87171;">*</span>
+                            </label>
+                            <select id="tiPrioridade" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; cursor:pointer;">
+                                <option value="">Selecione...</option>
+                                <option value="Crítico">Crítico ⚠️</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Média">Média</option>
+                                <option value="Baixa">Baixa</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; display:block;">
+                                DIFICULDADE DA DEMANDA <span style="color:#f87171;">*</span>
+                            </label>
+                            <select id="tiDificuldade" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:#1e293b; color:#f1f5f9; font-size:13px; outline:none; cursor:pointer;">
+                                <option value="">Selecione...</option>
+                                <option value="Simples">Simples</option>
+                                <option value="Moderada">Moderada</option>
+                                <option value="Complexa">Complexa</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-group" style="margin:0;">

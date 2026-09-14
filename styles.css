@@ -3114,6 +3114,35 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     border-color: rgba(139, 92, 246, 0.25);
 }
 
+.kanban-card-difficulty {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.kanban-card-difficulty.dif-simples {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.18);
+}
+
+.kanban-card-difficulty.dif-moderada {
+    color: #fbbf24;
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.18);
+}
+
+.kanban-card-difficulty.dif-complexa {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.18);
+}
+
 /* Card Footer */
 .kanban-card-footer {
     display: flex;
@@ -3221,6 +3250,157 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
     .kanban-column {
         max-height: 400px;
+    }
+}
+
+/* =============================================
+   PAINEL INOVAÇÃO/TI
+   ============================================= */
+.ti-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 20px 20px 4px;
+}
+
+.ti-kpi-card {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    background: linear-gradient(145deg, rgba(30, 30, 54, 0.8) 0%, rgba(24, 24, 44, 0.6) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.ti-kpi-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+}
+
+.ti-kpi-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.ti-kpi-card.kpi-indigo .ti-kpi-icon {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+}
+
+.ti-kpi-card.kpi-green .ti-kpi-icon {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+}
+
+.ti-kpi-card.kpi-red .ti-kpi-icon {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.ti-kpi-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.ti-kpi-value {
+    margin: 4px 0 0;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ti-kpi-card.kpi-indigo .ti-kpi-value {
+    color: #818cf8;
+}
+
+.ti-kpi-card.kpi-green .ti-kpi-value {
+    color: #4ade80;
+}
+
+.ti-kpi-card.kpi-red .ti-kpi-value {
+    color: #f87171;
+}
+
+.ti-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    min-width: 210px;
+}
+
+.ti-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+}
+
+.ti-btn:hover {
+    transform: translateY(-1px);
+}
+
+.ti-btn-primary {
+    background: linear-gradient(135deg, #10b981, #3b82f6);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+.ti-btn-outline-amber {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+.ti-btn-outline-amber:hover {
+    background: rgba(245, 158, 11, 0.22);
+}
+
+.ti-btn-outline-red {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+.ti-btn-outline-red:hover {
+    background: rgba(239, 68, 68, 0.22);
+}
+
+@media (max-width: 900px) {
+    .ti-topbar {
+        flex-direction: column;
+    }
+
+    .ti-actions {
+        flex-direction: row;
+        min-width: 0;
     }
 }
 
@@ -9056,8 +9236,8 @@ body.theme-light {
 [data-theme="light"] .sidebar,
 [data-theme="light"] .header-container {
     background: #ffffff !important;
-    border-right-color: #e6e9ec;
-    border-bottom-color: #e6e9ec;
+    border-right-color: #b9c0c9;
+    border-bottom-color: #b9c0c9;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
@@ -9070,6 +9250,83 @@ body.theme-light {
     border: 1px solid #e6e9ec;
     color: #1a1a1a;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .kanban-card:hover {
+    background: #ffffff !important;
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .kanban-column,
+[data-theme="light"] .ti-kpi-card {
+    background: #f7f8fa !important;
+    border: 1.5px solid #b9c0c9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .kanban-column-header {
+    background: rgba(0, 0, 0, 0.03);
+    border-bottom: 2px solid #b9c0c9;
+}
+
+[data-theme="light"] .kanban-column-title {
+    color: #1a1a1a;
+}
+
+[data-theme="light"] .kanban-column-count {
+    background: rgba(0, 0, 0, 0.06);
+    border: 1px solid #b9c0c9;
+    color: #444;
+}
+
+[data-theme="light"] .kanban-empty {
+    color: #9aa0a6;
+}
+
+[data-theme="light"] .ti-btn-outline-amber {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+[data-theme="light"] .ti-btn-outline-red {
+    background: rgba(239, 68, 68, 0.08);
+}
+
+[data-theme="light"] .toolbar {
+    background: #f7f8fa;
+    border: 1.5px solid #b9c0c9;
+}
+
+[data-theme="light"] .search-input,
+[data-theme="light"] .filter-select {
+    background: #ffffff;
+    border: 1.5px solid #a9b1bb;
+    color: #1a1a1a;
+}
+
+[data-theme="light"] .kanban-card,
+[data-theme="light"] .card,
+[data-theme="light"] .project-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .modal {
+    border: 1.5px solid #b9c0c9 !important;
+}
+
+[data-theme="light"] .kanban-card-type {
+    background: #e9ebef;
+    border: 1.5px solid #b9c0c9;
+    color: #444;
+    font-weight: 600;
+}
+
+[data-theme="light"] .kanban-card:hover .kanban-card-type {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.25);
+    color: #4f46e5;
+}
+
+[data-theme="light"] .timer-controls {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="light"] input,

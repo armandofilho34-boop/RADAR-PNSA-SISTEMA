@@ -270,9 +270,9 @@ html body.theme-light {
     --shadow-glow: none !important;
 
     /* Borders */
-    --border-subtle: #e0e0e0 !important;
-    --border-default: #e0e0e0 !important;
-    --border-strong: #cccccc !important;
+    --border-subtle: #b9c0c9 !important;
+    --border-default: #b9c0c9 !important;
+    --border-strong: #9aa3ad !important;
 
     /* Text */
     --text-primary: #1a1d26 !important;
@@ -310,23 +310,33 @@ html body.theme-light .view {
     color: #1a1d26 !important;
 }
 
-/* 3. Sidebar — Keep dark for visual anchor */
+/* 3. Sidebar — Light, consistent with the rest of the theme */
 html body.theme-light .sidebar {
-    background: linear-gradient(180deg, #1e1f2e 0%, #262840 100%) !important;
-    border-right: none !important;
-    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
+    background: #ffffff !important;
+    border-right: 2px solid #b9c0c9 !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* Sidebar text stays light */
+/* Sidebar text — dark and readable on the light background */
 html body.theme-light .sidebar .nav-link,
-html body.theme-light .sidebar .nav-section-title,
 html body.theme-light .sidebar .dept-link,
 html body.theme-light .sidebar .user-name,
-html body.theme-light .sidebar .user-dept,
-html body.theme-light .sidebar .brand-text,
-html body.theme-light .sidebar span,
-html body.theme-light .sidebar div {
-    color: inherit !important;
+html body.theme-light .sidebar .brand-text {
+    color: #1a1d26 !important;
+}
+
+html body.theme-light .sidebar .nav-section-title,
+html body.theme-light .sidebar .user-dept {
+    color: #888899 !important;
+}
+
+html body.theme-light .sidebar .nav-link:hover {
+    background: #f5f5f5 !important;
+    color: #111318 !important;
+}
+
+html body.theme-light .sidebar .dept-link:hover {
+    background: #f5f5f5 !important;
 }
 
 /* 4. Header — Clean white with bottom border */
