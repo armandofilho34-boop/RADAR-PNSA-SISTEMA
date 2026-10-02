@@ -7642,14 +7642,17 @@ function _buildRelatorioData(overrideMonth, overrideYear) {
     // Deduplicar e filtrar todas as demandas ativas do sistema
     const allDemandas = (typeof deduplicateDemandas === 'function' ? deduplicateDemandas(demandas) : demandas).filter(d => !d.deletedAt);
 
-    // Filter 1: Demandas aprovadas estritamente NESTE MÊS DO RELATÓRIO
-    const todasAprovadasNoMes = allDemandas.filter(d => {
-        if (d.status !== 'Aprovado') return false;
+    // Demandas com atividade relevante (aprovação, prazo ou solicitação) NESTE MÊS, qualquer status —
+    // é o universo de onde "aprovadas" (abaixo) é um subconjunto, pra garantir que aprovadas nunca passe do total.
+    const todasComAtividadeNoMes = allDemandas.filter(d => {
         const dtStr = d.lastStatusChange || d.dataConclusao || d.dataSolicitacao || d.dataCriacao;
         const dt = parseTaskDate(dtStr);
         if (!dt) return false;
         return dt >= start && dt < end;
     });
+
+    // Filter 1: Demandas aprovadas estritamente NESTE MÊS DO RELATÓRIO (subconjunto de todasComAtividadeNoMes)
+    const todasAprovadasNoMes = todasComAtividadeNoMes.filter(d => d.status === 'Aprovado');
 
     // Filter 2: Demandas enviadas/solicitadas estritamente NESTE MÊS DO RELATÓRIO (para Social Media)
     const todasEnviadasNoMes = allDemandas.filter(d => {
@@ -7747,8 +7750,9 @@ function _buildRelatorioData(overrideMonth, overrideYear) {
         // Em meses passados: mostra apenas quem realmente teve entregas naquele mês
         const filteredReport = report.filter(r => isCurrentMonth ? (activeUsers.some(u => u.id === r.user.id) || r.entregues.length > 0) : r.entregues.length > 0);
 
-        // Total de demandas direcionadas a este departamento no mês (qualquer status), para a taxa de aprovação do depto
-        const totalNoMes = todasEnviadasNoMes.filter(demandaMatchesDept).length;
+        // Total de demandas direcionadas a este departamento com atividade no mês (qualquer status) — supraconjunto
+        // das aprovadas, pra "aprovadas/total" nunca passar de 100%
+        const totalNoMes = todasComAtividadeNoMes.filter(demandaMatchesDept).length;
 
         return { report: filteredReport, totalNoMes };
     }
@@ -8472,13 +8476,13 @@ window.exportarRelatorio = function(tipo) {
     // ---- Selo de variação vs. mês anterior (↑/↓ + %), usado nos resumos por departamento ----
     function trendBadge(current, previous) {
         if (previous === 0 && current === 0) return '';
-        if (previous === 0) return `<div style="font-size:10px; color:#10b981; font-weight:700; margin-top:6px;">▲ novo neste mês</div>`;
+        if (previous === 0) return `<div style="font-size:10px; color:#10b981; font-weight:700; margin-top:6px;">▲ novo neste mês (mês anterior: 0)</div>`;
         const diff = current - previous;
-        if (diff === 0) return `<div style="font-size:10px; color:#9ca3af; font-weight:600; margin-top:6px;">— igual ao mês anterior</div>`;
-        const pct = Math.round((Math.abs(diff) / previous) * 100);
+        if (diff === 0) return `<div style="font-size:10px; color:#9ca3af; font-weight:600; margin-top:6px;">— igual ao mês anterior (${previous})</div>`;
         const color = diff > 0 ? '#10b981' : '#ef4444';
         const arrow = diff > 0 ? '▲' : '▼';
-        return `<div style="font-size:10px; color:${color}; font-weight:700; margin-top:6px;">${arrow} ${pct}% vs. mês anterior</div>`;
+        const verbo = diff > 0 ? 'Subiu' : 'Caiu';
+        return `<div style="font-size:10px; color:${color}; font-weight:700; margin-top:6px;">${arrow} ${verbo} de ${previous} para ${current} (mês anterior → este mês)</div>`;
     }
     function trendBadgePts(current, previous) {
         if (previous === 0 && current === 0) return '';
