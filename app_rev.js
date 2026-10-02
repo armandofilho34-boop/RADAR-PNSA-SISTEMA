@@ -7628,9 +7628,9 @@ let _relatorioYear  = null;
 function _getRelatorioMonth() { return _relatorioMonth !== null ? _relatorioMonth : selectedMonth; }
 function _getRelatorioYear()  { return _relatorioYear  !== null ? _relatorioYear  : selectedYear; }
 
-function _buildRelatorioData() {
-    const rMonth = _getRelatorioMonth();
-    const rYear  = _getRelatorioYear();
+function _buildRelatorioData(overrideMonth, overrideYear) {
+    const rMonth = (typeof overrideMonth === 'number') ? overrideMonth : _getRelatorioMonth();
+    const rYear  = (typeof overrideYear === 'number') ? overrideYear : _getRelatorioYear();
     const mesNome = MONTHS[rMonth];
     const ano = rYear;
 
@@ -7679,6 +7679,20 @@ function _buildRelatorioData() {
             const depts = (typeof getUserDepts === 'function' ? getUserDepts(existingUser) : (Array.isArray(existingUser.dept) ? existingUser.dept : [existingUser.dept]))
                 .map(normalizeDept).filter(Boolean);
             return depts.find(dp => tagDepts.includes(dp)) || normalizeDept(stageDept);
+        }
+
+        // Demanda conta para este departamento se alguma etapa do pipeline for dele
+        // (resolvendo pelo departamento real de quem está/esteve designado, igual às entregas)
+        function demandaMatchesDept(d) {
+            if (!d.pipeline) return false;
+            return d.pipeline.some(stage => {
+                if (!tagDepts.includes(normalizeDept(stage.dept))) return false;
+                const uids = [];
+                if (stage.userId) uids.push(stage.userId);
+                if (stage.userIds) stage.userIds.forEach(id => uids.push(id));
+                if (uids.length === 0) return normalizeDept(stage.dept) === deptNorm;
+                return uids.some(uid => resolveRealDept(uid, stage.dept) === deptNorm);
+            });
         }
 
         const activeUsers = _getUsersOfDept(deptNorm);
@@ -7731,14 +7745,30 @@ function _buildRelatorioData() {
 
         // No mês atual: mostra membros ativos do depto (mesmo com 0 entregas) + ex-membros com entregas
         // Em meses passados: mostra apenas quem realmente teve entregas naquele mês
-        return report.filter(r => isCurrentMonth ? (activeUsers.some(u => u.id === r.user.id) || r.entregues.length > 0) : r.entregues.length > 0);
+        const filteredReport = report.filter(r => isCurrentMonth ? (activeUsers.some(u => u.id === r.user.id) || r.entregues.length > 0) : r.entregues.length > 0);
+
+        // Total de demandas direcionadas a este departamento no mês (qualquer status), para a taxa de aprovação do depto
+        const totalNoMes = todasEnviadasNoMes.filter(demandaMatchesDept).length;
+
+        return { report: filteredReport, totalNoMes };
     }
 
-    const designerReport = _buildExecReport('Designer');
-    const videoReport    = _buildExecReport('Videomaker');
+    const designerExec = _buildExecReport('Designer');
+    const designerReport = designerExec.report;
+    const designerTotalNoMes = designerExec.totalNoMes;
+
+    const videoExec = _buildExecReport('Videomaker');
+    const videoReport = videoExec.report;
+    const videoTotalNoMes = videoExec.totalNoMes;
+
     // Suporte e TI compartilham tarefas na criação — conta pelo departamento real do executor
-    const suporteReport  = _buildExecReport('Suporte', ['Suporte', 'Inovação/TI']);
-    const tiReport       = _buildExecReport('Inovação/TI', ['Suporte', 'Inovação/TI']);
+    const suporteExec = _buildExecReport('Suporte', ['Suporte', 'Inovação/TI']);
+    const suporteReport = suporteExec.report;
+    const suporteTotalNoMes = suporteExec.totalNoMes;
+
+    const tiExec = _buildExecReport('Inovação/TI', ['Suporte', 'Inovação/TI']);
+    const tiReport = tiExec.report;
+    const tiTotalNoMes = tiExec.totalNoMes;
 
     // Departamentos já cobertos como "executores" acima — solicitantes desses deptos
     // não devem ser duplicados nas seções de "quem enviou demanda"
@@ -7809,7 +7839,8 @@ function _buildRelatorioData() {
         if (report.length > 0) outrosReports[deptKey] = report;
     });
 
-    return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports };
+    return { mesNome, ano, rMonth, rYear, todasDemandas: todasAprovadasNoMes, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports,
+        designerTotalNoMes, videoTotalNoMes, suporteTotalNoMes, tiTotalNoMes };
 }
 
 // Grupos de entregas registrados a cada render do Relatório Mensal, pra o lightbox
@@ -8142,7 +8173,26 @@ window._onRelatorioMonthChange = function(val) {
 // EXPORTAR RELATÓRIO MENSAL (Print / PDF)
 // =============================================
 window.exportarRelatorio = function(tipo) {
-    const { mesNome, ano, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports } = _buildRelatorioData();
+    const { mesNome, ano, rMonth, rYear, designerReport, videoReport, suporteReport, tiReport, smReport, outrosReports,
+        designerTotalNoMes, videoTotalNoMes, suporteTotalNoMes, tiTotalNoMes } = _buildRelatorioData();
+
+    // ---- Dados do mês anterior, só para a comparação de tendência (setinha ↑/↓) nos resumos por departamento ----
+    let prevMonth = rMonth - 1, prevYear = rYear;
+    if (prevMonth < 0) { prevMonth = 11; prevYear -= 1; }
+    const prevRel = _buildRelatorioData(prevMonth, prevYear);
+    const prevTotals = {
+        designer: prevRel.designerReport.reduce((s, r) => s + r.entregues.length, 0),
+        video: prevRel.videoReport.reduce((s, r) => s + r.entregues.length, 0),
+        suporte: prevRel.suporteReport.reduce((s, r) => s + r.entregues.length, 0),
+        ti: prevRel.tiReport.reduce((s, r) => s + r.entregues.length, 0),
+        designerTotalNoMes: prevRel.designerTotalNoMes,
+        videoTotalNoMes: prevRel.videoTotalNoMes,
+        suporteTotalNoMes: prevRel.suporteTotalNoMes,
+        tiTotalNoMes: prevRel.tiTotalNoMes,
+        smTotalDemandas: prevRel.smReport.reduce((s, r) => s + r.totalEnviadas.length, 0),
+        smTotalAprovadas: prevRel.smReport.reduce((s, r) => s + r.enviadas.length, 0)
+    };
+
     const dColor = '#a855f7';
     const vmColor = '#3b82f6';
     const supColor = DEPT_COLORS['Suporte'] || '#22c55e';
@@ -8337,48 +8387,135 @@ window.exportarRelatorio = function(tipo) {
         }).join('');
     }
 
-    // ---- RESUMO GERAL ----
+    // ---- Totais e helpers do Resumo Executivo (reaproveitados no geral e por departamento) ----
+    const totalDesignerEntregas = designerReport.reduce((s, r) => s + r.entregues.length, 0);
+    const totalVideoEntregas    = videoReport.reduce((s, r) => s + r.entregues.length, 0);
+    const totalSuporteEntregas  = suporteReport.reduce((s, r) => s + r.entregues.length, 0);
+    const totalTiEntregas       = tiReport.reduce((s, r) => s + r.entregues.length, 0);
+    const totalDemandas   = smReport.reduce((s, r) => s + r.totalEnviadas.length, 0);
+    const totalAprovadas  = smReport.reduce((s, r) => s + r.enviadas.length, 0);
+    const pctGeral = totalDemandas > 0 ? Math.round((totalAprovadas / totalDemandas) * 100) : 0;
+
+    function execRows(report, color) {
+        return report.map(r =>
+            `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${color}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
+        ).join('');
+    }
+    function execTable(title, icon, report, color, borderColor, headBg) {
+        const rows = execRows(report, color);
+        return `<div>
+            <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
+            <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${borderColor};">
+                <thead><tr style="background:${headBg};"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Entregas</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+            </table>
+        </div>`;
+    }
+    function reqRows(report, color) {
+        return report.map(r => {
+            const pct = r.totalEnviadas.length > 0 ? Math.round((r.enviadas.length / r.totalEnviadas.length) * 100) : 0;
+            return `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:13px; font-weight:700; color:${color}; border-bottom:1px solid #f0f0f0;">${r.enviadas.length}/${r.totalEnviadas.length}</td><td style="padding:8px 12px; text-align:center; font-size:13px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+        }).join('');
+    }
+    function reqTable(title, icon, report, color) {
+        const rows = reqRows(report, color);
+        return `<div>
+            <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
+            <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${color}30;">
+                <thead><tr style="background:${color}10;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Aprov./Total</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Taxa</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+            </table>
+        </div>`;
+    }
+    // ---- No prazo vs. atrasado: compara data real de aprovação (lastStatusChange) com o prazo (dataConclusao) ----
+    function prazoBreakdown(entregues) {
+        let noPrazo = 0, atrasado = 0, semPrazo = 0;
+        entregues.forEach(d => {
+            if (!d.dataConclusao || !d.lastStatusChange) { semPrazo++; return; }
+            const deadline = parseDateLocal(d.dataConclusao);
+            const aprovadoEm = parseTaskDate(d.lastStatusChange);
+            if (!deadline || isNaN(deadline.getTime()) || !aprovadoEm) { semPrazo++; return; }
+            const deadlineFimDoDia = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate(), 23, 59, 59, 999);
+            if (aprovadoEm <= deadlineFimDoDia) noPrazo++; else atrasado++;
+        });
+        const entries = [];
+        if (noPrazo > 0) entries.push(['No Prazo', noPrazo]);
+        if (atrasado > 0) entries.push(['Atrasado', atrasado]);
+        if (semPrazo > 0) entries.push(['Sem Prazo Registrado', semPrazo]);
+        return entries;
+    }
+    function prazoTable(entries) {
+        const totalCount = entries.reduce((s, [, qty]) => s + qty, 0);
+        const colorMap = { 'No Prazo': '#10b981', 'Atrasado': '#ef4444', 'Sem Prazo Registrado': '#94a3b8' };
+        const rows = entries.map(([label, qty]) => {
+            const c = colorMap[label] || '#6b7280';
+            const pct = totalCount > 0 ? Math.round((qty / totalCount) * 100) : 0;
+            return `<tr><td style="padding:7px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${label}</td><td style="padding:7px 12px; text-align:center; font-size:13px; font-weight:700; color:${c}; border-bottom:1px solid #f0f0f0;">${qty}</td><td style="padding:7px 12px; text-align:center; font-size:12px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+        }).join('');
+        return `<div>
+            <h3 style="font-size:13px; font-weight:700; color:#1e1b4b; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">⏱️ Entregas no Prazo</h3>
+            <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb;">
+                <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:#475569; font-weight:700;">Situação</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#475569; font-weight:700;">Qtd</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:#475569; font-weight:700;">%</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
+            </table>
+        </div>`;
+    }
+
+    function statCard(color, value, label, trendHtml) {
+        return `<div style="background:${color}12; border:1px solid ${color}30; border-radius:12px; padding:18px; text-align:center;">
+            <div style="font-size:32px; font-weight:800; color:${color};">${value}</div>
+            <div style="font-size:11px; color:#6b7280; margin-top:4px;">${label}</div>
+            ${trendHtml || ''}
+        </div>`;
+    }
+
+    // ---- Selo de variação vs. mês anterior (↑/↓ + %), usado nos resumos por departamento ----
+    function trendBadge(current, previous) {
+        if (previous === 0 && current === 0) return '';
+        if (previous === 0) return `<div style="font-size:10px; color:#10b981; font-weight:700; margin-top:6px;">▲ novo neste mês</div>`;
+        const diff = current - previous;
+        if (diff === 0) return `<div style="font-size:10px; color:#9ca3af; font-weight:600; margin-top:6px;">— igual ao mês anterior</div>`;
+        const pct = Math.round((Math.abs(diff) / previous) * 100);
+        const color = diff > 0 ? '#10b981' : '#ef4444';
+        const arrow = diff > 0 ? '▲' : '▼';
+        return `<div style="font-size:10px; color:${color}; font-weight:700; margin-top:6px;">${arrow} ${pct}% vs. mês anterior</div>`;
+    }
+    function trendBadgePts(current, previous) {
+        if (previous === 0 && current === 0) return '';
+        const diff = current - previous;
+        if (diff === 0) return `<div style="font-size:10px; color:#9ca3af; font-weight:600; margin-top:6px;">— igual ao mês anterior (${current}%)</div>`;
+        const color = diff > 0 ? '#10b981' : '#ef4444';
+        const arrow = diff > 0 ? '▲' : '▼';
+        const verbo = diff > 0 ? 'Subiu' : 'Caiu';
+        return `<div style="font-size:10px; color:${color}; font-weight:700; margin-top:6px;">${arrow} ${verbo} de ${previous}% para ${current}%</div>`;
+    }
+
+    // ---- Tabelas de distribuição (ex: entregas por dificuldade, demandas por status) ----
+    function breakdownCounts(items, keyFn) {
+        const counts = {};
+        items.forEach(d => {
+            const k = keyFn(d) || '—';
+            counts[k] = (counts[k] || 0) + 1;
+        });
+        return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    }
+    function breakdownTable(title, icon, entries, color, colLabel) {
+        const totalCount = entries.reduce((s, [, qty]) => s + qty, 0);
+        const rows = entries.map(([label, qty]) => {
+            const pct = totalCount > 0 ? Math.round((qty / totalCount) * 100) : 0;
+            return `<tr><td style="padding:7px 12px; font-size:12.5px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${label}</td><td style="padding:7px 12px; text-align:center; font-size:13px; font-weight:700; color:${color}; border-bottom:1px solid #f0f0f0;">${qty}</td><td style="padding:7px 12px; text-align:center; font-size:12px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
+        }).join('');
+        return `<div>
+            <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
+            <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${color}30;">
+                <thead><tr style="background:${color}10;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">${colLabel}</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Qtd</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">%</th></tr></thead>
+                <tbody>${rows || `<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>`}</tbody>
+            </table>
+        </div>`;
+    }
+
+    // ---- RESUMO GERAL (todos os departamentos) ----
     function sectionResumo() {
-        const totalDesignerEntregas = designerReport.reduce((s, r) => s + r.entregues.length, 0);
-        const totalVideoEntregas    = videoReport.reduce((s, r) => s + r.entregues.length, 0);
-        const totalSuporteEntregas  = suporteReport.reduce((s, r) => s + r.entregues.length, 0);
-        const totalTiEntregas       = tiReport.reduce((s, r) => s + r.entregues.length, 0);
-        const totalDemandas   = smReport.reduce((s, r) => s + r.totalEnviadas.length, 0);
-        const totalAprovadas  = smReport.reduce((s, r) => s + r.enviadas.length, 0);
-        const pctGeral = totalDemandas > 0 ? Math.round((totalAprovadas / totalDemandas) * 100) : 0;
-
-        function execRows(report, color) {
-            return report.map(r =>
-                `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:20px; font-weight:800; color:${color}; border-bottom:1px solid #f0f0f0;">${r.entregues.length}</td></tr>`
-            ).join('');
-        }
-        function execTable(title, icon, report, color, borderColor, headBg) {
-            const rows = execRows(report, color);
-            return `<div>
-                <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
-                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${borderColor};">
-                    <thead><tr style="background:${headBg};"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Entregas</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="2" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
-                </table>
-            </div>`;
-        }
-        function reqRows(report, color) {
-            return report.map(r => {
-                const pct = r.totalEnviadas.length > 0 ? Math.round((r.enviadas.length / r.totalEnviadas.length) * 100) : 0;
-                return `<tr><td style="padding:8px 12px; font-size:13px; color:#1e1b4b; border-bottom:1px solid #f0f0f0;">${r.user.nome}</td><td style="padding:8px 12px; text-align:center; font-size:13px; font-weight:700; color:${color}; border-bottom:1px solid #f0f0f0;">${r.enviadas.length}/${r.totalEnviadas.length}</td><td style="padding:8px 12px; text-align:center; font-size:13px; color:#6b7280; border-bottom:1px solid #f0f0f0;">${pct}%</td></tr>`;
-            }).join('');
-        }
-        function reqTable(title, icon, report, color) {
-            const rows = reqRows(report, color);
-            return `<div>
-                <h3 style="font-size:13px; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:.5px; margin:0 0 8px;">${icon} ${title}</h3>
-                <table style="width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; border:1px solid ${color}30;">
-                    <thead><tr style="background:${color}10;"><th style="padding:8px 12px; text-align:left; font-size:11px; color:${color}; font-weight:700;">Nome</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Aprov./Total</th><th style="padding:8px 12px; text-align:center; font-size:11px; color:${color}; font-weight:700;">Taxa</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af; font-size:12px;">Nenhum dado</td></tr>'}</tbody>
-                </table>
-            </div>`;
-        }
-
         const outrosTablesHtml = Object.keys(outrosReports).map(deptKey => {
             const color = DEPT_COLORS[deptKey] || outrosColorFallback;
             return reqTable(deptKey, '🏷️', outrosReports[deptKey], color);
@@ -8386,30 +8523,12 @@ window.exportarRelatorio = function(tipo) {
 
         return `
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr; gap:14px; margin-bottom:32px;">
-            <div style="background:${dColor}12; border:1px solid ${dColor}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${dColor};">${totalDesignerEntregas}</div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Designers</div>
-            </div>
-            <div style="background:${vmColor}12; border:1px solid ${vmColor}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${vmColor};">${totalVideoEntregas}</div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Videomakers</div>
-            </div>
-            <div style="background:${supColor}12; border:1px solid ${supColor}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${supColor};">${totalSuporteEntregas}</div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Suporte</div>
-            </div>
-            <div style="background:${tiColor}12; border:1px solid ${tiColor}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${tiColor};">${totalTiEntregas}</div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Entregas Inovação/TI</div>
-            </div>
-            <div style="background:${smColor}12; border:1px solid ${smColor}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${smColor};">${totalAprovadas}<span style="font-size:16px; color:#9ca3af;">/${totalDemandas}</span></div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Demandas Aprov./Total</div>
-            </div>
-            <div style="background:${indigo}12; border:1px solid ${indigo}30; border-radius:12px; padding:18px; text-align:center;">
-                <div style="font-size:32px; font-weight:800; color:${indigo};">${pctGeral}%</div>
-                <div style="font-size:11px; color:#6b7280; margin-top:4px;">Taxa de Aprovação</div>
-            </div>
+            ${statCard(dColor, totalDesignerEntregas, 'Entregas Designers')}
+            ${statCard(vmColor, totalVideoEntregas, 'Entregas Videomakers')}
+            ${statCard(supColor, totalSuporteEntregas, 'Entregas Suporte')}
+            ${statCard(tiColor, totalTiEntregas, 'Entregas Inovação/TI')}
+            ${statCard(smColor, `${totalAprovadas}<span style="font-size:16px; color:#9ca3af;">/${totalDemandas}</span>`, 'Demandas Aprov./Total')}
+            ${statCard(indigo, `${pctGeral}%`, 'Taxa de Aprovação')}
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:20px;">
             ${execTable('Designers', '🎨', designerReport, dColor, '#e9d5ff', '#f3f0ff')}
@@ -8423,6 +8542,66 @@ window.exportarRelatorio = function(tipo) {
         </div>`;
     }
 
+    // ---- RESUMOS POR DEPARTAMENTO: mesmo formato do Resumo Executivo, só com os dados do próprio departamento ----
+    function sectionResumoExec(report, totalEntregas, totalNoMes, color, borderColor, headBg, title, icon, includeTipoBreakdown, prevEntregas, prevTotalNoMes) {
+        const pct = totalNoMes > 0 ? Math.round((totalEntregas / totalNoMes) * 100) : 0;
+        const pctPrev = prevTotalNoMes > 0 ? Math.round((prevEntregas / prevTotalNoMes) * 100) : 0;
+        const media = report.length > 0 ? (totalEntregas / report.length).toFixed(1) : '0';
+        const todasEntregues = report.reduce((acc, r) => acc.concat(r.entregues), []);
+        const dificuldadeEntries = breakdownCounts(todasEntregues, d => d.dificuldade);
+        const breakdownTables = [breakdownTable('Entregas por Dificuldade', '📊', dificuldadeEntries, color, 'Dificuldade')];
+        if (includeTipoBreakdown) {
+            const tipoEntries = breakdownCounts(todasEntregues, d => d.tipoProjeto);
+            breakdownTables.push(breakdownTable('Entregas por Tipo de Projeto', '🗂️', tipoEntries, color, 'Tipo'));
+        }
+        breakdownTables.push(prazoTable(prazoBreakdown(todasEntregues)));
+        return `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:24px;">
+            ${statCard(color, `${totalEntregas}<span style="font-size:16px; color:#9ca3af;">/${totalNoMes}</span>`, 'Demandas Aprov./Total', trendBadge(totalEntregas, prevEntregas))}
+            ${statCard(color, `${pct}%`, 'Taxa de Aprovação', trendBadgePts(pct, pctPrev))}
+            ${statCard(color, media, 'Média de Entregas por Integrante')}
+        </div>
+        ${execTable(title, icon, report, color, borderColor, headBg)}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px; margin-top:20px;">
+            ${breakdownTables.join('')}
+        </div>`;
+    }
+    function sectionResumoDesigners() {
+        return sectionResumoExec(designerReport, totalDesignerEntregas, designerTotalNoMes, dColor, '#e9d5ff', '#f3f0ff', 'Designers', '🎨', false, prevTotals.designer, prevTotals.designerTotalNoMes);
+    }
+    function sectionResumoVideomakers() {
+        return sectionResumoExec(videoReport, totalVideoEntregas, videoTotalNoMes, vmColor, '#bfdbfe', '#eff6ff', 'Videomakers', '🎬', false, prevTotals.video, prevTotals.videoTotalNoMes);
+    }
+    function sectionResumoSuporte() {
+        return sectionResumoExec(suporteReport, totalSuporteEntregas, suporteTotalNoMes, supColor, '#bbf7d0', '#ecfdf5', 'Suporte', '🛠️', true, prevTotals.suporte, prevTotals.suporteTotalNoMes);
+    }
+    function sectionResumoTI() {
+        return sectionResumoExec(tiReport, totalTiEntregas, tiTotalNoMes, tiColor, '#fde68a', '#fffbeb', 'Inovação/TI', '💡', true, prevTotals.ti, prevTotals.tiTotalNoMes);
+    }
+    function sectionResumoSocial() {
+        const mediaDemandas = smReport.length > 0 ? (totalDemandas / smReport.length).toFixed(1) : '0';
+        const pctGeralPrev = prevTotals.smTotalDemandas > 0 ? Math.round((prevTotals.smTotalAprovadas / prevTotals.smTotalDemandas) * 100) : 0;
+        const todasTotalEnviadas = smReport.reduce((acc, r) => acc.concat(r.totalEnviadas), []);
+        const statusEntries = breakdownCounts(todasTotalEnviadas, d => d.status);
+        const destinoEntries = breakdownCounts(todasTotalEnviadas, d => {
+            if (!d.pipeline || !d.pipeline.length) return 'Outros';
+            const depts = [...new Set(d.pipeline.map(s => normalizeDept(s.dept)).filter(Boolean))];
+            return depts.length ? depts.join(' + ') : 'Outros';
+        });
+        return `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:24px;">
+            ${statCard(smColor, totalDemandas, 'Demandas Enviadas', trendBadge(totalDemandas, prevTotals.smTotalDemandas))}
+            ${statCard(smColor, `${totalAprovadas}<span style="font-size:16px; color:#9ca3af;">/${totalDemandas}</span>`, 'Demandas Aprov./Total', trendBadge(totalAprovadas, prevTotals.smTotalAprovadas))}
+            ${statCard(indigo, `${pctGeral}%`, 'Taxa de Aprovação', trendBadgePts(pctGeral, pctGeralPrev))}
+            ${statCard(smColor, mediaDemandas, 'Média de Demandas por Social Media')}
+        </div>
+        ${reqTable('Social Medias', '📱', smReport, smColor)}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px;">
+            ${breakdownTable('Demandas por Status', '📶', statusEntries, smColor, 'Status')}
+            ${breakdownTable('Demandas por Departamento', '🏷️', destinoEntries, smColor, 'Departamento')}
+        </div>`;
+    }
+
     // ---- Monta o HTML conforme o tipo ----
     let bodyContent = '';
     let titulo = '';
@@ -8433,27 +8612,47 @@ window.exportarRelatorio = function(tipo) {
         titulo = '🎨 Relatório de Designers';
         subtitulo = 'Entregas aprovadas por designer no mês — inclui quem enviou cada demanda (Social Media)';
         accentColor = dColor;
-        bodyContent = sectionDesigners();
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${dColor}20;">📈 Resumo Executivo</h2>
+            ${sectionResumoDesigners()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${dColor}30;">🎨 Designers — Entregas Detalhadas</h2>
+            ${sectionDesigners()}`;
     } else if (tipo === 'videomakers') {
         titulo = '🎬 Relatório de Videomakers';
         subtitulo = 'Entregas aprovadas por videomaker no mês — inclui quem enviou cada demanda (Social Media)';
         accentColor = vmColor;
-        bodyContent = sectionVideomakers();
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${vmColor}20;">📈 Resumo Executivo</h2>
+            ${sectionResumoVideomakers()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${vmColor}30;">🎬 Videomakers — Entregas Detalhadas</h2>
+            ${sectionVideomakers()}`;
     } else if (tipo === 'suporte') {
         titulo = '🛠️ Relatório de Suporte';
         subtitulo = 'Entregas aprovadas por membro de Suporte no mês — inclui quem enviou cada demanda';
         accentColor = supColor;
-        bodyContent = sectionSuporte();
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${supColor}20;">📈 Resumo Executivo</h2>
+            ${sectionResumoSuporte()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${supColor}30;">🛠️ Suporte — Entregas Detalhadas</h2>
+            ${sectionSuporte()}`;
     } else if (tipo === 'ti') {
         titulo = '💡 Relatório de Inovação/TI';
         subtitulo = 'Entregas aprovadas por membro de Inovação/TI no mês — inclui quem enviou cada demanda';
         accentColor = tiColor;
-        bodyContent = sectionTI();
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${tiColor}20;">📈 Resumo Executivo</h2>
+            ${sectionResumoTI()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${tiColor}30;">💡 Inovação/TI — Entregas Detalhadas</h2>
+            ${sectionTI()}`;
     } else if (tipo === 'social') {
         titulo = '📱 Relatório de Social Medias';
         subtitulo = 'Demandas enviadas e aprovadas por cada Social Media no mês';
         accentColor = smColor;
-        bodyContent = sectionSocialMedias();
+        bodyContent = `
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid ${smColor}20;">📈 Resumo Executivo</h2>
+            ${sectionResumoSocial()}
+            <h2 style="font-size:16px; font-weight:700; color:#1e1b4b; margin:32px 0 16px; padding-bottom:8px; border-bottom:2px solid ${smColor}30;">📱 Social Medias — Demandas Detalhadas</h2>
+            ${sectionSocialMedias()}`;
     } else {
         titulo = '📊 Relatório Geral Mensal';
         subtitulo = 'Visão completa: todos os departamentos e métricas do mês';
