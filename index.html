@@ -1939,6 +1939,10 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="form-group checkbox-group" id="groupTrabalhoEquipe" style="display:none;">
+                            <input type="checkbox" id="cTrabalhoEquipe">
+                            <label for="cTrabalhoEquipe">Trabalho em equipe — todos os responsáveis selecionados participam, e a entrega feita por um vale para todos</label>
+                        </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label>TIPO DE PROJETO <span class="req">*</span></label>
@@ -2811,7 +2815,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="login-fix.js"></script>
-    <script src="app_rev.js?v=5.52"></script>
+    <script src="app_rev.js?v=5.55"></script>
     <!-- MODAL: USER ANALYTICS DETAILS -->
     <div class="modal-overlay" id="modalUserAnalytics">
         <div class="modal modal-xl" style="max-width: 800px;">
@@ -3259,7 +3263,15 @@
             function renderTags() {
                 tagsContainer.innerHTML = '';
                 const selectedOptions = Array.from(nativeSelect.options).filter(opt => opt.selected && opt.value !== "");
-                
+
+                // "Trabalho em equipe" só faz sentido com mais de um responsável
+                const groupEquipe = document.getElementById('groupTrabalhoEquipe');
+                if (groupEquipe) {
+                    const showEquipe = selectedOptions.length > 1;
+                    groupEquipe.style.display = showEquipe ? '' : 'none';
+                    if (!showEquipe) document.getElementById('cTrabalhoEquipe').checked = false;
+                }
+
                 if (selectedOptions.length === 0) {
                     tagsContainer.innerHTML = '<span class="custom-select-placeholder">Selecione um ou mais responsáveis...</span>';
                     return;

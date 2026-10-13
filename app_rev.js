@@ -4655,6 +4655,13 @@ function notifyExpressSocialMedias(task, message) {
 async function handleCreate(e) {
     if (window.isSubmittingCreate) return;
     window.isSubmittingCreate = true;
+    // Feedback visual enquanto a demanda é gravada no servidor
+    const btnCriar = document.querySelector('#formCreate button[type="submit"]');
+    const btnCriarTexto = btnCriar ? btnCriar.innerHTML : '';
+    if (btnCriar) {
+        btnCriar.disabled = true;
+        btnCriar.innerHTML = 'Criando...';
+    }
     try {
         e.preventDefault();
 
@@ -4863,7 +4870,6 @@ async function handleCreate(e) {
                     toast('Erro ao enviar ' + file.name, 'error');
                 }
             }
-            if (btnSubmit) btnSubmit.disabled = false;
         }
 
         // LOOPS OVER SELECTED RESPONSibles TO CREATE ONE DEMAND FOR EACH
@@ -4930,6 +4936,8 @@ async function handleCreate(e) {
             let pipeline = [];
             
             const isShared = selectedResponsaveis.length > 1;
+            // Trabalho em equipe: todos os responsáveis permanecem na demanda (ninguém assume sozinho)
+            const isEquipe = isShared && !!document.getElementById('cTrabalhoEquipe')?.checked;
 
             if (dependsOnDesigner && tipoProjeto === 'Design Gráfico') {
                 // SEQUENTIAL WORKFLOW: Design -> Video
@@ -4953,6 +4961,7 @@ async function handleCreate(e) {
                         dept: 'Designer',
                         userId: '',
                         userIds: [...selectedResponsaveis],
+                        ...(isEquipe ? { equipe: true } : {}),
                         status: 'A fazer'
                     });
                 } else {
@@ -4998,6 +5007,7 @@ async function handleCreate(e) {
                         dept: targetDept,
                         userId: '',
                         userIds: [...selectedResponsaveis],
+                        ...(isEquipe ? { equipe: true } : {}),
                         status: 'A fazer'
                     });
                 } else {
@@ -5092,7 +5102,7 @@ async function handleCreate(e) {
             if (repeticaoIndex === 0) {
                 if (isShared) {
                     selectedResponsaveis.forEach(uid => {
-                        notifyUser(uid, '🚀', `Nova demanda compartilhada: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
+                        notifyUser(uid, '🚀', `Nova demanda ${isEquipe ? 'em equipe' : 'compartilhada'}: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
                     });
                 } else if (task.pipeline[0]?.userId) {
                     notifyUser(task.pipeline[0].userId, '🚀', `Nova demanda: ${task.nome}${completionDates.length > 1 ? ` (+${completionDates.length-1} repetições)` : ''}`);
@@ -5112,6 +5122,10 @@ async function handleCreate(e) {
         alert(`Erro ao criar demanda: ${err.message}\n\nVerifique o console (F12) para mais detalhes.`);
     } finally {
         window.isSubmittingCreate = false;
+        if (btnCriar) {
+            btnCriar.disabled = false;
+            btnCriar.innerHTML = btnCriarTexto;
+        }
     }
 }
 
@@ -5240,7 +5254,7 @@ function openDetail(id) {
         contentHtml = expressBlock + `
             <div class="detail-section">
                 <h4>Briefing</h4>
-                <p>${t.briefing || t.descricaoCartao || '-'}</p>
+                <p style="white-space: pre-wrap; overflow-wrap: anywhere;">${t.briefing || t.descricaoCartao || '-'}</p>
             </div>
             <div class="detail-section">
                 <h4>Referências</h4>
@@ -5695,7 +5709,7 @@ function openReviewModal(id) {
         }
     }
 
-    document.getElementById('reviewInfo').innerHTML = `<div class="detail-item full" style="margin-bottom:16px;"><label>Demanda</label><span><strong>${t.id}</strong> - ${t.nome}</span></div> <div class="detail-grid"><div class="detail-item"><label>Etapa</label><span>${s.dept}</span></div><div class="detail-item"><label>Responsável</label><span>${u?.nome || '?'}</span></div></div>${entregaVisual}`;
+    document.getElementById('reviewInfo').innerHTML = `<div class="detail-item full" style="margin-bottom:16px;"><label>Demanda</label><span><strong>${t.id}</strong> - ${t.nome}</span></div> <div class="detail-grid"><div class="detail-item"><label>Etapa</label><span>${s.dept}</span></div><div class="detail-item"><label>Responsável</label><span>${u?.nome || (s.userIds ? s.userIds.map(uid => USERS[uid]?.nome).filter(Boolean).join(', ') : '') || '?'}</span></div></div>${entregaVisual}`;
     document.getElementById('reviewFeedback').value = '';
     document.getElementById('modalReview').classList.add('active');
 }
@@ -6421,6 +6435,8 @@ function notifyCurrentResponsible(task, icon, text) {
     const stage = task.pipeline[task.currentStage];
     if (stage?.userId) {
         addNotification(icon, text, stage.userId);
+    } else if (stage?.equipe && stage.userIds) {
+        stage.userIds.forEach(uid => addNotification(icon, text, uid));
     }
 }
 
@@ -7498,6 +7514,13 @@ function renderWorkload() {
         if (currentStage && currentStage.userId && userWorkloads[currentStage.userId]) {
             userWorkloads[currentStage.userId].tasks.push(t);
             userWorkloads[currentStage.userId].count++;
+        } else if (currentStage && currentStage.equipe && currentStage.userIds) {
+            currentStage.userIds.forEach(uid => {
+                if (userWorkloads[uid]) {
+                    userWorkloads[uid].tasks.push(t);
+                    userWorkloads[uid].count++;
+                }
+            });
         }
     });
 
@@ -8908,6 +8931,8 @@ function formatTimer(ms) {
 function claimTaskIfShared(task, userId) {
     if (!task || !task.pipeline) return;
     const stage = task.pipeline[task.currentStage];
+    // Trabalho em equipe: ninguém assume sozinho, a demanda segue com todos os responsáveis
+    if (stage && stage.equipe) return;
     if (stage && !stage.userId && stage.userIds && stage.userIds.length > 0) {
         const claimants = stage.userIds;
         stage.userId = userId;
