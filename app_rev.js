@@ -10217,6 +10217,31 @@ let suporteDashboardData = {
     ]
 };
 
+// Duas páginas dentro do Suporte: 'atendimento' (original) e 'disparos' (Disparos de WhatsApp).
+// suporteDashboardData sempre aponta para os dados da página ativa.
+const suporteDataByView = {
+    atendimento: suporteDashboardData,
+    disparos: { canais: [], funil: [] }
+};
+window.currentSuporteView = localStorage.getItem('sgta-suporte-view') === 'disparos' ? 'disparos' : 'atendimento';
+suporteDashboardData = suporteDataByView[window.currentSuporteView];
+
+function getSuporteDocRef(view = window.currentSuporteView) {
+    return window.doc(window.firebaseDb, 'config', view === 'disparos' ? 'suporteDisparos' : 'suporteDashboard');
+}
+
+function getSuporteLSKey(view = window.currentSuporteView) {
+    return view === 'disparos' ? 'sgta-suporte-disparos' : 'sgta-suporte-dashboard';
+}
+
+window.mudarSuporteView = function(view) {
+    if (view !== 'atendimento' && view !== 'disparos') return;
+    window.currentSuporteView = view;
+    suporteDashboardData = suporteDataByView[view];
+    localStorage.setItem('sgta-suporte-view', view);
+    renderSuporteDashboard(true);
+}
+
 window.currentSuporteUser = 'geral';
 window.currentSuporteDate = null; // null = hoje
 
@@ -10282,26 +10307,29 @@ function initSuporteRealtimeListener() {
     if (_suporteSnapshotActive || !window.firebaseDb || !window.onSnapshot) return;
     _suporteSnapshotActive = true;
     console.log('🔄 Suporte: Listener em tempo real ATIVADO');
-    
-    try {
-        window.onSnapshot(window.doc(window.firebaseDb, 'config', 'suporteDashboard'), (docSnap) => {
-            if (docSnap.exists()) {
-                console.log('📡 Suporte: Dados recebidos do Firebase em tempo real', new Date().toLocaleTimeString());
-                applySuporteData(docSnap.data());
-                // Re-render if user is currently viewing the Suporte dashboard
-                if (currentDept === 'Suporte') {
-                    renderSuporteDashboard(false);
+
+    Object.keys(suporteDataByView).forEach(view => {
+        try {
+            window.onSnapshot(getSuporteDocRef(view), (docSnap) => {
+                if (docSnap.exists()) {
+                    console.log('📡 Suporte (' + view + '): Dados recebidos do Firebase em tempo real', new Date().toLocaleTimeString());
+                    applySuporteData(docSnap.data(), view);
+                    // Re-render if user is currently viewing this Suporte page
+                    if (currentDept === 'Suporte' && window.currentSuporteView === view) {
+                        renderSuporteDashboard(false);
+                    }
                 }
-            }
-        }, (error) => {
-            console.error("❌ Erro no listener em tempo real do Suporte:", error);
-        });
-    } catch(e) {
-        console.error("❌ Erro ao configurar listener do Suporte:", e);
-    }
+            }, (error) => {
+                console.error("❌ Erro no listener em tempo real do Suporte:", error);
+            });
+        } catch(e) {
+            console.error("❌ Erro ao configurar listener do Suporte:", e);
+        }
+    });
 }
 
-function applySuporteData(data) {
+function applySuporteData(data, view = window.currentSuporteView) {
+    const target = suporteDataByView[view];
     if (data.canais) {
         let loadedCanais = typeof data.canais === 'string' ? JSON.parse(data.canais) : data.canais;
         if (!Array.isArray(loadedCanais)) loadedCanais = Object.values(loadedCanais);
@@ -10314,7 +10342,7 @@ function applySuporteData(data) {
             migrateSuporteItem(l);
         });
         
-        suporteDashboardData.canais = loadedCanais;
+        target.canais = loadedCanais;
     }
     if (data.funil) {
         let loadedFunil = typeof data.funil === 'string' ? JSON.parse(data.funil) : data.funil;
@@ -10328,40 +10356,44 @@ function applySuporteData(data) {
             migrateSuporteItem(l);
         });
         
-        suporteDashboardData.funil = loadedFunil;
+        target.funil = loadedFunil;
     }
     // Also update localStorage as backup
-    localStorage.setItem('sgta-suporte-dashboard', JSON.stringify(suporteDashboardData));
+    localStorage.setItem(getSuporteLSKey(view), JSON.stringify(target));
 }
 
 async function loadSuporteDashboard() {
     // Start the real-time listener if not yet active
     initSuporteRealtimeListener();
-    
+    // Fixa a página no início: se o usuário trocar de aba antes do getDoc voltar,
+    // os dados não podem cair na página errada.
+    const view = window.currentSuporteView;
+
     try {
-        const docSnap = await window.getDoc(window.doc(window.firebaseDb, 'config', 'suporteDashboard'));
+        const docSnap = await window.getDoc(getSuporteDocRef(view));
         if (docSnap.exists()) {
-            applySuporteData(docSnap.data());
+            applySuporteData(docSnap.data(), view);
         } else {
-            loadSuporteDashboardFallback();
+            loadSuporteDashboardFallback(view);
         }
     } catch (e) {
-        loadSuporteDashboardFallback();
+        loadSuporteDashboardFallback(view);
     }
 }
 
-function loadSuporteDashboardFallback() {
-    const local = localStorage.getItem('sgta-suporte-dashboard');
+function loadSuporteDashboardFallback(view = window.currentSuporteView) {
+    const target = suporteDataByView[view];
+    const local = localStorage.getItem(getSuporteLSKey(view));
     if (local) {
         const data = JSON.parse(local);
         if (data.canais) {
             data.canais.forEach(l => migrateSuporteItem(l));
             // Replace the entire canais list with loaded data to preserve all fields including history
-            suporteDashboardData.canais = data.canais;
+            target.canais = data.canais;
         }
         if (data.funil) {
             data.funil.forEach(migrateSuporteItem);
-            suporteDashboardData.funil = data.funil;
+            target.funil = data.funil;
         }
     }
 }
@@ -10369,9 +10401,9 @@ function loadSuporteDashboardFallback() {
 async function saveSuporteDashboard() {
     // Serialize to clean JSON to avoid Firestore issues with complex objects
     const cleanData = JSON.parse(JSON.stringify(suporteDashboardData));
-    localStorage.setItem('sgta-suporte-dashboard', JSON.stringify(cleanData));
+    localStorage.setItem(getSuporteLSKey(), JSON.stringify(cleanData));
     try {
-        await window.setDoc(window.doc(window.firebaseDb, 'config', 'suporteDashboard'), cleanData);
+        await window.setDoc(getSuporteDocRef(), cleanData);
         console.log('✅ Suporte Dashboard salvo no Firebase com sucesso');
     } catch(e) {
         console.error('❌ Erro ao salvar Suporte no Firebase:', e);
@@ -10386,7 +10418,7 @@ window.mudarSuporteUser = function(userId) {
 
 function saveSuporteLocalStorage() {
     const cleanData = JSON.parse(JSON.stringify(suporteDashboardData));
-    localStorage.setItem('sgta-suporte-dashboard', JSON.stringify(cleanData));
+    localStorage.setItem(getSuporteLSKey(), JSON.stringify(cleanData));
 }
 
 window.mudarDataSuporte = function(dateStr) {
@@ -10395,7 +10427,7 @@ window.mudarDataSuporte = function(dateStr) {
 }
 
 window.atualizarValorSuporte = async function(tipo, id, delta) {
-    const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+    const docRef = getSuporteDocRef();
     const dateKey = window.currentSuporteDate || window.getSuporteDateKey();
     const uId = window.currentSuporteUser;
     
@@ -10450,7 +10482,7 @@ window.setValorManualmenteSuporte = async function(tipo, id, valorAtual) {
     const val = parseInt(input, 10);
     
     if (!isNaN(val) && val >= 0) {
-        const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+        const docRef = getSuporteDocRef();
         const dateKey = window.currentSuporteDate || window.getSuporteDateKey();
         const uId = window.currentSuporteUser;
         
@@ -10499,14 +10531,14 @@ window.sincronizarDadosSuporte = async function() {
     const btn = document.getElementById('btnSyncSuporte');
     if (btn) btn.textContent = 'Sincronizando...';
     try {
-        const localDataStr = localStorage.getItem('sgta-suporte-dashboard');
+        const localDataStr = localStorage.getItem(getSuporteLSKey());
         if (!localDataStr) {
             alert('Sem dados locais para sincronizar.');
             if (btn) btn.textContent = 'Sincronizar Dados Locais';
             return;
         }
         const localData = JSON.parse(localDataStr);
-        const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+        const docRef = getSuporteDocRef();
         
         await window.runTransaction(window.firebaseDb, async (transaction) => {
             const docSnap = await transaction.get(docRef);
@@ -10575,7 +10607,7 @@ window.renomearCanalAtendimento = async function(id) {
     renderSuporteDashboard(false); 
     
     try {
-        const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+        const docRef = getSuporteDocRef();
         await window.runTransaction(window.firebaseDb, async (transaction) => {
             const docSnap = await transaction.get(docRef);
             if (!docSnap.exists()) throw "Doc não existe!";
@@ -10607,7 +10639,7 @@ window.renomearCanalAtendimento = async function(id) {
 window.forcarSincronizacaoMestra = async function() {
     try {
         const cleanData = JSON.parse(JSON.stringify(suporteDashboardData));
-        const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+        const docRef = getSuporteDocRef();
         await window.updateDoc(docRef, cleanData);
         alert('Nuvem atualizada com sucesso! Peça para as meninas darem F5 agora.');
     } catch(e) {
@@ -10644,7 +10676,7 @@ window.renomearCategoriaFunil = async function(id) {
     renderSuporteDashboard(false);
     
     try {
-        const docRef = window.doc(window.firebaseDb, 'config', 'suporteDashboard');
+        const docRef = getSuporteDocRef();
         await window.runTransaction(window.firebaseDb, async (transaction) => {
             const docSnap = await transaction.get(docRef);
             if (!docSnap.exists()) throw "Doc não existe!";
@@ -10786,7 +10818,9 @@ async function renderSuporteDashboard(fetchFull = true) {
     }
 
     let isGeral = window.currentSuporteUser === 'geral';
-    
+    const isDisparos = window.currentSuporteView === 'disparos';
+    const suporteTabStyle = (active) => `border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; ${active ? 'background: linear-gradient(135deg, var(--primary, #6366f1), #8b5cf6); color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.25);' : 'background: transparent; color: var(--text-muted, #a1a1aa);'}`;
+
     let totalCanais = 0;
     let canaisHtml = suporteDashboardData.canais.map(c => {
         let val = getSuporteVal(c);
@@ -10836,7 +10870,13 @@ async function renderSuporteDashboard(fetchFull = true) {
 
     boardTable.innerHTML = `
         <div style="padding: 24px; animation: fadeInSuporte 0.4s ease-out; width: 100%;">
-            
+
+            <!-- ABAS DO SUPORTE -->
+            <div style="display: inline-flex; gap: 6px; padding: 6px; margin-bottom: 20px; background: var(--surface-light, rgba(255,255,255,0.03)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); border-radius: 14px;">
+                <button onclick="window.mudarSuporteView('atendimento')" style="${suporteTabStyle(!isDisparos)}">📞 Atendimento</button>
+                <button onclick="window.mudarSuporteView('disparos')" style="${suporteTabStyle(isDisparos)}">📲 Disparos de WhatsApp</button>
+            </div>
+
             <!-- TOOLBAR PERSONALIZADA DO SUPORTE -->
             <div style="background: var(--surface-light, rgba(255,255,255,0.03)); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); padding: 18px 24px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
                 <div style="display: flex; align-items: center; gap: 16px;">
@@ -10929,7 +10969,7 @@ window.abrirPainelRelatoriosSuporte = function() {
     <div id="suporteModalRelatoriosOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center; opacity: 1;">
         <div style="background: var(--surface, #1e1e24); border: 1px solid var(--border-color, rgba(255,255,255,0.1)); padding: 40px; border-radius: 16px; width: 1000px; max-width: 95vw; height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h2 style="margin: 0; color: var(--text-color, #f0f0f5); font-size: 24px; display:flex; align-items:center; gap:10px;"><span>📊</span> Relatórios Gerenciais de Suporte</h2>
+                <h2 style="margin: 0; color: var(--text-color, #f0f0f5); font-size: 24px; display:flex; align-items:center; gap:10px;"><span>📊</span> ${window.currentSuporteView === 'disparos' ? 'Relatórios de Disparos de WhatsApp' : 'Relatórios Gerenciais de Suporte'}</h2>
                 <button onclick="document.getElementById('suporteModalRelatoriosOverlay').remove()" style="background: rgba(239,68,68,0.1); border: none; color: #ef4444; width: 36px; height: 36px; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; transition: background 0.2s;">&times;</button>
             </div>
             
@@ -11062,6 +11102,9 @@ window.gerarRelatorioSuporte = async function() {
         const month = parseInt(monthStr, 10); 
         const monthNames = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         const monthName = monthNames[month] || monthStr;
+        const isDisparos = window.currentSuporteView === 'disparos';
+        const termo = isDisparos ? 'disparos' : 'atendimentos';
+        const Termo = isDisparos ? 'Disparos' : 'Atendimentos';
         
         const daysCount = new Date(year, month, 0).getDate();
         const allDaysInMonth = Array.from({length: daysCount}, (_, i) => {
@@ -11192,13 +11235,13 @@ window.gerarRelatorioSuporte = async function() {
             weeksHtml += '<div style="margin-bottom: 18px; padding: 16px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">' +
                 '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
                 '<strong style="font-size:15px; color:#1e293b;">Semana ' + wk + ' (' + startDate + ' a ' + endDate + ')</strong>' +
-                '<span style="background:#1e40af; color:white; padding:4px 12px; border-radius:6px; font-weight:700; font-size:14px;">' + w.total + ' atendimentos</span>' +
+                '<span style="background:#1e40af; color:white; padding:4px 12px; border-radius:6px; font-weight:700; font-size:14px;">' + w.total + ' ' + termo + '</span>' +
                 '</div>' +
-                (bestDay.total > 0 ? '<p style="margin:4px 0; font-size:13px; color:#64748b;">Pico da semana: dia <strong>' + String(bestDay.day).padStart(2,'0') + '/' + monthStr + '</strong> com ' + bestDay.total + ' atendimentos.</p>' : '') +
+                (bestDay.total > 0 ? '<p style="margin:4px 0; font-size:13px; color:#64748b;">Pico da semana: dia <strong>' + String(bestDay.day).padStart(2,'0') + '/' + monthStr + '</strong> com ' + bestDay.total + ' ' + termo + '.</p>' : '') +
                 (catBreakdown ? '<div style="margin-top:8px;">' + catBreakdown + '</div>' : '') +
                 '</div>';
         });
-        if (!weeksHtml) weeksHtml = '<p style="color:#666; font-style:italic;">Nenhum atendimento registrado neste mês.</p>';
+        if (!weeksHtml) weeksHtml = '<p style="color:#666; font-style:italic;">Nenhum ' + (isDisparos ? 'disparo' : 'atendimento') + ' registrado neste mês.</p>';
 
         // Tabela individual de pessoas
         let pessoasHtml = '';
@@ -11280,7 +11323,7 @@ window.gerarRelatorioSuporte = async function() {
             });
 
             pessoasHtml = '<div style="margin-top:40px;">' +
-                '<h2 style="color:#1e40af; font-size:20px; border-bottom:2px solid #5b71ba; padding-bottom:8px; margin-bottom:20px;">👥 Atendimentos Individuais por Pessoa</h2>' +
+                '<h2 style="color:#1e40af; font-size:20px; border-bottom:2px solid #5b71ba; padding-bottom:8px; margin-bottom:20px;">👥 ' + Termo + ' Individuais por Pessoa</h2>' +
                 
                 // Resumo geral
                 '<div style="margin-bottom:30px;">' +
@@ -11300,7 +11343,7 @@ window.gerarRelatorioSuporte = async function() {
                 '</tr></tbody></table></div></div>' +
                 
                 // Tabela por Canais
-                gerarTabelaPessoas('Por Canal de Atendimento', '📞', suporteDashboardData.canais || []) +
+                gerarTabelaPessoas(isDisparos ? 'Por Canal de Disparo' : 'Por Canal de Atendimento', '📞', suporteDashboardData.canais || []) +
                 
                 '</div>';
             }
@@ -11316,7 +11359,7 @@ window.gerarRelatorioSuporte = async function() {
         const content = `
         <div style="background: white; padding: 40px; border-radius: 8px; color: #333; font-family: Arial, sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
             <h1 style="color: #1e40af; font-size: 26px; border-bottom: 2px solid #5b71ba; padding-bottom: 10px; margin-bottom: 6px;">
-                Análise de Atendimento Virtual - ${monthName} ${yearStr}
+                ${isDisparos ? 'Análise de Disparos de WhatsApp' : 'Análise de Atendimento Virtual'} - ${monthName} ${yearStr}
             </h1>
             <p style="color:#94a3b8; font-size:13px; margin-bottom:30px;">Relatório gerado automaticamente pelo Radar PNSA em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}.</p>
 
@@ -11345,11 +11388,11 @@ window.gerarRelatorioSuporte = async function() {
                 <h2 style="color:#1e40af; font-size:20px; border-bottom:2px solid #5b71ba; padding-bottom:8px; margin-bottom:16px;">📋 Destaques Gerais</h2>
                 <ul style="margin-left: 20px; margin-bottom: 20px;">
                     <li>Total do mês: <strong>${superTotal}</strong> interações registradas ao longo de <strong>${diasAtivos}</strong> dias ativos.</li>
-                    <li>Categoria com maior demanda: <strong>${topCatName}</strong> com ${topCatVal} atendimentos (${superTotal > 0 ? ((topCatVal / superTotal) * 100).toFixed(1) : 0}% do total).</li>
+                    <li>Categoria com maior demanda: <strong>${topCatName}</strong> com ${topCatVal} ${termo} (${superTotal > 0 ? ((topCatVal / superTotal) * 100).toFixed(1) : 0}% do total).</li>
                     <li>Maior pico pontual: <strong>${maxDayStr ? maxDayStr.split('-').reverse().join('/') : 'N/A'}</strong> com ${Math.max(0, maxDayVal)} interações totais neste dia.</li>
-                    <li>Média diária (dias ativos): <strong>${mediaDiaria}</strong> atendimentos/dia.</li>
+                    <li>Média diária (dias ativos): <strong>${mediaDiaria}</strong> ${termo}/dia.</li>
                     <li>Dia da semana mais movimentado: <strong>${diaMaisMovimentado}</strong>.</li>
-                    <li>Equipe atuante: <strong>${allUserIds.size}</strong> colaboradores registraram atendimentos este mês.</li>
+                    <li>Equipe atuante: <strong>${allUserIds.size}</strong> colaboradores registraram ${termo} este mês.</li>
                 </ul>
             </div>
 
@@ -11370,7 +11413,7 @@ window.gerarRelatorioSuporte = async function() {
             
             <!-- GRÁFICOS -->
             <div style="margin-top:40px;">
-                <h2 style="color:#1e40af; font-size:20px; border-bottom:2px solid #5b71ba; padding-bottom:8px; margin-bottom:20px;">📈 Atendimentos por Dia (Canais)</h2>
+                <h2 style="color:#1e40af; font-size:20px; border-bottom:2px solid #5b71ba; padding-bottom:8px; margin-bottom:20px;">📈 ${Termo} por Dia (Canais)</h2>
                 <div style="position: relative; height: 350px; width: 100%; margin-bottom: 50px;">
                     <canvas id="suporteReportChartCanais"></canvas>
                 </div>
